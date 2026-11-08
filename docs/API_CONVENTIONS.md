@@ -187,9 +187,36 @@ A poll is a group decision aid, not an automatic itinerary change. The group sti
 | POST | `/api/v1/trips/{tripId}/expenses` | Trip member |
 | DELETE | `/api/v1/trips/{tripId}/expenses/{expenseId}` | Expense creator or trip owner |
 
-A member can record a trip expense, its category, amount, currency, date and the member who paid. The payer must be included in the selected split participants, and every participant must be a current trip member. The API calculates an equal share for each selected participant. Amounts are stored to four decimal places; any fractional remainder is assigned deterministically to the first participant by user ID so that shares add up exactly to the recorded amount.
+A member can record a trip expense, its category, amount, currency, date and the member who paid. The payer must be included in the selected split participants, and every participant must be a current trip member. Amounts and shares are stored to four decimal places.
 
-Expense totals and shares retain their original currency. They are not converted or combined across currencies. This stage records expense shares only; it does not yet calculate net trip balances, reimbursements, settlements, receipts or custom split ratios.
+The request accepts `splitType` as `equal` (default), `percentage` or `exact`. Equal splitting divides the total evenly. Percentage splitting requires one positive percentage per participant and a total of exactly 100. Exact splitting requires one positive amount per participant and the rounded amounts must equal the expense total. For percentage rounding, any fractional remainder is assigned deterministically to the first participant by user ID. The API rejects custom shares that do not match the selected participant IDs exactly or that produce a zero/negative share.
+
+Example percentage split:
+
+```json
+{
+  "title": "Group dinner",
+  "category": "food",
+  "notes": null,
+  "amount": 120,
+  "currencyCode": "USD",
+  "expenseDate": "2027-07-12",
+  "paidByUserId": "00000000-0000-0000-0000-000000000001",
+  "participantUserIds": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002"
+  ],
+  "splitType": "percentage",
+  "customShares": [
+    { "userId": "00000000-0000-0000-0000-000000000001", "value": 60 },
+    { "userId": "00000000-0000-0000-0000-000000000002", "value": 40 }
+  ]
+}
+```
+
+For exact splitting, `value` is the amount in the expense currency instead of a percentage. Equal splitting does not require `customShares`.
+
+Expense totals and shares retain their original currency. They are not converted or combined across currencies. Settlement and repayment calculations use the saved per-member shares, regardless of the split method used.
 
 ## Debt settlement suggestions
 
