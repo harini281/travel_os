@@ -127,8 +127,6 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Options).WithOne().HasForeignKey(x => x.PollId)
                 .OnDelete(DeleteBehavior.Cascade);
-            entity.HasMany(x => x.Votes).WithOne().HasForeignKey(x => x.PollId)
-                .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.TripId, x.CreatedAt });
         });
 
@@ -142,7 +140,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
         modelBuilder.Entity<GroupPollVote>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.HasOne<GroupPoll>().WithMany().HasForeignKey(x => x.PollId)
+            entity.HasOne<GroupPoll>().WithMany(x => x.Votes).HasForeignKey(x => x.PollId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<GroupPollOption>().WithMany().HasForeignKey(x => x.OptionId)
                 .OnDelete(DeleteBehavior.Cascade);
