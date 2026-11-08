@@ -1,4 +1,6 @@
 using System.Security.Claims;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
@@ -20,6 +22,9 @@ public static class ItineraryEndpoints
         group.MapPut("/activities/{activityId:guid}", UpdateActivityAsync).WithName("UpdateItineraryActivity");
         group.MapDelete("/activities/{activityId:guid}", DeleteActivityAsync).WithName("DeleteItineraryActivity");
         group.MapPost("/approve", ApproveAsync).WithName("ApproveItinerary");
+        group.MapPost("/drafts", GenerateDraftAsync).WithName("GenerateAiItineraryDraft");
+        group.MapGet("/drafts/{draftId:guid}", GetDraftAsync).WithName("GetAiItineraryDraft");
+        group.MapPost("/drafts/{draftId:guid}/apply", ApplyDraftAsync).WithName("ApplyAiItineraryDraft");
 
         return endpoints;
     }
@@ -164,8 +169,10 @@ public static class ItineraryEndpoints
         var trip = await FindTripForOwnerAsync(tripId, userId, db, ct);
         if (trip is null) return Results.NotFound();
 
-        var itinerary = await db.Itineraries.FirstOrDefaultAsync(
-            x => x.TripId == tripId, ct);
+        var itinerary = await db.Itineraries
+            .Where(x => x.TripId == tripId)
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefaultAsync(ct);
         if (itinerary is null) return Results.NotFound();
         if (itinerary.ApprovedAt is not null)
             return Results.Conflict(new { message = "Approved itineraries are read-only." });
@@ -354,6 +361,7 @@ public static class ItineraryEndpoints
         var itinerary = await db.Itineraries
             .Include(x => x.Days)
             .ThenInclude(x => x.Activities)
+            .OrderByDescending(x => x.Version)
             .FirstOrDefaultAsync(x => x.TripId == tripId, ct);
         if (itinerary is null) return Results.NotFound();
         if (itinerary.ApprovedAt is not null)
@@ -370,4 +378,261 @@ public static class ItineraryEndpoints
         await db.SaveChangesAsync(ct);
         return Results.Ok(ToResponse(itinerary));
     }
+
+    private static string? ValidateDraftPayload(AiDraftItinerary payload, Trip trip)
+    {
+        if (string.IsNullOrWhiteSpace(payload.Title) || payload.Title.Length > 160)
+            return "The AI provider returned an invalid itinerary title.";
+        if (string.IsNullOrWhiteSpace(payload.Summary) || payload.Summary.Length > 1000)
+            return "The AI provider returned an invalid itinerary summary.";
+
+        var expectedDays = trip.EndDate.DayNumber - trip.StartDate.DayNumber + 1;
+        if (payload.Days.Count != expectedDays)
+            return "The AI provider returned an incomplete set of trip days.";
+
+        var days = payload.Days.OrderBy(day => day.DayNumber).ToArray();
+        for (var index = 0; index < days.Length; index++)
+        {
+            var day = days[index];
+            if (day.DayNumber != index + 1 || day.Date != trip.StartDate.AddDays(index))
+                return "The AI provider returned inconsistent itinerary dates.";
+            if (day.Activities.Count is < 1 or > 8)
+                return "Each generated day must contain between one and eight activities.";
+
+            foreach (var activity in day.Activities)
+            {
+                if (string.IsNullOrWhiteSpace(activity.Title) || activity.Title.Length > 180)
+                    return "The AI provider returned an invalid activity title.";
+                if (activity.Description?.Length > 2000 || activity.PlaceName?.Length > 200)
+                    return "The AI provider returned activity text that is too long.";
+                if (activity.Latitude.HasValue != activity.Longitude.HasValue ||
+                    activity.Latitude is < -90 or > 90 ||
+                    activity.Longitude is < -180 or > 180)
+                    return "The AI provider returned invalid coordinates.";
+                if (activity.DurationMinutes is <= 0 || activity.EstimatedCost is < 0 || activity.SortOrder < 0)
+                    return "The AI provider returned invalid activity duration, cost or order.";
+                if (activity.CurrencyCode is not null &&
+                    !string.Equals(activity.CurrencyCode, trip.CurrencyCode, StringComparison.OrdinalIgnoreCase))
+                    return "The AI provider returned an activity cost in a different currency from the trip.";
+            }
+        }
+
+        return null;
+    }
+
+    private static async Task<IResult> GenerateDraftAsync(
+        Guid tripId,
+        GenerateAiDraftRequest request,
+        ClaimsPrincipal principal,
+        TravelOsDbContext db,
+        IHttpClientFactory httpClientFactory,
+        IConfiguration configuration,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var trip = await FindTripForOwnerAsync(tripId, userId, db, ct);
+        if (trip is null) return Results.NotFound();
+
+        var interests = request.Interests ?? Array.Empty<string>();
+        var errors = new Dictionary<string, string[]>();
+        if (request.TravellerCount is < 1 or > 30)
+            errors["travellerCount"] = ["Traveller count must be between 1 and 30."];
+        if (request.BudgetAmount is < 0)
+            errors["budgetAmount"] = ["Budget cannot be negative."];
+        if (interests.Count > 20 || interests.Any(value => value.Length > 60))
+            errors["interests"] = ["Provide at most 20 interests, each no longer than 60 characters."];
+        if (request.TravelPace is not ("relaxed" or "balanced" or "fast"))
+            errors["travelPace"] = ["Travel pace must be relaxed, balanced or fast."];
+        if (errors.Count > 0) return Results.ValidationProblem(errors);
+
+        var baseUrl = configuration["AiService:BaseUrl"] ?? "http://localhost:8001";
+        var client = httpClientFactory.CreateClient("ai-planner");
+        try
+        {
+            client.BaseAddress = new Uri(baseUrl);
+            var aiRequest = new
+            {
+                contractVersion = "1.0",
+                destination = trip.Destination,
+                startDate = trip.StartDate,
+                endDate = trip.EndDate,
+                travellerCount = request.TravellerCount,
+                budgetAmount = request.BudgetAmount,
+                currency = trip.CurrencyCode,
+                interests,
+                travelPace = request.TravelPace
+            };
+
+            using var response = await client.PostAsJsonAsync(
+                "/api/v1/planner/drafts", aiRequest, cancellationToken: ct);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                if ((int)response.StatusCode == 503)
+                    return Results.Problem(
+                        "The AI provider is not configured. No draft was saved.",
+                        statusCode: StatusCodes.Status503ServiceUnavailable);
+                return Results.Problem(
+                    "The AI service could not generate a valid itinerary draft.",
+                    statusCode: StatusCodes.Status502BadGateway);
+            }
+
+            var generated = await response.Content.ReadFromJsonAsync<AiPlannerResponse>(
+                cancellationToken: ct);
+            if (generated is null || generated.Status != "generated" ||
+                generated.Approved || generated.Itinerary is null)
+                return Results.Problem(
+                    "The AI service is in demo mode or returned no generated itinerary. No draft was saved.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+
+            var validationError = ValidateDraftPayload(generated.Itinerary, trip);
+            if (validationError is not null)
+                return Results.Problem(validationError, statusCode: StatusCodes.Status502BadGateway);
+
+            var draft = new GeneratedItineraryDraft
+            {
+                TripId = tripId,
+                RequestedByUserId = userId,
+                Status = "pending_review",
+                ContractVersion = "1.0",
+                PayloadJson = JsonSerializer.Serialize(generated, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+            db.GeneratedItineraryDrafts.Add(draft);
+            await db.SaveChangesAsync(ct);
+
+            return Results.Created(
+                $"/api/v1/trips/{tripId}/itinerary/drafts/{draft.Id}",
+                new GeneratedDraftResponse(
+                    draft.Id, tripId, draft.Status, draft.CreatedAt,
+                    generated.Provider, generated.Model,
+                    generated.Warnings ?? Array.Empty<string>(), generated.Itinerary));
+        }
+        catch (UriFormatException)
+        {
+            return Results.Problem("The AI service base URL is invalid.", statusCode: 500);
+        }
+        catch (HttpRequestException)
+        {
+            return Results.Problem("The AI service is unavailable. No draft was saved.", statusCode: 503);
+        }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return Results.Problem("The AI service timed out. Please try again.", statusCode: 504);
+        }
+        catch (JsonException)
+        {
+            return Results.Problem("The AI service returned an unreadable response.", statusCode: 502);
+        }
+    }
+
+    private static async Task<IResult> GetDraftAsync(
+        Guid tripId,
+        Guid draftId,
+        ClaimsPrincipal principal,
+        TravelOsDbContext db,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var trip = await FindTripForMemberAsync(tripId, userId, db, ct);
+        if (trip is null) return Results.NotFound();
+
+        var draft = await db.GeneratedItineraryDrafts.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == draftId && x.TripId == tripId, ct);
+        if (draft is null) return Results.NotFound();
+
+        using var payload = JsonDocument.Parse(draft.PayloadJson);
+        return Results.Ok(new
+        {
+            draft.Id,
+            draft.TripId,
+            draft.Status,
+            draft.CreatedAt,
+            payload = payload.RootElement
+        });
+    }
+
+    private static async Task<IResult> ApplyDraftAsync(
+        Guid tripId,
+        Guid draftId,
+        ClaimsPrincipal principal,
+        TravelOsDbContext db,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var trip = await FindTripForOwnerAsync(tripId, userId, db, ct);
+        if (trip is null) return Results.NotFound();
+
+        var draft = await db.GeneratedItineraryDrafts.FirstOrDefaultAsync(
+            x => x.Id == draftId && x.TripId == tripId, ct);
+        if (draft is null) return Results.NotFound();
+        if (draft.Status != "pending_review")
+            return Results.Conflict(new { message = "Only a pending review draft can be applied." });
+
+        AiPlannerResponse? generated;
+        try
+        {
+            generated = JsonSerializer.Deserialize<AiPlannerResponse>(
+                draft.PayloadJson, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        }
+        catch (JsonException)
+        {
+            return Results.Problem("The saved AI draft could not be read.", statusCode: 500);
+        }
+
+        if (generated?.Itinerary is null || generated.Approved)
+            return Results.Problem("The saved AI draft is invalid.", statusCode: 500);
+
+        var validationError = ValidateDraftPayload(generated.Itinerary, trip);
+        if (validationError is not null)
+            return Results.Problem(validationError, statusCode: StatusCodes.Status422UnprocessableEntity);
+
+        var current = await db.Itineraries
+            .Where(x => x.TripId == tripId)
+            .OrderByDescending(x => x.Version)
+            .FirstOrDefaultAsync(ct);
+        if (current is not null && current.ApprovedAt is null)
+            return Results.Conflict(new { message = "Approve the current itinerary before applying a new AI draft." });
+
+        var itinerary = new Itinerary
+        {
+            TripId = tripId,
+            Version = current is null ? 1 : current.Version + 1
+        };
+
+        foreach (var draftDay in generated.Itinerary.Days.OrderBy(x => x.DayNumber))
+        {
+            var day = new ItineraryDay
+            {
+                ItineraryId = itinerary.Id,
+                DayNumber = draftDay.DayNumber,
+                Date = draftDay.Date
+            };
+            foreach (var draftActivity in draftDay.Activities.OrderBy(x => x.SortOrder))
+            {
+                day.Activities.Add(new Activity
+                {
+                    ItineraryDayId = day.Id,
+                    Title = draftActivity.Title.Trim(),
+                    Description = draftActivity.Description?.Trim(),
+                    PlaceName = draftActivity.PlaceName?.Trim(),
+                    Latitude = draftActivity.Latitude,
+                    Longitude = draftActivity.Longitude,
+                    DurationMinutes = draftActivity.DurationMinutes,
+                    EstimatedCost = draftActivity.EstimatedCost,
+                    CurrencyCode = draftActivity.CurrencyCode?.ToUpperInvariant() ?? trip.CurrencyCode,
+                    SortOrder = draftActivity.SortOrder
+                });
+            }
+            itinerary.Days.Add(day);
+        }
+
+        draft.Status = "applied";
+        db.Itineraries.Add(itinerary);
+        await db.SaveChangesAsync(ct);
+        return Results.Created(
+            $"/api/v1/trips/{tripId}/itinerary",
+            ToResponse(itinerary));
+    }
+
 }
