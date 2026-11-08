@@ -103,6 +103,16 @@ tests                    Cross-service integration test area
 - The default `Traveller` role is assigned during registration. Never expose a public role-selection field.
 - Access tokens expire after 15 minutes. Refresh tokens, email verification, password reset, MFA and social login are not implemented yet.
 - Use HTTPS outside local development. Keep the JWT signing key in a secrets manager and rotate it deliberately.
+- The web preview does not yet implement email verification, password reset, MFA or refresh tokens.
+
+## Traveller web app
+
+The Vite app includes account registration, sign-in, a trip dashboard and trip creation/deletion flows.
+
+- Set `VITE_PLATFORM_API_URL` to the platform API base URL before building the frontend.
+- The development default is `http://localhost:8080`.
+- The browser client keeps the short-lived access token in `sessionStorage` for this preview. This reduces persistence after the browser session but is not a substitute for a production-grade HttpOnly, Secure, SameSite cookie/BFF design.
+- Configure `Cors__AllowedOrigins__0` on the API to the exact deployed frontend origin. The default local origin is `http://localhost:5173`.
 
 ## Trip management API
 
