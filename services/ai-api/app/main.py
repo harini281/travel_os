@@ -17,3 +17,14 @@ async def health():
 @app.post("/api/v1/planner/drafts", response_model=DraftResponse)
 async def create_draft(request: PlannerRequest):
     return await provider.generate(request)
+
+
+from .schemas import ReceiptExtractionRequest, ReceiptExtractionResult
+from .receipt_provider import ReceiptProvider
+
+receipt_provider = ReceiptProvider()
+
+
+@app.post("/api/v1/receipts/extract", response_model=ReceiptExtractionResult)
+async def extract_receipt(request: ReceiptExtractionRequest):
+    return await receipt_provider.extract(request)
