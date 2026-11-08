@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, shared expense tracking with equal participant splits, and suggested repayments calculated from group balances, with recipient-confirmed repayment tracking.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, shared expense tracking with equal, percentage-based and exact participant splits, and suggested repayments calculated from group balances, with recipient-confirmed repayment tracking.
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
 - The local default is `http://localhost:8080`.
@@ -194,7 +194,7 @@ The trip owner can set a budget cap and manage planned category items. Trip memb
 | PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
 | DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
 
-Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion, receipt capture and custom split ratios are future work. Repayment records are user-entered and recipient-confirmed; TravelOS does not initiate or verify bank transfers.
+Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion and receipt capture are future work. Repayment records are user-entered and recipient-confirmed; TravelOS does not initiate or verify bank transfers.
 
 ## Database notes
 

@@ -279,3 +279,18 @@
 .repayment-response button:disabled{opacity:.5;cursor:wait}
 .repayment-waiting{margin:9px 0 0;color:#a17c42}
 @media(max-width:520px){.repayment-response{align-items:flex-start;flex-direction:column}.repayment-record-main,.repayment-record-meta{align-items:flex-start}.repayment-record-meta{flex-direction:column}}
+
+
+/* Custom shared-expense splits */
+.expense-split-type{display:grid;gap:7px;max-width:320px;font-size:10px;color:#647168;font-weight:700}
+.expense-split-type select{width:100%;border:1px solid #dfe4dd;border-radius:7px;padding:10px;background:#fff;color:#344239;font:inherit}
+.custom-share-editor{display:grid;gap:8px;padding:13px;background:#f8f9f6;border:1px solid #e8ede6;border-radius:8px}
+.custom-share-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:2px}
+.custom-share-heading strong{font-size:10px;color:#435148}
+.custom-share-heading span{font-size:9px;color:#8b968d}
+.custom-share-editor>label{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:10px;color:#56645b}
+.custom-share-editor>label>div{display:flex;align-items:center;gap:6px}
+.custom-share-editor input{width:130px;max-width:48vw;border:1px solid #dfe4dd;border-radius:6px;padding:8px;background:#fff;color:#344239;font:inherit;text-align:right}
+.custom-share-editor small{min-width:38px;color:#929c94;font-size:9px}
+.custom-share-reset{justify-self:start;border:0;background:transparent;color:#64836a;font-size:9px;font-weight:700;cursor:pointer;padding:5px 0}
+@media(max-width:520px){.custom-share-heading{align-items:flex-start;flex-direction:column}.custom-share-editor>label{align-items:flex-start}}
