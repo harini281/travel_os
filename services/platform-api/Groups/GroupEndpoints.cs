@@ -9,6 +9,11 @@ public static class GroupEndpoints
 {
     public static IEndpointRouteBuilder MapGroupEndpoints(this IEndpointRouteBuilder endpoints)
     {
+        endpoints.MapGet("/api/v1/me/invitations", ListMyInvitationsAsync)
+            .WithTags("Group collaboration")
+            .RequireAuthorization()
+            .WithName("ListMyTripInvitations");
+
         var group = endpoints.MapGroup("/api/v1/trips/{tripId:guid}")
             .WithTags("Group collaboration")
             .RequireAuthorization();
