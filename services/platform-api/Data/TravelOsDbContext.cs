@@ -112,7 +112,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.Category).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Amount).HasPrecision(19, 4);
             entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
-            entity.HasOne<Budget>().WithMany().HasForeignKey(x => x.BudgetId)
+            entity.HasOne<Budget>().WithMany(x => x.Items).HasForeignKey(x => x.BudgetId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
