@@ -7,3 +7,7 @@ public sealed record TripInvitationResponse(
     DateTimeOffset ExpiresAt);
 public sealed record TripMemberResponse(
     Guid UserId, string DisplayName, string Email, string Role, DateTimeOffset JoinedAt);
+
+public sealed record MyTripInvitationResponse(
+    Guid Id, Guid TripId, string TripName, string Destination,
+    string InvitedByName, DateTimeOffset CreatedAt, DateTimeOffset ExpiresAt);
