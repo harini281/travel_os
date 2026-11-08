@@ -35,6 +35,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasMany(x => x.Members).WithOne().HasForeignKey(x => x.TripId)
                 .OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable(t => t.HasCheckConstraint("CK_Trips_DateRange", "\"EndDate\" >= \"StartDate\""));
         });
 
         modelBuilder.Entity<TripMember>(entity =>
@@ -49,6 +50,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
         modelBuilder.Entity<Itinerary>(entity =>
         {
             entity.HasKey(x => x.Id);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity.HasMany(x => x.Days).WithOne().HasForeignKey(x => x.ItineraryId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.ApprovedByUserId)
@@ -69,6 +72,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.Title).HasMaxLength(180).IsRequired();
             entity.Property(x => x.Description).HasMaxLength(2000);
             entity.Property(x => x.PlaceName).HasMaxLength(200);
+            entity.Property(x => x.Latitude).HasPrecision(9, 6);
+            entity.Property(x => x.Longitude).HasPrecision(9, 6);
             entity.Property(x => x.EstimatedCost).HasPrecision(19, 4);
             entity.Property(x => x.CurrencyCode).HasMaxLength(3);
         });
@@ -79,6 +84,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.Status).HasMaxLength(32).IsRequired();
             entity.Property(x => x.ContractVersion).HasMaxLength(16).IsRequired();
             entity.Property(x => x.PayloadJson).HasColumnType("jsonb").IsRequired();
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.RequestedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
@@ -88,7 +95,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.HasKey(x => x.Id);
             entity.Property(x => x.Amount).HasPrecision(19, 4);
             entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
-            entity.HasIndex(x => x.TripId).IsUnique();
+            entity.HasOne<Trip>().WithOne().HasForeignKey<Budget>(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<BudgetItem>(entity =>
@@ -97,6 +105,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.Category).HasMaxLength(80).IsRequired();
             entity.Property(x => x.Amount).HasPrecision(19, 4);
             entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasOne<Budget>().WithMany().HasForeignKey(x => x.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         base.OnModelCreating(modelBuilder);
