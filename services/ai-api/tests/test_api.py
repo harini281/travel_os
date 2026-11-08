@@ -178,3 +178,34 @@ def test_openai_provider_returns_unapproved_structured_draft(monkeypatch):
     assert body["provider"] == "openai"
     assert body["model"] == "test-model"
     assert len(body["itinerary"]["days"]) == 2
+
+
+def test_receipt_extraction_is_demo_only_by_default():
+    from app.main import receipt_provider
+    response = client.post("/api/v1/receipts/extract", json={
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    })
+    assert response.status_code == 200
+    assert response.json()["status"] == "demo_only"
+    assert response.json()["merchantName"] is None
+
+
+def test_receipt_extraction_rejects_invalid_base64():
+    response = client.post("/api/v1/receipts/extract", json={
+        "contentType": "image/png",
+        "imageBase64": "not-base64" * 20,
+    })
+    assert response.status_code == 422
+
+
+def test_receipt_provider_openai_mode_requires_key(monkeypatch):
+    from app.main import receipt_provider
+    monkeypatch.setattr(receipt_provider, "mode", "openai")
+    monkeypatch.setattr(receipt_provider, "api_key", "")
+    response = client.post("/api/v1/receipts/extract", json={
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    })
+    assert response.status_code == 503
+    assert "OPENAI_API_KEY" in response.json()["detail"]

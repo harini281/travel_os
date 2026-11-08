@@ -47,6 +47,8 @@ type CurrencySettlement = { currencyCode: string; totalExpenses: number; balance
 type TripSettlement = { tripId: string; expenseCount: number; currencies: CurrencySettlement[] };
 type TripRepayment = { id: string; tripId: string; fromUserId: string; fromName: string; toUserId: string; toName: string; amount: number; currencyCode: string; status: "pending" | "confirmed" | "rejected"; note: string | null; createdAt: string; respondedAt: string | null };
 type TripExpenseAudit = { id: string; expenseId: string; action: "created" | "updated" | "deleted"; changedByUserId: string; changedByName: string; changedAt: string; beforeJson: string; afterJson: string };
+type TripReceipt = { id:string; tripId:string; expenseId:string|null; uploadedByUserId:string; originalFileName:string; contentType:string; fileSizeBytes:number; sha256:string; extractionStatus:"pending_review"|"needs_review"|"confirmed"; merchantName:string|null; receiptDate:string|null; totalAmount:number|null; currencyCode:string|null; confidence:number|null; extractionWarning:string|null; uploadedAt:string; confirmedAt:string|null; confirmedByUserId:string|null; isDuplicate:boolean };
+type ReceiptDraft = { merchantName:string; receiptDate:string; totalAmount:string; currencyCode:string; expenseId:string };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -155,6 +157,10 @@ export default function App() {
   const [editExpenseShares, setEditExpenseShares] = useState<Record<string,string>>({});
   const [expenseAuditHistory, setExpenseAuditHistory] = useState<Record<string,TripExpenseAudit[]>>({});
   const [expandedExpenseHistory, setExpandedExpenseHistory] = useState<string | null>(null);
+  const [tripReceipts, setTripReceipts] = useState<TripReceipt[]>([]);
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptExpenseId, setReceiptExpenseId] = useState("");
+  const [receiptDrafts, setReceiptDrafts] = useState<Record<string,ReceiptDraft>>({});
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -244,6 +250,75 @@ export default function App() {
     }
   }
 
+
+
+  async function loadTripReceipts(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<TripReceipt[]>(`/api/v1/trips/${trip.id}/receipts`, accessToken);
+      setTripReceipts(data);
+      setReceiptDrafts(Object.fromEntries(data.map(receipt => [receipt.id, {
+        merchantName: receipt.merchantName ?? "",
+        receiptDate: receipt.receiptDate ?? "",
+        totalAmount: receipt.totalAmount === null ? "" : String(receipt.totalAmount),
+        currencyCode: receipt.currencyCode ?? "",
+        expenseId: receipt.expenseId ?? ""
+      }])));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to load receipts."); }
+  }
+
+  async function uploadTripReceipt(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip || !receiptFile) return;
+    const body = new FormData();
+    body.append("file", receiptFile);
+    if (receiptExpenseId) body.append("expenseId", receiptExpenseId);
+    setBusy(true); setError("");
+    try {
+      const response = await fetch(`${API_URL}/api/v1/trips/${selectedTrip.id}/receipts`, {
+        method: "POST", headers: { Authorization: `Bearer ${token}` }, body
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.message ?? payload.title ?? `Upload failed (${response.status})`);
+      }
+      setReceiptFile(null); setReceiptExpenseId("");
+      await loadTripReceipts(selectedTrip);
+      setNotice("Receipt uploaded. Review the extracted details before confirming.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to upload receipt."); }
+    finally { setBusy(false); }
+  }
+
+  async function confirmTripReceipt(receipt: TripReceipt) {
+    if (!token || !selectedTrip) return;
+    const draft = receiptDrafts[receipt.id];
+    if (!draft) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/receipts/${receipt.id}/confirm`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          merchantName: draft.merchantName.trim() || null,
+          receiptDate: draft.receiptDate || null,
+          totalAmount: draft.totalAmount === "" ? null : Number(draft.totalAmount),
+          currencyCode: draft.currencyCode.trim().toUpperCase() || null,
+          expenseId: draft.expenseId || null
+        })
+      });
+      await loadTripReceipts(selectedTrip);
+      setNotice("Receipt details confirmed.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to confirm receipt."); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteTripReceipt(receipt: TripReceipt) {
+    if (!token || !selectedTrip || !window.confirm(`Delete receipt "${receipt.originalFileName}"?`)) return;
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/receipts/${receipt.id}`, token, { method: "DELETE" });
+      await loadTripReceipts(selectedTrip);
+      setNotice("Receipt deleted.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to delete receipt."); }
+  }
 
   async function loadTripSettlement(trip: Trip, accessToken = token) {
     if (!accessToken) return;
@@ -527,10 +602,10 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setRepaymentTarget(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip)]);
   }
 
   function closeTrip() {
@@ -1022,6 +1097,36 @@ export default function App() {
                     <div className="expense-actions"><button type="submit" className="btn btn-primary" disabled={busy || Object.values(editExpenseShares).some(v => !(Number(v)>0)) || Math.abs(Object.values(editExpenseShares).reduce((sum,v)=>sum+Number(v),0)-Number(editExpenseDraft.amount))>0.00005}>Save changes</button><button type="button" className="expense-edit" onClick={() => setEditingExpenseId(null)}>Cancel</button></div>
                   </form>}
                 </article>) : <p className="budget-empty">No shared expenses yet. Add the first group payment above.</p>}
+              </div>
+
+              <div className="receipt-workspace">
+                <div className="subheading"><strong>Receipt library</strong><span>{tripReceipts.length} receipts</span></div>
+                <p className="expense-intro">Attach receipt images to this trip. AI extraction is a suggestion only; check every field before confirming.</p>
+                <form className="receipt-upload-form" onSubmit={uploadTripReceipt}>
+                  <label>Receipt image<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setReceiptFile(e.target.files?.[0] ?? null)} required /></label>
+                  <label>Attach to expense (optional)<select value={receiptExpenseId} onChange={e => setReceiptExpenseId(e.target.value)}><option value="">Keep unlinked for now</option>{tripExpenses.map(expense => <option key={expense.id} value={expense.id}>{expense.title} · {expense.amount} {expense.currencyCode}</option>)}</select></label>
+                  <button className="btn btn-primary" type="submit" disabled={busy || !receiptFile}>Upload receipt</button>
+                  <small>JPEG, PNG or WebP · Maximum 8 MB. Images are private to trip members.</small>
+                </form>
+                <div className="receipt-list">
+                  {tripReceipts.length ? tripReceipts.map(receipt => <article className="receipt-card" key={receipt.id}>
+                    <div className="receipt-card-top"><div><strong>{receipt.originalFileName}</strong><small>{(receipt.fileSizeBytes/1024).toFixed(0)} KB · {formatDate(receipt.uploadedAt.slice(0,10))}</small></div><span className={receipt.extractionStatus === "confirmed" ? "receipt-status confirmed" : "receipt-status"}>{receipt.extractionStatus === "confirmed" ? "Confirmed" : receipt.extractionStatus === "needs_review" ? "Review extracted details" : "Manual review"}</span></div>
+                    {receipt.isDuplicate && <p className="receipt-warning">Possible duplicate: an identical image is already attached to this trip.</p>}
+                    {receipt.extractionWarning && <p className="receipt-warning">{receipt.extractionWarning}</p>}
+                    {receipt.extractionStatus === "confirmed" ? <div className="receipt-confirmed-details"><strong>{receipt.merchantName || "Merchant not recorded"}</strong><span>{receipt.totalAmount === null ? "Amount not recorded" : `${receipt.totalAmount.toLocaleString()} ${receipt.currencyCode ?? ""}`}</span><small>{receipt.receiptDate ? formatDate(receipt.receiptDate) : "Date not recorded"}</small></div> : <div className="receipt-review-form">
+                      <label>Merchant<input value={receiptDrafts[receipt.id]?.merchantName ?? ""} onChange={e => setReceiptDrafts(d => ({...d,[receipt.id]:{...d[receipt.id],merchantName:e.target.value}}))} maxLength={180} placeholder="Extracted merchant" /></label>
+                      <div className="receipt-fields-grid">
+                        <label>Receipt date<input type="date" value={receiptDrafts[receipt.id]?.receiptDate ?? ""} onChange={e => setReceiptDrafts(d => ({...d,[receipt.id]:{...d[receipt.id],receiptDate:e.target.value}}))} /></label>
+                        <label>Total amount<input type="number" min="0" step="0.0001" value={receiptDrafts[receipt.id]?.totalAmount ?? ""} onChange={e => setReceiptDrafts(d => ({...d,[receipt.id]:{...d[receipt.id],totalAmount:e.target.value}}))} /></label>
+                        <label>Currency<input maxLength={3} value={receiptDrafts[receipt.id]?.currencyCode ?? ""} onChange={e => setReceiptDrafts(d => ({...d,[receipt.id]:{...d[receipt.id],currencyCode:e.target.value.toUpperCase()}}))} placeholder="USD" /></label>
+                        <label>Link expense<select value={receiptDrafts[receipt.id]?.expenseId ?? ""} onChange={e => setReceiptDrafts(d => ({...d,[receipt.id]:{...d[receipt.id],expenseId:e.target.value}}))}><option value="">No linked expense</option>{tripExpenses.map(expense => <option key={expense.id} value={expense.id}>{expense.title}</option>)}</select></label>
+                      </div>
+                      {receipt.confidence !== null && <small>Extraction confidence: {(receipt.confidence*100).toFixed(0)}% · Verify before confirming.</small>}
+                      <button type="button" className="btn btn-primary" disabled={busy} onClick={() => confirmTripReceipt(receipt)}>Confirm receipt details</button>
+                    </div>}
+                    <div className="receipt-card-actions"><a href={`${API_URL}/api/v1/trips/${selectedTrip.id}/receipts/${receipt.id}/file`} onClick={async event => {event.preventDefault(); if(!token)return; try {const response=await fetch(event.currentTarget.href,{headers:{Authorization:`Bearer ${token}`}});if(!response.ok)throw new Error("Unable to open receipt.");const blob=await response.blob();const url=URL.createObjectURL(blob);const link=document.createElement("a");link.href=url;link.download=receipt.originalFileName;link.click();URL.revokeObjectURL(url);}catch(err){setError(err instanceof Error?err.message:"Unable to open receipt.");}}}>View original file</a><button type="button" className="delete-link" onClick={() => deleteTripReceipt(receipt)}>Delete</button></div>
+                  </article>) : <p className="budget-empty">No receipts uploaded yet.</p>}
+                </div>
               </div>
 
               <div className="settlement-panel">

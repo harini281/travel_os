@@ -321,3 +321,30 @@
 .expense-history-list summary{cursor:pointer;margin:4px 0}
 .expense-history-list pre{max-width:100%;overflow:auto;padding:8px;background:#fff;border-radius:5px;font-size:8px;color:#58665c}
 @media(max-width:520px){.expense-edit-grid{grid-template-columns:1fr}.expense-edit-form .expense-actions{flex-wrap:wrap}}
+
+
+/* Private receipt upload, review and confirmation */
+.receipt-workspace{display:grid;gap:12px;margin:22px 0;padding:16px;border:1px solid #e5ebe2;border-radius:10px;background:#fff}
+.receipt-upload-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:10px;padding:13px;background:#f8f9f6;border-radius:8px}
+.receipt-upload-form label,.receipt-review-form label{display:grid;gap:5px;font-size:9px;color:#758177;font-weight:700}
+.receipt-upload-form input,.receipt-upload-form select,.receipt-review-form input,.receipt-review-form select{width:100%;min-width:0;border:1px solid #dfe4dd;border-radius:6px;padding:8px;background:#fff;color:#344239;font:inherit;font-size:10px}
+.receipt-upload-form input[type=file]{padding:6px}
+.receipt-upload-form>small{grid-column:1/-1;font-size:8px;color:#929c94}
+.receipt-list{display:grid;gap:10px}
+.receipt-card{display:grid;gap:11px;padding:13px;border:1px solid #e7ece5;border-radius:8px;background:#fff}
+.receipt-card-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.receipt-card-top>div{display:grid;gap:4px;min-width:0}
+.receipt-card-top strong{font-size:10px;color:#435148;overflow-wrap:anywhere}
+.receipt-card-top small,.receipt-review-form small{font-size:8px;color:#929c94}
+.receipt-status{flex-shrink:0;border-radius:20px;background:#f2f3ec;padding:5px 8px;color:#7d7651;font-size:8px;font-weight:700}
+.receipt-status.confirmed{background:#edf5ec;color:#4d7852}
+.receipt-warning{margin:0;padding:8px 10px;border-radius:6px;background:#fff8e8;color:#8b713a;font-size:9px;line-height:1.5}
+.receipt-review-form{display:grid;gap:10px}
+.receipt-fields-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.receipt-review-form>button{justify-self:start;font-size:9px;padding:8px 12px}
+.receipt-confirmed-details{display:grid;gap:4px;font-size:10px;color:#4d5b51}
+.receipt-confirmed-details small{font-size:8px;color:#929c94}
+.receipt-card-actions{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #eef0eb;padding-top:8px}
+.receipt-card-actions a{color:#64836a;text-decoration:none;font-size:9px;font-weight:700}
+.receipt-card-actions button{font-size:9px}
+@media(max-width:640px){.receipt-upload-form{grid-template-columns:1fr}.receipt-upload-form>small{grid-column:auto}.receipt-card-top{flex-direction:column}.receipt-fields-grid{grid-template-columns:1fr}}

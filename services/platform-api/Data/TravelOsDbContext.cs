@@ -25,6 +25,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripExpenseShare> TripExpenseShares => Set<TripExpenseShare>();
     public DbSet<TripRepayment> TripRepayments => Set<TripRepayment>();
     public DbSet<TripExpenseAudit> TripExpenseAudits => Set<TripExpenseAudit>();
+    public DbSet<TripReceipt> TripReceipts => Set<TripReceipt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -178,6 +179,31 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
             // ExpenseId intentionally has no FK so audit history survives expense removal.
             entity.HasIndex(x => new { x.TripId, x.ExpenseId, x.ChangedAt });
+        });
+
+        modelBuilder.Entity<TripReceipt>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.OriginalFileName).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.StoredFileName).HasMaxLength(255).IsRequired();
+            entity.Property(x => x.ContentType).HasMaxLength(80).IsRequired();
+            entity.Property(x => x.Sha256).HasMaxLength(64).IsRequired();
+            entity.Property(x => x.ExtractionStatus).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.MerchantName).HasMaxLength(180);
+            entity.Property(x => x.CurrencyCode).HasMaxLength(3);
+            entity.Property(x => x.TotalAmount).HasPrecision(19, 4);
+            entity.Property(x => x.Confidence).HasPrecision(5, 4);
+            entity.Property(x => x.ExtractionWarning).HasMaxLength(500);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<TripExpense>().WithMany().HasForeignKey(x => x.ExpenseId)
+                .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UploadedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ConfirmedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.TripId, x.Sha256 });
+            entity.HasIndex(x => new { x.TripId, x.ExpenseId, x.UploadedAt });
         });
 
         modelBuilder.Entity<GroupPoll>(entity =>

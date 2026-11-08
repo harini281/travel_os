@@ -273,3 +273,27 @@ The expense creator or trip owner can update the expense title, category, notes,
 Every creation, update and deletion appends an audit record with the actor, UTC timestamp, action, and before/after JSON snapshots. Audit rows intentionally do not have a foreign key to the expense row, so deleting an expense does not erase its history. Trip members can view an expense's history while the record exists; deleted records' audit entries remain stored for future administrative/audit tooling.
 
 Edits and deletions are blocked when a confirmed repayment exists in the expense's currency (and edits are also blocked if changing to a currency with confirmed repayments). This is deliberately conservative because repayments are currently recorded at trip/currency ledger level rather than linked to a specific expense. Add an adjustment expense instead. Expense update and its audit row are saved together in one database save operation.
+
+## Receipt management and extraction
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/receipts` | Trip member |
+| POST | `/api/v1/trips/{tripId}/receipts` | Trip member; multipart upload |
+| GET | `/api/v1/trips/{tripId}/receipts/{receiptId}/file` | Trip member |
+| POST | `/api/v1/trips/{tripId}/receipts/{receiptId}/confirm` | Uploader or trip owner |
+| DELETE | `/api/v1/trips/{tripId}/receipts/{receiptId}` | Uploader or trip owner |
+
+Uploads accept JPEG, PNG and WebP images up to 8 MB. The API checks the file signature, generates a random storage name, calculates a SHA-256 hash, and stores bytes outside the public web root. The original filename is retained only as display metadata. Files are private and served only after trip membership is checked. Upload requests are rate-limited per authenticated user.
+
+An identical image hash already present in the same trip is flagged as a possible duplicate; it is not silently discarded. Receipts can be attached to an expense during upload or linked after review. Removing an expense leaves its receipt metadata and image intact, with the expense link set to null.
+
+The platform sends the image to the isolated AI service only when `AiService:BaseUrl` is configured. The AI service defaults to `AI_RECEIPT_PROVIDER=demo`, which does not inspect the image. To opt into OpenAI vision extraction, configure `AI_RECEIPT_PROVIDER=openai` and `OPENAI_API_KEY` in the AI service process. Receipt images then leave the platform and are sent to the configured provider; obtain appropriate user consent and follow your privacy and retention obligations before enabling this in production.
+
+The extracted merchant, date, final total, currency and confidence are suggestions. The API stores them in `needs_review` state, and a user must confirm the corrected values before the receipt becomes `confirmed`. OCR does not create or modify an expense or its financial shares. If extraction is unavailable, the image remains saved in `pending_review` for manual entry.
+
+Set `Receipts:StoragePath` to a private persistent directory. The default is `private-receipts` under the API process directory and is suitable only for local development. Production deployments should use a persistent encrypted volume or private object storage, backups, access logging and a retention/deletion policy. The API currently stores image bytes on local disk; it does not yet integrate object storage or malware scanning.
+
+AI service endpoint: `POST /api/v1/receipts/extract`. The platform validates and stores the receipt independently of the AI result, so extraction failure does not lose the upload.
+
+Apply `database/migrations/009_trip_receipts.sql` after migration 008.
