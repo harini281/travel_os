@@ -24,6 +24,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripExpense> TripExpenses => Set<TripExpense>();
     public DbSet<TripExpenseShare> TripExpenseShares => Set<TripExpenseShare>();
     public DbSet<TripRepayment> TripRepayments => Set<TripRepayment>();
+    public DbSet<TripExpenseAudit> TripExpenseAudits => Set<TripExpenseAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -163,6 +164,20 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.TripId, x.Status, x.CurrencyCode });
             entity.HasIndex(x => new { x.FromUserId, x.ToUserId, x.Status });
+        });
+
+        modelBuilder.Entity<TripExpenseAudit>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Action).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.BeforeJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.AfterJson).HasColumnType("jsonb").IsRequired();
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ChangedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // ExpenseId intentionally has no FK so audit history survives expense removal.
+            entity.HasIndex(x => new { x.TripId, x.ExpenseId, x.ChangedAt });
         });
 
         modelBuilder.Entity<GroupPoll>(entity =>
