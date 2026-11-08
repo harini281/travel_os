@@ -17,12 +17,16 @@ ALTER TABLE "Users"
   ADD COLUMN IF NOT EXISTS "AccessFailedCount" integer NOT NULL DEFAULT 0;
 
 UPDATE "Users"
+SET "UserName" = "Email"
+WHERE "UserName" = '';
+
+UPDATE "Users"
 SET "NormalizedUserName" = upper("UserName"),
     "NormalizedEmail" = upper("Email")
 WHERE "NormalizedUserName" IS NULL OR "NormalizedEmail" IS NULL;
 
 CREATE UNIQUE INDEX IF NOT EXISTS "UserNameIndex" ON "Users" ("NormalizedUserName");
-CREATE INDEX IF NOT EXISTS "EmailIndex" ON "Users" ("NormalizedEmail");
+CREATE UNIQUE INDEX IF NOT EXISTS "EmailIndex" ON "Users" ("NormalizedEmail");
 
 CREATE TABLE IF NOT EXISTS "AspNetRoles" (
   "Id" uuid PRIMARY KEY,
