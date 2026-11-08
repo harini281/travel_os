@@ -20,6 +20,8 @@ class PlannerRequest(BaseModel):
     def validate_dates(self):
         if self.endDate < self.startDate:
             raise ValueError("endDate must be on or after startDate")
+        if (self.endDate - self.startDate).days + 1 > 31:
+            raise ValueError("AI draft generation supports trips of up to 31 days")
         if any(len(item) > 60 for item in self.interests):
             raise ValueError("Each interest must be at most 60 characters")
         return self
