@@ -249,3 +249,33 @@
 .settlement-transfers>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:#fff;border-radius:7px}
 .settlement-transfers span{font-size:9px;color:#56645b}.settlement-transfers i{font-style:normal;color:#a57549}.settlement-transfers b{font-size:10px;color:#344239;white-space:nowrap}
 @media(max-width:520px){.settlement-balances{grid-template-columns:1fr}.settlement-currency-heading{align-items:flex-start;flex-direction:column}.settlement-transfers>div{align-items:flex-start;flex-direction:column}}
+
+
+/* Repayment confirmation workflow */
+.repayment-action{border:1px solid #dce5dc;background:#f6f8f4;color:#55765b;border-radius:6px;padding:6px 9px;font-size:9px;font-weight:700;cursor:pointer}
+.repayment-action:hover{background:#eaf1e8}
+.repayment-form{display:grid;gap:10px;margin-top:13px;padding:13px;background:#fff;border:1px solid #dfe7dc;border-radius:8px}
+.repayment-form>div{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.repayment-form>div strong{font-size:11px;color:#344239}
+.repayment-form label{display:grid;gap:5px;font-size:9px;color:#748077;font-weight:700}
+.repayment-form input{border:1px solid #dfe4dd;border-radius:6px;padding:9px;font:inherit;font-size:11px;color:#344239}
+.repayment-form p{font-size:9px;color:#929c94;margin:0}
+.repayment-form .btn{justify-self:start;font-size:10px;padding:9px 13px}
+.repayment-cancel{border:0;background:none;color:#8a958d;font-size:9px;cursor:pointer}
+.repayment-history{display:grid;gap:9px;margin-top:17px;padding-top:13px;border-top:1px solid #e7ebe5}
+.repayment-history>.subheading{margin-bottom:2px}
+.repayment-record{border:1px solid #e8ede6;border-radius:8px;padding:11px;background:#fff}
+.repayment-record-main,.repayment-record-meta{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.repayment-record-main strong{font-size:10px;color:#4d5b51}.repayment-record-main i{font-style:normal;color:#a57549;padding:0 3px}
+.repayment-record-main b{font-size:10px;color:#344239;white-space:nowrap}
+.repayment-record-meta{margin-top:7px;font-size:9px;color:#929c94}
+.repayment-status{text-transform:uppercase;font-size:8px;font-weight:800;letter-spacing:.7px;padding:4px 7px;border-radius:20px;background:#f0f2ee;color:#7e8980}
+.status-confirmed{background:#eaf3e9;color:#527d58}.status-rejected{background:#f8ece8;color:#a86d5d}.status-pending{background:#f7f1e6;color:#a17c42}
+.repayment-response{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding-top:9px;border-top:1px solid #edf0eb}
+.repayment-response>span,.repayment-waiting{font-size:9px;color:#78847b}
+.repayment-response>div{display:flex;gap:6px}
+.repayment-response button{border:1px solid #dce5dc;background:#f7f9f5;color:#58755d;border-radius:5px;padding:6px 8px;font-size:9px;cursor:pointer}
+.repayment-response button:last-child{color:#a56d5c;background:#fbf6f4;border-color:#eee0db}
+.repayment-response button:disabled{opacity:.5;cursor:wait}
+.repayment-waiting{margin:9px 0 0;color:#a17c42}
+@media(max-width:520px){.repayment-response{align-items:flex-start;flex-direction:column}.repayment-record-main,.repayment-record-meta{align-items:flex-start}.repayment-record-meta{flex-direction:column}}
