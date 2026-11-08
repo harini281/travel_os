@@ -98,6 +98,10 @@ public static class ExpenseEndpoints
             errors["customShares"] = ["Custom share user IDs must match the selected participants exactly, without duplicates."];
         if (splitType != "equal" && customShares.Any(x => x.Value <= 0))
             errors["customShares"] = ["Every custom share value must be greater than zero."];
+        if (splitType == "percentage" && customShares.Any(x => x.Value > 100m))
+            errors["customShares"] = ["A participant's percentage cannot exceed 100%."];
+        if (splitType == "exact" && customShares.Any(x => x.Value > request.Amount))
+            errors["customShares"] = ["An individual share cannot exceed the expense total."];
         if (splitType == "percentage" && customShares.Sum(x => x.Value) != 100m)
             errors["customShares"] = ["Percentage shares must add up to exactly 100%."];
         if (splitType == "exact" && decimal.Round(customShares.Sum(x => x.Value), 4, MidpointRounding.AwayFromZero)
