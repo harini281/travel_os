@@ -48,3 +48,29 @@
 .wide-field{grid-column:1/-1}.activity-form .form-actions{margin-top:0}
 .itinerary-empty{margin-top:20px}
 @media(max-width:650px){.day-card{grid-template-columns:1fr}.day-date{border-right:0;border-bottom:1px solid #e7ebe4;padding:13px 16px;flex-direction:row;align-items:center;justify-content:space-between}.day-date strong{font-size:15px}.day-content{padding:14px}.activity-form{grid-template-columns:1fr}.wide-field{grid-column:auto}.itinerary-hero{display:grid}.itinerary-toolbar{align-items:flex-start;flex-direction:column}.toolbar-actions{width:100%;flex-wrap:wrap}.add-day-form{align-items:stretch;flex-direction:column}.add-day-form .btn{width:100%}.activity-row{flex-wrap:wrap}.activity-meta{width:100%;display:flex;text-align:left;padding-left:27px}}
+
+
+/* AI itinerary draft review */
+.ai-planner-card{background:#24372f;color:#fff;border-radius:12px;padding:22px;margin:0 0 24px}
+.ai-planner-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.ai-planner-heading .eyebrow{color:#d9a66f;margin-bottom:8px}.ai-planner-heading h2{font-family:'Playfair Display',Georgia,serif;font-size:23px;font-weight:500;margin:0 0 6px}
+.ai-planner-heading p:last-child{color:#b8c6bc;font-size:11px;line-height:1.6;margin:0;max-width:470px}
+.ai-spark{width:37px;height:37px;border-radius:10px;background:#3a5145;color:#e2b17e;display:grid;place-items:center;font-size:19px;flex-shrink:0}
+.ai-options{display:grid;grid-template-columns:100px minmax(150px,1fr) 150px auto;gap:10px;align-items:end;margin-top:20px}
+.ai-options label{display:grid;gap:6px;color:#c4d0c7;font-size:9px;font-weight:700}
+.ai-options input,.ai-options select{min-width:0;width:100%;border:1px solid #52685b;border-radius:7px;padding:10px;background:#30453a;color:#fff;font-size:11px;outline:none}
+.ai-options .btn{font-size:10px;padding:11px 13px;white-space:nowrap}
+.ai-disclaimer{font-size:9px;line-height:1.5;color:#aab9ae;margin:13px 0 0}
+.ai-drafts-section{margin:0 0 30px}.ai-drafts-section>.section-heading{margin-bottom:14px}
+.ai-draft-card{background:#fff;border:1px solid #e4e9e1;border-radius:11px;padding:18px;margin-bottom:12px}
+.ai-draft-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.draft-provider{font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:#a07853;font-weight:700}
+.ai-draft-top h3{font-size:17px;margin:6px 0 0;letter-spacing:-.4px}
+.ai-draft-summary{font-size:11px;line-height:1.6;color:#77837a;margin:9px 0 14px}
+.ai-draft-days{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.ai-draft-days>div{display:grid;gap:5px;background:#f6f7f3;border-radius:7px;padding:11px}
+.ai-draft-days strong{font-size:10px;color:#48564e}.ai-draft-days span{font-size:10px;color:#a07853}.ai-draft-days small{font-size:9px;line-height:1.5;color:#89948b}
+.ai-warning{font-size:9px;line-height:1.5;color:#94744e;margin:10px 0 0}
+.apply-draft-button{margin-top:14px;font-size:10px;padding:10px 13px}
+@media(max-width:850px){.ai-options{grid-template-columns:1fr 1fr}.ai-options .btn{grid-column:1/-1}}
+@media(max-width:580px){.ai-options{grid-template-columns:1fr}.ai-options .btn{grid-column:auto}.ai-draft-days{grid-template-columns:1fr}.ai-planner-card{padding:17px}}
