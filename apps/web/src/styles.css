@@ -122,3 +122,35 @@
 .invitation-card span,.invitation-card small{font-size:9px;color:#89948c}
 .invitation-card .btn{font-size:10px;padding:10px 13px;white-space:nowrap}
 @media(max-width:580px){.invite-form{grid-template-columns:1fr}.invite-form .btn{width:100%}.invitation-card{align-items:flex-start;flex-direction:column}.member-row{flex-wrap:wrap}.member-details{min-width:calc(100% - 60px)}}
+
+
+/* Traveller preferences */
+.preference-workspace{background:#fff;border:1px solid #e5eae3;border-radius:11px;padding:20px;margin:0 0 24px}
+.preference-workspace>.section-heading{margin-bottom:9px}
+.preference-intro{font-size:11px;color:#849087;line-height:1.6;margin:0 0 17px;max-width:650px}
+.preference-form{display:grid;gap:15px}
+.interest-picker{border:0;padding:0;margin:0;min-width:0}
+.interest-picker legend{font-size:10px;font-weight:700;color:#56645b;margin-bottom:10px}
+.interest-picker legend span,.preference-notes span{font-weight:400;color:#9aa39c;margin-left:5px}
+.interest-options{display:flex;flex-wrap:wrap;gap:7px}
+.interest-option{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px solid #e4e9e2;border-radius:20px;color:#77837a;font-size:10px;cursor:pointer;text-transform:capitalize;transition:background .15s,border .15s}
+.interest-option.selected{background:#f5eee6;border-color:#d9b58f;color:#805d3c}
+.interest-option input{accent-color:#b77e49;width:12px;height:12px;margin:0}
+.preference-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.preference-fields label,.preference-notes{display:grid;gap:6px;color:#647169;font-size:10px;font-weight:700}
+.preference-fields input,.preference-fields select,.preference-notes textarea{width:100%;min-width:0;border:1px solid #dfe4dd;border-radius:7px;padding:10px;background:#fff;color:#26352d;font:inherit;font-size:11px;outline:none}
+.preference-notes textarea{resize:vertical;line-height:1.5}
+.preference-submit{display:flex;align-items:center;justify-content:space-between;gap:15px}
+.preference-submit>span{font-size:9px;line-height:1.5;color:#929c94;max-width:440px}
+.preference-submit .btn{font-size:10px;padding:11px 14px;white-space:nowrap}
+.group-preference-list{border-top:1px solid #edf0eb;margin-top:18px;padding-top:15px}
+.subheading{display:flex;justify-content:space-between;gap:10px;margin-bottom:10px}
+.subheading strong{font-size:10px;color:#56645b}.subheading span{font-size:9px;color:#9aa39c}
+.group-preference-card{display:flex;align-items:center;gap:11px;padding:11px 2px;border-top:1px solid #f0f2ee}
+.group-preference-content{display:grid;gap:5px;flex:1;min-width:0}
+.group-preference-content>strong{font-size:10px;color:#47564d}
+.group-preference-content>span{font-size:9px;color:#8a958d;text-transform:capitalize}
+.preference-tags{display:flex;flex-wrap:wrap;gap:4px}
+.preference-tags small{background:#f3f5f1;color:#758078;border-radius:12px;padding:4px 7px;font-size:8px;text-transform:capitalize}
+.preference-budget{font-size:9px;color:#8d6946;white-space:nowrap}
+@media(max-width:600px){.preference-fields{grid-template-columns:1fr}.preference-submit{align-items:stretch;flex-direction:column}.preference-submit .btn{width:100%}.group-preference-card{align-items:flex-start;flex-wrap:wrap}.preference-budget{margin-left:45px}}
