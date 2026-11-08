@@ -200,3 +200,36 @@ Expense totals and shares retain their original currency. They are not converted
 For each currency independently, the API adds the amount paid by each payer and subtracts each member's recorded share to calculate a net balance. Positive balances are owed money; negative balances owe money. A greedy creditor/debtor matching algorithm produces a practical set of suggested transfers. It is a recommendation, not a guarantee of the mathematically smallest possible transfer count.
 
 Currencies are never combined. The endpoint does not initiate payments, mark debts as settled or record repayments. If an expense is deleted, the next calculation reflects the remaining expenses.
+
+## Repayment tracking
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/repayments` | Trip member |
+| POST | `/api/v1/trips/{tripId}/repayments` | Debtor who is a trip member |
+| POST | `/api/v1/trips/{tripId}/repayments/{repaymentId}/respond` | Intended recipient only |
+
+A debtor can submit a full or partial repayment to a current trip member who has an outstanding positive balance in the same currency. The API checks the current ledger balance and reserves amounts from other pending repayments to reduce accidental over-recording. Amounts are stored to four decimal places.
+
+The repayment starts with status `pending`. Only the intended recipient can confirm or reject it. A confirmed repayment is applied to both users' net balances; rejected and pending repayments do not change the settlement ledger. All records remain visible in the repayment history.
+
+Example create request:
+
+```json
+{
+  "toUserId": "00000000-0000-0000-0000-000000000000",
+  "amount": 25.00,
+  "currencyCode": "USD",
+  "note": "Bank transfer reference"
+}
+```
+
+Example response action:
+
+```json
+{
+  "decision": "confirm"
+}
+```
+
+Deleting an expense in a currency after a repayment in that currency has been confirmed is blocked. Add a separate adjustment expense instead so the financial history remains auditable. TravelOS records user attestations only; it does not connect to banks, verify transfers, or move money.
