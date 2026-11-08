@@ -19,6 +19,13 @@ type Itinerary = {
   id: string; tripId: string; version: number; isApproved: boolean;
   approvedAt: string | null; days: ItineraryDay[];
 };
+type SuggestedActivity = Omit<Activity, "id">;
+type AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
+type AiDraft = {
+  id: string; tripId: string; status: string; createdAt: string;
+  provider: string; model: string | null; warnings: string[];
+  itinerary: { title: string; summary: string; days: AiDraftDay[] };
+};
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -79,6 +86,10 @@ export default function App() {
   const [activityDescription, setActivityDescription] = useState("");
   const [activityDuration, setActivityDuration] = useState("");
   const [activityCost, setActivityCost] = useState("");
+  const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);
+  const [travellerCount, setTravellerCount] = useState(1);
+  const [interestsText, setInterestsText] = useState("");
+  const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -114,15 +125,25 @@ export default function App() {
     }
   }
 
+  async function loadDrafts(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<AiDraft[]>(`/api/v1/trips/${trip.id}/itinerary/drafts`, accessToken);
+      setAiDrafts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load AI drafts.");
+    }
+  }
+
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setShowAddDay(false);
-    setActiveDayId(null);
-    await loadItinerary(trip);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]);
+    setShowAddDay(false); setActiveDayId(null);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip)]);
   }
 
   function closeTrip() {
-    setSelectedTrip(null); setItinerary(null); setShowAddDay(false);
-    setActiveDayId(null); setError("");
+    setSelectedTrip(null); setItinerary(null); setAiDrafts([]);
+    setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
@@ -245,6 +266,45 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+
+  async function generateAiDraft(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      const draft = await api<AiDraft>(`/api/v1/trips/${selectedTrip.id}/itinerary/drafts`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          travellerCount,
+          budgetAmount: null,
+          interests: interestsText.split(",").map(value => value.trim()).filter(Boolean),
+          travelPace,
+        }),
+      });
+      setAiDrafts(current => [draft, ...current]);
+      setNotice("AI itinerary draft generated. Review it before applying.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI itinerary generation is unavailable.");
+    } finally { setBusy(false); }
+  }
+
+  async function applyAiDraft(draftId: string) {
+    if (!token || !selectedTrip) return;
+    if (!window.confirm("Apply this AI draft to your trip? You can review and edit it before approving.")) return;
+    setBusy(true); setError("");
+    try {
+      const updated = await api<Itinerary>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/drafts/${draftId}/apply`,
+        token, { method: "POST" },
+      );
+      setItinerary(updated);
+      await loadDrafts(selectedTrip);
+      setNotice("AI draft applied as a new editable itinerary version. It is not approved.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to apply AI draft.");
+    } finally { setBusy(false); }
+  }
+
   if (!token || !user) {
     return (
       <main className="auth-layout">
@@ -341,6 +401,28 @@ export default function App() {
               <div><p className="eyebrow">YOUR JOURNEY · {selectedTrip.currencyCode}</p><h1>{selectedTrip.name}</h1><p className="muted">{selectedTrip.destination} <span>·</span> {formatDate(selectedTrip.startDate)} — {formatDate(selectedTrip.endDate)}</p></div>
               {itinerary && <span className={itinerary.isApproved ? "approval-pill approved" : "approval-pill"}>{itinerary.isApproved ? "✓ APPROVED" : "DRAFT PLAN"}</span>}
             </section>
+
+            {selectedTrip.currentUserRole === "owner" && <section className="ai-planner-card">
+              <div className="ai-planner-heading"><div><p className="eyebrow">TRAVELOS INTELLIGENCE</p><h2>Start with an AI draft.</h2><p>Generate a suggested day-by-day plan, review it, then decide whether to apply it.</p></div><span className="ai-spark">✳</span></div>
+              <form className="ai-options" onSubmit={generateAiDraft}>
+                <label>Travellers<input type="number" min="1" max="30" value={travellerCount} onChange={e => setTravellerCount(Number(e.target.value))} /></label>
+                <label>Interests<input value={interestsText} onChange={e => setInterestsText(e.target.value)} placeholder="Food, culture, nature…" /></label>
+                <label>Travel pace<select value={travelPace} onChange={e => setTravelPace(e.target.value as "relaxed" | "balanced" | "fast")}><option value="relaxed">Relaxed</option><option value="balanced">Balanced</option><option value="fast">Fast-paced</option></select></label>
+                <button className="btn btn-primary" disabled={busy}>{busy ? "Generating…" : "✳ Generate AI draft"}</button>
+              </form>
+              <p className="ai-disclaimer">AI suggestions can be inaccurate. Verify places, hours, routes and costs. Generation requires a configured AI provider.</p>
+            </section>}
+            {aiDrafts.length > 0 && <section className="ai-drafts-section">
+              <div className="section-heading"><div><p className="eyebrow">REVIEW BEFORE APPLYING</p><h2>AI itinerary drafts</h2></div><span className="count-label">{aiDrafts.filter(d => d.status === "pending_review").length} TO REVIEW</span></div>
+              {aiDrafts.map(draft => <article className="ai-draft-card" key={draft.id}>
+                <div className="ai-draft-top"><div><span className="draft-provider">{draft.provider}{draft.model ? ` · ${draft.model}` : ""}</span><h3>{draft.itinerary.title}</h3></div><span className={draft.status === "applied" ? "role owner" : "role"}>{draft.status.replace("_", " ")}</span></div>
+                <p className="ai-draft-summary">{draft.itinerary.summary}</p>
+                <div className="ai-draft-days">{draft.itinerary.days.map(day => <div key={day.dayNumber}><strong>Day {day.dayNumber} · {formatDate(day.date)}</strong><span>{day.theme}</span><small>{day.activities.map(activity => activity.title).join(" · ")}</small></div>)}</div>
+                {draft.warnings?.map((warning, index) => <p className="ai-warning" key={index}>ⓘ {warning}</p>)}
+                {draft.status === "pending_review" && selectedTrip.currentUserRole === "owner" && <button className="btn btn-primary apply-draft-button" disabled={busy} onClick={() => applyAiDraft(draft.id)}>Apply this draft →</button>}
+              </article>)}
+            </section>}
+
             {loadingItinerary ? <section className="empty-state"><p>Loading your itinerary…</p></section> :
               !itinerary ? <section className="empty-state itinerary-empty"><div className="empty-icon">✳</div><h3>Your itinerary starts here.</h3><p>Create a day-by-day plan for {selectedTrip.destination}. Add places and activities, then approve it when you're happy.</p>{selectedTrip.currentUserRole === "owner" && <button className="btn btn-primary" disabled={busy} onClick={createItinerary}>Create itinerary →</button>}</section> :
               <>

@@ -109,8 +109,8 @@ tests                    Cross-service integration test area
 
 The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion and a day-by-day itinerary workspace.
 
-- Set `VITE_PLATFORM_API_URL` to the platform API base URL before building the frontend.
-- The development default is `http://localhost:8080`.
+- Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
+- The local default is `http://localhost:8080`.
 - The browser client keeps the short-lived access token in `sessionStorage` for this preview. This reduces persistence after the browser session but is not a substitute for a production-grade HttpOnly, Secure, SameSite cookie/BFF design.
 - Configure `Cors__AllowedOrigins__0` on the API to the exact deployed frontend origin. The default local origin is `http://localhost:5173`.
 
@@ -166,6 +166,19 @@ Open a trip from the dashboard to manage its itinerary.
 - Approved plans become read-only.
 - Activity duration, place, notes and estimated cost are optional fields.
 - The itinerary builder does not generate AI recommendations or verify live opening hours, routes, availability or prices yet.
+
+## AI itinerary drafts
+
+The trip owner can request an AI-generated itinerary draft from the itinerary workspace. The platform API sends trip dates, destination, traveller count, budget, interests and pace to the isolated FastAPI service.
+
+- The AI service defaults to `AI_PROVIDER=demo`; demo mode deliberately creates no itinerary.
+- To enable real generation locally, set `AI_PROVIDER=openai`, `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the AI service process environment. The root `.env.example` is a reference template; Python does not automatically load it. For PowerShell, set `$env:AI_PROVIDER="openai"` and `$env:OPENAI_API_KEY="your-key"` in the terminal before starting Uvicorn. On macOS/Linux, use `export AI_PROVIDER=openai` and `export OPENAI_API_KEY='your-key'`.
+- The platform API calls the AI service at `AiService:BaseUrl` (local default `http://localhost:8001`).
+- Never commit provider keys or place them in frontend environment variables.
+- AI output is validated by the AI service and again by the platform API before being saved.
+- Generated plans are stored as `pending_review` drafts and are not approved or applied automatically.
+- The owner must explicitly apply a reviewed draft. Applying it creates a new itinerary version; if a previous itinerary is still a draft, approve it first.
+- AI suggestions may be inaccurate. Verify places, opening hours, routes and costs. Estimates are not live prices.
 
 ## Database notes
 

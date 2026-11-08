@@ -93,3 +93,16 @@ Coordinates and duration are optional. If cost is supplied without a currency, t
 | POST | `/api/v1/trips/{tripId}/itinerary/approve` | Trip owner |
 
 The web app supports initial itinerary creation, adding days and activities, activity removal, and approval. Approved itineraries are read-only.
+
+## AI itinerary drafts
+
+| Method | Route | Access |
+|---|---|---|
+| POST | `/api/v1/trips/{tripId}/itinerary/drafts` | Trip owner; requests generation |
+| GET | `/api/v1/trips/{tripId}/itinerary/drafts` | Trip owner or member; lists drafts |
+| GET | `/api/v1/trips/{tripId}/itinerary/drafts/{draftId}` | Trip owner or member |
+| POST | `/api/v1/trips/{tripId}/itinerary/drafts/{draftId}/apply` | Trip owner; applies reviewed draft |
+
+The generation request accepts `travellerCount`, optional `budgetAmount`, `interests` and `travelPace`. Destination, dates and currency are taken from the stored trip record.
+
+The API persists only a successful real-provider result. Demo-mode responses are not saved as generated itineraries. Applying a draft creates a new itinerary version and never approves it automatically.
