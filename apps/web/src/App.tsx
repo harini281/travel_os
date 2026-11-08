@@ -34,6 +34,9 @@ type Budget = {
 type TripMember = { userId: string; displayName: string; email: string; role: string; joinedAt: string };
 type TripInvitation = { id: string; tripId: string; tripName: string; destination: string; invitedByName: string; createdAt: string; expiresAt: string };
 type TripInvitationRecord = { id: string; tripId: string; tripName: string; destination: string; invitedByName: string; status: string; createdAt: string; expiresAt: string };
+type MyTripPreference = { id: string; tripId: string; userId: string; interests: string[]; pace: string; travelStyle: string; dailyBudgetAmount: number | null; dailyBudgetCurrencyCode: string | null; notes: string | null; updatedAt: string };
+type GroupTripPreference = { userId: string; displayName: string; interests: string[]; pace: string; travelStyle: string; dailyBudgetAmount: number | null; dailyBudgetCurrencyCode: string | null; updatedAt: string };
+const preferenceInterestOptions = ["culture","history","nature","adventure","food","shopping","photography","nightlife","beaches","art","wellness","local experiences"];
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -108,6 +111,14 @@ export default function App() {
   const [tripInvitations, setTripInvitations] = useState<TripInvitationRecord[]>([]);
   const [myInvitations, setMyInvitations] = useState<TripInvitation[]>([]);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [myPreference, setMyPreference] = useState<MyTripPreference | null>(null);
+  const [groupPreferences, setGroupPreferences] = useState<GroupTripPreference[]>([]);
+  const [preferenceInterests, setPreferenceInterests] = useState<string[]>([]);
+  const [preferencePace, setPreferencePace] = useState("balanced");
+  const [preferenceStyle, setPreferenceStyle] = useState("mixed");
+  const [preferenceBudget, setPreferenceBudget] = useState("");
+  const [preferenceCurrency, setPreferenceCurrency] = useState("USD");
+  const [preferenceNotes, setPreferenceNotes] = useState("");
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -182,6 +193,55 @@ export default function App() {
     }
   }
 
+
+  async function loadPreferences(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const [mine, group] = await Promise.all([
+        api<MyTripPreference | undefined>(`/api/v1/trips/${trip.id}/preferences/me`, accessToken),
+        api<GroupTripPreference[]>(`/api/v1/trips/${trip.id}/preferences/group`, accessToken),
+      ]);
+      setMyPreference(mine ?? null);
+      setGroupPreferences(group);
+      setPreferenceInterests(mine?.interests ?? []);
+      setPreferencePace(mine?.pace ?? "balanced");
+      setPreferenceStyle(mine?.travelStyle ?? "mixed");
+      setPreferenceBudget(mine?.dailyBudgetAmount == null ? "" : String(mine.dailyBudgetAmount));
+      setPreferenceCurrency(mine?.dailyBudgetCurrencyCode ?? trip.currencyCode);
+      setPreferenceNotes(mine?.notes ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load traveller preferences.");
+    }
+  }
+
+  async function savePreferences(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      const saved = await api<MyTripPreference>(`/api/v1/trips/${selectedTrip.id}/preferences/me`, token, {
+        method: "PUT",
+        body: JSON.stringify({
+          interests: preferenceInterests, pace: preferencePace, travelStyle: preferenceStyle,
+          dailyBudgetAmount: preferenceBudget.trim() ? Number(preferenceBudget) : null,
+          dailyBudgetCurrencyCode: preferenceBudget.trim() ? preferenceCurrency : null,
+          notes: preferenceNotes.trim() || null,
+        }),
+      });
+      setMyPreference(saved);
+      const group = await api<GroupTripPreference[]>(`/api/v1/trips/${selectedTrip.id}/preferences/group`, token);
+      setGroupPreferences(group);
+      setNotice("Your trip preferences have been saved.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to save preferences."); }
+    finally { setBusy(false); }
+  }
+
+  function togglePreferenceInterest(interest: string) {
+    setPreferenceInterests(current => current.includes(interest)
+      ? current.filter(item => item !== interest)
+      : current.length < 8 ? [...current, interest] : current);
+  }
+
   async function loadMyInvitations(accessToken = token) {
     if (!accessToken) return;
     const invitations = await api<TripInvitation[]>("/api/v1/me/invitations", accessToken);
@@ -190,14 +250,14 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -575,6 +635,32 @@ export default function App() {
                 <p className="budget-footnote">Invitations are available to existing TravelOS accounts and expire after 7 days. Email delivery is not configured yet; invited travellers see requests in their TravelOS inbox.</p>
                 {tripInvitations.filter(invitation => invitation.status === "pending").length > 0 && <div className="pending-invites"><strong>Pending invitations</strong>{tripInvitations.filter(invitation => invitation.status === "pending").map(invitation => <div key={invitation.id}><span>{invitation.id.slice(0,8)} · Expires {formatDate(invitation.expiresAt.slice(0,10))}</span><button className="delete-link" onClick={() => revokeTripInvitation(invitation.id)}>Revoke</button></div>)}</div>}
               </>}
+            </section>
+
+
+            <section className="preference-workspace">
+              <div className="section-heading"><div><p className="eyebrow">MAKE THIS TRIP YOURS</p><h2>Traveller preferences</h2></div><span className="count-label">{myPreference ? "PROFILE SAVED" : "NOT SET UP"}</span></div>
+              <p className="preference-intro">Tell your group what matters to you. Your interests, pace and travel style can help shape a plan everyone enjoys.</p>
+              <form className="preference-form" onSubmit={savePreferences}>
+                <fieldset className="interest-picker"><legend>What are you interested in? <span>Choose up to 8</span></legend>
+                  <div className="interest-options">{preferenceInterestOptions.map(interest => <label className={preferenceInterests.includes(interest) ? "interest-option selected" : "interest-option"} key={interest}><input type="checkbox" checked={preferenceInterests.includes(interest)} onChange={() => togglePreferenceInterest(interest)} />{interest}</label>)}</div>
+                </fieldset>
+                <div className="preference-fields">
+                  <label>Preferred pace<select value={preferencePace} onChange={e => setPreferencePace(e.target.value)}><option value="relaxed">Relaxed — plenty of downtime</option><option value="balanced">Balanced — mix of activities and rest</option><option value="fast">Fast — see as much as possible</option></select></label>
+                  <label>Travel style<select value={preferenceStyle} onChange={e => setPreferenceStyle(e.target.value)}><option value="mixed">A bit of everything</option><option value="culture">Culture and heritage</option><option value="nature">Nature and outdoors</option><option value="adventure">Adventure and action</option><option value="food">Food and local flavours</option><option value="relaxation">Relaxation and slow travel</option></select></label>
+                  <label>Daily budget (optional)<input type="number" min="0" step="0.01" value={preferenceBudget} onChange={e => setPreferenceBudget(e.target.value)} placeholder="e.g. 75" /></label>
+                  <label>Budget currency<select value={preferenceCurrency} onChange={e => setPreferenceCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
+                </div>
+                <label className="preference-notes">Anything else your group should know? <span>Optional · 500 characters</span><textarea maxLength={500} rows={3} value={preferenceNotes} onChange={e => setPreferenceNotes(e.target.value)} placeholder="e.g. I'd love a free afternoon for exploring independently." /></label>
+                <div className="preference-submit"><span>Your notes are private to you. Group members can see your selected interests, pace, travel style and daily budget.</span><button className="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save my preferences"}</button></div>
+              </form>
+              <div className="group-preference-list"><div className="subheading"><strong>Group preference overview</strong><span>{groupPreferences.length} of {tripMembers.length} profiles completed</span></div>
+                {groupPreferences.length ? groupPreferences.map(preference => <article className="group-preference-card" key={preference.userId}>
+                  <span className="member-avatar">{initials(preference.displayName)}</span>
+                  <div className="group-preference-content"><strong>{preference.displayName}{preference.userId === user.id ? " · You" : ""}</strong><span>{preference.travelStyle} · {preference.pace} pace</span><div className="preference-tags">{preference.interests.map(interest => <small key={interest}>{interest}</small>)}</div></div>
+                  {preference.dailyBudgetAmount != null && <b className="preference-budget">{preference.dailyBudgetAmount.toLocaleString()} {preference.dailyBudgetCurrencyCode}/day</b>}
+                </article>) : <p className="budget-empty">No one has shared preferences yet. Be the first to add yours.</p>}
+              </div>
             </section>
 
             <section className="budget-workspace">
