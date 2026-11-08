@@ -4,9 +4,9 @@
 
 A greenfield, global travel platform built with React, ASP.NET Core, PostgreSQL, and Python/FastAPI.
 
-## Stage 1 scope
+## Stage 2 scope
 
-This starter establishes the repository structure, service boundaries, initial data model, local PostgreSQL infrastructure, health endpoints, and versioned contracts. It does **not** claim that production authentication, live travel data, or a real AI model is implemented.
+This stage adds a PostgreSQL bootstrap schema, EF Core entity relationships, database configuration, PostgreSQL health checks, and fixes discovered by the first CI run. It remains a foundation, not a production-ready application.
 
 ## Prerequisites
 
@@ -19,10 +19,10 @@ This starter establishes the repository structure, service boundaries, initial d
 
 ```text
 apps/web                 React + TypeScript + Vite frontend
-services/platform-api    ASP.NET Core platform API
+services/platform-api    ASP.NET Core platform API and EF Core model
 services/ai-api          FastAPI AI service boundary
 packages/contracts       Versioned JSON contracts
-database                 Schema notes, migrations and seeds
+database/migrations      PostgreSQL bootstrap schema
 infrastructure           Docker and deployment configuration
 docs                     Product and architecture documentation
 tests                    Cross-service integration test area
@@ -30,14 +30,17 @@ tests                    Cross-service integration test area
 
 ## Run locally
 
-1. Copy `.env.example` to `.env` and adjust values if required.
+1. Copy `.env.example` to `.env`. The checked-in values are for local development only.
 2. Start PostgreSQL:
 
    ```bash
    docker compose up -d postgres
+   docker compose ps
    ```
 
-3. Start the platform API:
+   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**.
+
+3. Start the platform API in another terminal:
 
    ```bash
    cd services/platform-api
@@ -45,7 +48,13 @@ tests                    Cross-service integration test area
    dotnet run
    ```
 
-4. Start the AI API in another terminal:
+   The API reads its connection string from `ConnectionStrings__TravelOS`. For local development, set it in your shell or user secrets, for example:
+
+   ```text
+   Host=localhost;Port=5432;Database=travelos;Username=travelos;Password=change-me-local-only
+   ```
+
+4. Start the AI API:
 
    ```bash
    cd services/ai-api
@@ -68,10 +77,18 @@ tests                    Cross-service integration test area
 
 - Web: http://localhost:5173
 - Platform API: http://localhost:8080
-- Platform API OpenAPI: http://localhost:8080/openapi/v1.json
+- Platform API health: http://localhost:8080/health
 - AI API: http://localhost:8001
 - AI API docs: http://localhost:8001/docs
 - PostgreSQL: localhost:5432
+
+## Database notes
+
+- Bootstrap schema: `database/migrations/001_initial_schema.sql`.
+- Docker executes it only when initializing a new empty PostgreSQL volume.
+- If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
+- The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
+- The API health endpoint includes PostgreSQL connectivity when a connection string is configured.
 
 ## Important boundaries
 

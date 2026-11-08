@@ -2,32 +2,27 @@ using Microsoft.EntityFrameworkCore;
 using TravelOS.PlatformApi.Data;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddOpenApi();
-
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
+
+var healthChecks = builder.Services.AddHealthChecks();
+
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddDbContext<TravelOsDbContext>(options => options.UseNpgsql(connectionString));
+    builder.Services.AddDbContext<TravelOsDbContext>(options =>
+        options.UseNpgsql(connectionString));
+
+    healthChecks.AddNpgSql(connectionString, name: "postgresql");
 }
 
 var app = builder.Build();
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
 
-app.MapGet("/health", () => Results.Ok(new
-{
-    status = "ok",
-    service = "travelos-platform-api",
-    databaseConfigured = !string.IsNullOrWhiteSpace(connectionString)
-}));
+app.MapHealthChecks("/health");
 
 app.MapGet("/", () => Results.Ok(new
 {
     name = "TravelOS Platform API",
-    version = "0.1.0",
-    stage = "foundation"
+    version = "0.2.0",
+    stage = "database-foundation"
 }));
 
 app.Run();
