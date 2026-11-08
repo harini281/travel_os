@@ -41,6 +41,10 @@ type GroupPollOption = { id: string; label: string; voteCount: number; isSelecte
 type GroupPoll = { id: string; tripId: string; title: string; description: string | null; status: string; createdByUserId: string; createdByName: string; createdAt: string; closesAt: string | null; totalVotes: number; myVoteOptionId: string | null; options: GroupPollOption[] };
 type TripExpenseShare = { userId: string; displayName: string; shareAmount: number };
 type TripExpense = { id: string; tripId: string; title: string; category: string; notes: string | null; amount: number; currencyCode: string; expenseDate: string; paidByUserId: string; paidByName: string; createdByUserId: string; createdAt: string; shares: TripExpenseShare[] };
+type SettlementBalance = { userId: string; displayName: string; netAmount: number };
+type SettlementTransfer = { fromUserId: string; fromName: string; toUserId: string; toName: string; amount: number };
+type CurrencySettlement = { currencyCode: string; totalExpenses: number; balances: SettlementBalance[]; suggestedTransfers: SettlementTransfer[] };
+type TripSettlement = { tripId: string; expenseCount: number; currencies: CurrencySettlement[] };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -129,6 +133,7 @@ export default function App() {
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollClosesAt, setPollClosesAt] = useState("");
   const [tripExpenses, setTripExpenses] = useState<TripExpense[]>([]);
+  const [tripSettlement, setTripSettlement] = useState<TripSettlement | null>(null);
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("food");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -226,6 +231,17 @@ export default function App() {
     }
   }
 
+
+  async function loadTripSettlement(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<TripSettlement>(`/api/v1/trips/${trip.id}/settlements`, accessToken);
+      setTripSettlement(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to calculate settlement suggestions.");
+    }
+  }
+
   async function createTripExpense(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token || !selectedTrip || !expensePaidBy) return;
@@ -240,7 +256,7 @@ export default function App() {
         }),
       });
       setExpenseTitle(""); setExpenseAmount(""); setExpenseNotes("");
-      await loadTripExpenses(selectedTrip);
+      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip)]);
       setNotice("Shared expense added and split equally between selected travellers.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add shared expense."); }
     finally { setBusy(false); }
@@ -251,7 +267,7 @@ export default function App() {
     setError("");
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}`, token, { method: "DELETE" });
-      await loadTripExpenses(selectedTrip);
+      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip)]);
       setNotice("Expense removed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove expense."); }
   }
@@ -374,15 +390,15 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -843,7 +859,17 @@ export default function App() {
                   {(expense.createdByUserId === user.id || selectedTrip.currentUserRole === "owner") && <button className="delete-link expense-delete" onClick={() => deleteTripExpense(expense)}>Remove expense</button>}
                 </article>) : <p className="budget-empty">No shared expenses yet. Add the first group payment above.</p>}
               </div>
-              <p className="expense-footnote">These are planned records of payments and equal shares, not settled balances. Different currencies are shown separately. Debt settlement and custom splits are planned for a later stage.</p>
+
+              <div className="settlement-panel">
+                <div className="subheading"><strong>Suggested repayments</strong><span>Based on recorded expenses</span></div>
+                {tripSettlement?.currencies.length ? tripSettlement.currencies.map(currency => <div className="settlement-currency" key={currency.currencyCode}>
+                  <div className="settlement-currency-heading"><strong>{currency.currencyCode}</strong><span>{currency.totalExpenses.toLocaleString()} {currency.currencyCode} recorded</span></div>
+                  <div className="settlement-balances">{currency.balances.map(balance => <div key={balance.userId}><span>{balance.displayName}</span><b className={balance.netAmount > 0 ? "balance-positive" : "balance-negative"}>{balance.netAmount > 0 ? "+" : ""}{balance.netAmount.toLocaleString()} {currency.currencyCode}</b></div>)}</div>
+                  {currency.suggestedTransfers.length ? <div className="settlement-transfers"><strong>Suggested transfers</strong>{currency.suggestedTransfers.map((transfer,index) => <div key={index}><span>{transfer.fromName} <i>pays</i> {transfer.toName}</span><b>{transfer.amount.toLocaleString()} {currency.currencyCode}</b></div>)}</div> : <p className="budget-empty">Everyone is even in this currency.</p>}
+                </div>) : <p className="budget-empty">Add shared expenses to calculate who owes whom.</p>}
+                <p className="expense-footnote">Suggestions are calculated separately per currency and are not payments. Members must arrange repayments themselves.</p>
+              </div>
+
             </section>
 
             <section className="budget-workspace">
