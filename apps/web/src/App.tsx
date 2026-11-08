@@ -359,12 +359,12 @@ export default function App() {
   }
 
   function toggleExpenseParticipant(userId: string) {
-    setExpenseParticipants(current => {
-      const next = current.includes(userId) ? current.filter(id => id !== userId) : [...current, userId];
-      if (expenseSplitType !== "equal")
-        setExpenseCustomShares(defaultCustomShareValues(expenseSplitType, expenseAmount, next));
-      return next;
-    });
+    const next = expenseParticipants.includes(userId)
+      ? expenseParticipants.filter(id => id !== userId)
+      : [...expenseParticipants, userId];
+    setExpenseParticipants(next);
+    if (expenseSplitType !== "equal")
+      setExpenseCustomShares(defaultCustomShareValues(expenseSplitType, expenseAmount, next));
   }
 
   async function loadGroupPolls(trip: Trip, accessToken = token) {
@@ -930,7 +930,7 @@ export default function App() {
                 <div className="expense-fields">
                   <label>What was paid for?<input value={expenseTitle} onChange={e => setExpenseTitle(e.target.value)} placeholder="e.g. Dinner at the beach" maxLength={160} required /></label>
                   <label>Category<select value={expenseCategory} onChange={e => setExpenseCategory(e.target.value)}><option value="accommodation">Accommodation</option><option value="transport">Transport</option><option value="food">Food</option><option value="activities">Activities</option><option value="shopping">Shopping</option><option value="other">Other</option></select></label>
-                  <label>Amount<input type="number" min="0.0001" step="0.0001" value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} placeholder="0.00" required /></label>
+                  <label>Amount<input type="number" min="0.0001" step="0.0001" value={expenseAmount} onChange={e => { setExpenseAmount(e.target.value); if (expenseSplitType === "exact") setExpenseCustomShares(defaultCustomShareValues("exact", e.target.value, expenseParticipants)); }} placeholder="0.00" required /></label>
                   <label>Currency<select value={expenseCurrency} onChange={e => setExpenseCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
                   <label>Date<input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} required /></label>
                   <label>Who paid?<select value={expensePaidBy} onChange={e => setExpensePaidBy(e.target.value)} required>{tripMembers.map(member => <option value={member.userId} key={member.userId}>{member.displayName}</option>)}</select></label>
