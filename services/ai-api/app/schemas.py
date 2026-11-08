@@ -78,3 +78,31 @@ class DraftResponse(BaseModel):
     model: str | None = None
     itinerary: ItinerarySuggestion | None = None
     warnings: list[str] = Field(default_factory=list)
+
+
+class ReceiptExtractionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    contentType: Literal["image/jpeg", "image/png", "image/webp"]
+    imageBase64: str = Field(min_length=100, max_length=12000000)
+    
+    @model_validator(mode="after")
+    def validate_image(self):
+        import base64
+        try:
+            decoded = base64.b64decode(self.imageBase64, validate=True)
+        except Exception as exc:
+            raise ValueError("imageBase64 must contain valid base64 data") from exc
+        if not decoded or len(decoded) > 8 * 1024 * 1024:
+            raise ValueError("Receipt image must be between 1 byte and 8 MB")
+        return self
+
+
+class ReceiptExtractionResult(BaseModel):
+    status: Literal["demo_only", "extracted"]
+    provider: Literal["demo", "openai"]
+    merchantName: str | None = Field(default=None, max_length=180)
+    receiptDate: date | None = None
+    totalAmount: Decimal | None = Field(default=None, ge=0)
+    currencyCode: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    confidence: Decimal | None = Field(default=None, ge=0, le=1)
+    warning: str
