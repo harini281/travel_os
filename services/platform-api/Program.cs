@@ -4,15 +4,14 @@ using TravelOS.PlatformApi.Data;
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
 
-builder.Services.AddHealthChecks();
+var healthChecks = builder.Services.AddHealthChecks();
 
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
     builder.Services.AddDbContext<TravelOsDbContext>(options =>
         options.UseNpgsql(connectionString));
 
-    builder.Services.AddHealthChecks()
-        .AddNpgSql(connectionString, name: "postgresql");
+    healthChecks.AddNpgSql(connectionString, name: "postgresql");
 }
 
 var app = builder.Build();
