@@ -15,6 +15,7 @@ using TravelOS.PlatformApi.Preferences;
 using TravelOS.PlatformApi.Voting;
 using TravelOS.PlatformApi.Expenses;
 using TravelOS.PlatformApi.Settlements;
+using TravelOS.PlatformApi.Repayments;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -129,6 +130,7 @@ app.MapPreferenceEndpoints();
 app.MapGroupVotingEndpoints();
 app.MapExpenseEndpoints();
 app.MapSettlementEndpoints();
+app.MapRepaymentEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
