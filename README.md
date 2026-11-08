@@ -48,6 +48,18 @@ tests                    Cross-service integration test area
    dotnet run
    ```
 
+   The API reads its connection string from `ConnectionStrings__TravelOS`. The Docker initialization also applies the ASP.NET Core Identity tables from `002_identity_schema.sql` when using a new empty volume.
+
+   Configure the JWT issuer, audience, and a unique signing key before starting the API. The signing key must be at least 32 bytes. For local development, set these environment variables in your shell (the example below is a placeholder only; use a fresh random secret):
+
+   ```powershell
+   $env:Jwt__Issuer = "TravelOS"
+   $env:Jwt__Audience = "TravelOS.Client"
+   $env:Jwt__SigningKey = "replace-with-a-unique-random-secret-at-least-32-bytes"
+   ```
+
+   On macOS/Linux, use `export Jwt__Issuer=TravelOS`, `export Jwt__Audience=TravelOS.Client`, and `export Jwt__SigningKey='replace-with-a-unique-random-secret-at-least-32-bytes'`.
+
    The API reads its connection string from `ConnectionStrings__TravelOS`. For local development, set it in your shell or user secrets, for example:
 
    ```text
@@ -82,9 +94,20 @@ tests                    Cross-service integration test area
 - AI API docs: http://localhost:8001/docs
 - PostgreSQL: localhost:5432
 
+## Authentication
+
+- `POST /api/v1/auth/register` creates a traveller account and returns a short-lived JWT access token.
+- `POST /api/v1/auth/login` validates credentials and returns a JWT access token.
+- `GET /api/v1/auth/me` requires a valid bearer token and returns the current account.
+- ASP.NET Core Identity manages password hashing, normalized email, role membership, failed-login lockout and password policy.
+- The default `Traveller` role is assigned during registration. Never expose a public role-selection field.
+- Access tokens expire after 15 minutes. Refresh tokens, email verification, password reset, MFA and social login are not implemented yet.
+- Use HTTPS outside local development. Keep the JWT signing key in a secrets manager and rotate it deliberately.
+
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
+- Identity schema extension: `database/migrations/002_identity_schema.sql`.
 - Docker executes it only when initializing a new empty PostgreSQL volume.
 - If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
 - The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
