@@ -147,6 +147,8 @@ export default function App() {
   const [expenseNotes, setExpenseNotes] = useState("");
   const [expensePaidBy, setExpensePaidBy] = useState("");
   const [expenseParticipants, setExpenseParticipants] = useState<string[]>([]);
+  const [expenseSplitType, setExpenseSplitType] = useState<"equal" | "percentage" | "exact">("equal");
+  const [expenseCustomShares, setExpenseCustomShares] = useState<Record<string, string>>({});
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -315,11 +317,16 @@ export default function App() {
           title: expenseTitle, category: expenseCategory, notes: expenseNotes.trim() || null,
           amount: Number(expenseAmount), currencyCode: expenseCurrency, expenseDate,
           paidByUserId: expensePaidBy, participantUserIds: expenseParticipants,
+          splitType: expenseSplitType,
+          customShares: expenseSplitType === "equal" ? [] : expenseParticipants.map(userId => ({
+            userId, value: Number(expenseCustomShares[userId] || 0)
+          })),
         }),
       });
       setExpenseTitle(""); setExpenseAmount(""); setExpenseNotes("");
+      setExpenseSplitType("equal"); setExpenseCustomShares({});
       await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip)]);
-      setNotice("Shared expense added and split equally between selected travellers.");
+      setNotice(`Shared expense added with ${expenseSplitType} splitting.`);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add shared expense."); }
     finally { setBusy(false); }
   }
@@ -334,10 +341,30 @@ export default function App() {
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove expense."); }
   }
 
+  function defaultCustomShareValues(type: "percentage" | "exact", amount: string, ids: string[]) {
+    const result: Record<string, string> = {};
+    if (!ids.length) return result;
+    const total = type === "percentage" ? 100 : Number(amount || 0);
+    const unit = Math.floor((total / ids.length) * 10000) / 10000;
+    ids.forEach((id, index) => {
+      const value = index === 0 ? total - unit * (ids.length - 1) : unit;
+      result[id] = value.toFixed(4);
+    });
+    return result;
+  }
+
+  function changeExpenseSplitType(type: "equal" | "percentage" | "exact") {
+    setExpenseSplitType(type);
+    setExpenseCustomShares(type === "equal" ? {} : defaultCustomShareValues(type, expenseAmount, expenseParticipants));
+  }
+
   function toggleExpenseParticipant(userId: string) {
-    setExpenseParticipants(current => current.includes(userId)
-      ? current.filter(id => id !== userId)
-      : [...current, userId]);
+    setExpenseParticipants(current => {
+      const next = current.includes(userId) ? current.filter(id => id !== userId) : [...current, userId];
+      if (expenseSplitType !== "equal")
+        setExpenseCustomShares(defaultCustomShareValues(expenseSplitType, expenseAmount, next));
+      return next;
+    });
   }
 
   async function loadGroupPolls(trip: Trip, accessToken = token) {
@@ -898,7 +925,7 @@ export default function App() {
 
             <section className="expense-workspace">
               <div className="section-heading"><div><p className="eyebrow">SHARED TRIP COSTS</p><h2>Expense tracker</h2></div><span className="count-label">{tripExpenses.length} EXPENSES</span></div>
-              <p className="expense-intro">Record a payment, choose who shared it and TravelOS calculates each traveller's equal share.</p>
+              <p className="expense-intro">Record a payment, choose who shared it and split the cost equally, by percentage or by exact amounts.</p>
               <form className="expense-create-form" onSubmit={createTripExpense}>
                 <div className="expense-fields">
                   <label>What was paid for?<input value={expenseTitle} onChange={e => setExpenseTitle(e.target.value)} placeholder="e.g. Dinner at the beach" maxLength={160} required /></label>
@@ -908,11 +935,21 @@ export default function App() {
                   <label>Date<input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} required /></label>
                   <label>Who paid?<select value={expensePaidBy} onChange={e => setExpensePaidBy(e.target.value)} required>{tripMembers.map(member => <option value={member.userId} key={member.userId}>{member.displayName}</option>)}</select></label>
                 </div>
+                <label className="expense-split-type">How should this expense be split?<select value={expenseSplitType} onChange={e => changeExpenseSplitType(e.target.value as "equal" | "percentage" | "exact")}><option value="equal">Equal shares</option><option value="percentage">By percentage</option><option value="exact">Exact amounts</option></select></label>
                 <fieldset className="expense-participants"><legend>Split between <span>Choose the travellers sharing this cost</span></legend>
                   <div>{tripMembers.map(member => <label key={member.userId}><input type="checkbox" checked={expenseParticipants.includes(member.userId)} onChange={() => toggleExpenseParticipant(member.userId)} />{member.displayName}{member.userId === expensePaidBy ? " · Payer" : ""}</label>)}</div>
                 </fieldset>
+                {expenseSplitType !== "equal" && <div className="custom-share-editor">
+                  <div className="custom-share-heading"><strong>{expenseSplitType === "percentage" ? "Share percentages" : "Individual amounts"}</strong><span>{expenseSplitType === "percentage" ? "Must total exactly 100%" : `Must total ${expenseAmount || "0"} ${expenseCurrency}`}</span></div>
+                  {expenseParticipants.map(id => {
+                    const member = tripMembers.find(x => x.userId === id);
+                    const defaultValue = defaultCustomShareValues(expenseSplitType, expenseAmount, expenseParticipants)[id] ?? "";
+                    return <label key={id}><span>{member?.displayName ?? "Traveller"}</span><div><input type="number" min="0.0001" step="0.0001" value={expenseCustomShares[id] ?? defaultValue} onChange={e => setExpenseCustomShares(current => ({...current,[id]:e.target.value}))} required /><small>{expenseSplitType === "percentage" ? "%" : expenseCurrency}</small></div></label>;
+                  })}
+                  <button type="button" className="custom-share-reset" onClick={() => setExpenseCustomShares(defaultCustomShareValues(expenseSplitType, expenseAmount, expenseParticipants))}>Distribute {expenseSplitType === "percentage" ? "percentages" : "amount"} evenly</button>
+                </div>}
                 <label className="expense-notes">Notes <span>Optional</span><textarea rows={2} maxLength={500} value={expenseNotes} onChange={e => setExpenseNotes(e.target.value)} placeholder="Add a receipt reference or a short note…" /></label>
-                <div className="expense-submit"><small>{expenseParticipants.length} travellers selected · Equal split · Currency kept as entered</small><button className="btn btn-primary" disabled={busy || !expenseTitle.trim() || !expenseAmount || !expensePaidBy || !expenseParticipants.includes(expensePaidBy) || expenseParticipants.length===0}>{busy ? "Saving…" : "＋ Add shared expense"}</button></div>
+                <div className="expense-submit"><small>{expenseParticipants.length} travellers selected · {expenseSplitType === "equal" ? "Equal split" : expenseSplitType === "percentage" ? "Percentage split" : "Exact amount split"} · Currency kept as entered</small><button className="btn btn-primary" disabled={busy || !expenseTitle.trim() || !expenseAmount || !expensePaidBy || !expenseParticipants.includes(expensePaidBy) || expenseParticipants.length===0 || (expenseSplitType !== "equal" && expenseParticipants.some(id => !(Number(expenseCustomShares[id] ?? defaultCustomShareValues(expenseSplitType, expenseAmount, expenseParticipants)[id]) > 0)))}>{busy ? "Saving…" : "＋ Add shared expense"}</button></div>
               </form>
               <div className="expense-list">
                 {tripExpenses.length ? tripExpenses.map(expense => <article className="expense-card" key={expense.id}>
