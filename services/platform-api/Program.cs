@@ -1,5 +1,12 @@
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TravelOS.PlatformApi.Auth;
 using TravelOS.PlatformApi.Data;
+using TravelOS.PlatformApi.Domain;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
@@ -10,19 +17,68 @@ if (!string.IsNullOrWhiteSpace(connectionString))
 {
     builder.Services.AddDbContext<TravelOsDbContext>(options =>
         options.UseNpgsql(connectionString));
-
     healthChecks.AddNpgSql(connectionString, name: "postgresql");
 }
 
+builder.Services
+    .AddIdentityCore<User>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+        options.Password.RequiredLength = 10;
+        options.Password.RequireDigit = true;
+        options.Password.RequireLowercase = true;
+        options.Password.RequireUppercase = true;
+        options.Password.RequireNonAlphanumeric = true;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    })
+    .AddRoles<IdentityRole<Guid>>()
+    .AddEntityFrameworkStores<TravelOsDbContext>()
+    .AddSignInManager();
+
+var issuer = builder.Configuration["Jwt:Issuer"] ?? "TravelOS";
+var audience = builder.Configuration["Jwt:Audience"] ?? "TravelOS.Client";
+var signingKey = builder.Configuration["Jwt:SigningKey"]
+    ?? throw new InvalidOperationException("Configure Jwt:SigningKey with a secret of at least 32 bytes.");
+if (Encoding.UTF8.GetByteCount(signingKey) < 32)
+    throw new InvalidOperationException("Jwt:SigningKey must contain at least 32 bytes.");
+
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+            ValidateAudience = true,
+            ValidAudience = audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            ClockSkew = TimeSpan.FromSeconds(30),
+            NameClaimType = "name",
+            RoleClaimType = ClaimTypes.Role
+        };
+    });
+
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<JwtTokenService>();
+
 var app = builder.Build();
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapHealthChecks("/health");
+app.MapAuthEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
     name = "TravelOS Platform API",
-    version = "0.2.0",
-    stage = "database-foundation"
+    version = "0.3.0",
+    stage = "authentication"
 }));
 
 app.Run();
