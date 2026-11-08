@@ -104,6 +104,32 @@ tests                    Cross-service integration test area
 - Access tokens expire after 15 minutes. Refresh tokens, email verification, password reset, MFA and social login are not implemented yet.
 - Use HTTPS outside local development. Keep the JWT signing key in a secrets manager and rotate it deliberately.
 
+## Trip management API
+
+All trip endpoints require `Authorization: Bearer <access-token>`.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| POST | `/api/v1/trips` | Create a trip; creator becomes owner and first member |
+| GET | `/api/v1/trips` | List trips the signed-in user owns or belongs to |
+| GET | `/api/v1/trips/{tripId}` | Read a trip when the user is a member |
+| PUT | `/api/v1/trips/{tripId}` | Update trip details (owner only) |
+| DELETE | `/api/v1/trips/{tripId}` | Delete a trip (owner only) |
+
+Trip dates are ISO `YYYY-MM-DD` values. Currency codes must be three letters and are normalized to uppercase. End date cannot be before start date. Non-members receive `404` for trip details to avoid disclosing trip existence.
+
+Example create request:
+
+```json
+{
+  "name": "Summer in Japan",
+  "destination": "Tokyo, Japan",
+  "startDate": "2027-07-10",
+  "endDate": "2027-07-18",
+  "currencyCode": "JPY"
+}
+```
+
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
