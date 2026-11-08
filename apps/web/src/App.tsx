@@ -26,6 +26,11 @@ type AiDraft = {
   provider: string; model: string | null; warnings: string[];
   itinerary: { title: string; summary: string; days: AiDraftDay[] };
 };
+type BudgetItem = { id: string; category: string; amount: number; currencyCode: string };
+type Budget = {
+  id: string; tripId: string; amount: number; currencyCode: string;
+  items: BudgetItem[]; totalsByCurrency: { currencyCode: string; plannedAmount: number }[];
+};
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -90,6 +95,12 @@ export default function App() {
   const [travellerCount, setTravellerCount] = useState(1);
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
+  const [budget, setBudget] = useState<Budget | null>(null);
+  const [budgetAmount, setBudgetAmount] = useState("");
+  const [budgetCurrency, setBudgetCurrency] = useState("USD");
+  const [budgetCategory, setBudgetCategory] = useState("");
+  const [budgetItemAmount, setBudgetItemAmount] = useState("");
+  const [budgetItemCurrency, setBudgetItemCurrency] = useState("");
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -135,14 +146,26 @@ export default function App() {
     }
   }
 
+  async function loadBudget(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const result = await api<Budget | undefined>(`/api/v1/trips/${trip.id}/budget`, accessToken);
+      setBudget(result ?? null);
+      setBudgetAmount(result ? String(result.amount) : "");
+      setBudgetCurrency(result?.currencyCode ?? trip.currencyCode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load trip budget.");
+    }
+  }
+
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip)]);
   }
 
   function closeTrip() {
-    setSelectedTrip(null); setItinerary(null); setAiDrafts([]);
+    setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -266,6 +289,50 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+
+
+  async function saveBudget(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      const result = await api<Budget>(`/api/v1/trips/${selectedTrip.id}/budget`, token, {
+        method: "PUT",
+        body: JSON.stringify({ amount: Number(budgetAmount), currencyCode: budgetCurrency }),
+      });
+      setBudget(result); setNotice("Trip budget saved.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to save budget."); }
+    finally { setBusy(false); }
+  }
+
+  async function addBudgetItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api<BudgetItem>(`/api/v1/trips/${selectedTrip.id}/budget/items`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          category: budgetCategory, amount: Number(budgetItemAmount),
+          currencyCode: budgetItemCurrency || budget?.currencyCode || selectedTrip.currencyCode,
+        }),
+      });
+      const refreshed = await api<Budget>(`/api/v1/trips/${selectedTrip.id}/budget`, token);
+      setBudget(refreshed); setBudgetCategory(""); setBudgetItemAmount("");
+      setNotice("Planned budget item added.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to add budget item."); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteBudgetItem(itemId: string) {
+    if (!token || !selectedTrip || !window.confirm("Remove this planned budget item?")) return;
+    setError("");
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/budget/items/${itemId}`, token, { method: "DELETE" });
+      const refreshed = await api<Budget>(`/api/v1/trips/${selectedTrip.id}/budget`, token);
+      setBudget(refreshed); setNotice("Budget item removed.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove budget item."); }
+  }
 
   async function generateAiDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -400,6 +467,27 @@ export default function App() {
             <section className="itinerary-hero">
               <div><p className="eyebrow">YOUR JOURNEY · {selectedTrip.currencyCode}</p><h1>{selectedTrip.name}</h1><p className="muted">{selectedTrip.destination} <span>·</span> {formatDate(selectedTrip.startDate)} — {formatDate(selectedTrip.endDate)}</p></div>
               {itinerary && <span className={itinerary.isApproved ? "approval-pill approved" : "approval-pill"}>{itinerary.isApproved ? "✓ APPROVED" : "DRAFT PLAN"}</span>}
+            </section>
+
+
+            <section className="budget-workspace">
+              <div className="section-heading"><div><p className="eyebrow">TRIP FINANCES</p><h2>Budget overview</h2></div>{budget && <span className="count-label">{budget.items.length} PLANNED ITEMS</span>}</div>
+              {selectedTrip.currentUserRole === "owner" && <form className="budget-cap-form" onSubmit={saveBudget}>
+                <label>Trip budget cap<input type="number" min="0" step="0.01" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Set your total budget" required /></label>
+                <label>Budget currency<select value={budgetCurrency} onChange={e => setBudgetCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
+                <button className="btn btn-primary" disabled={busy}>{budget ? "Update budget" : "Set budget"}</button>
+              </form>}
+              {budget ? <>
+                <div className="budget-summary"><div><span>YOUR BUDGET</span><strong>{budget.amount.toLocaleString()} {budget.currencyCode}</strong></div><div><span>PLANNED SPEND</span>{budget.totalsByCurrency.map(total => <strong key={total.currencyCode}>{total.plannedAmount.toLocaleString()} {total.currencyCode}</strong>)}</div></div>
+                {budget.items.length > 0 ? <div className="budget-items">{budget.items.map(item => <div className="budget-item-row" key={item.id}><span className="budget-item-icon">↗</span><strong>{item.category}</strong><span>{item.amount.toLocaleString()} {item.currencyCode}</span>{selectedTrip.currentUserRole === "owner" && <button className="delete-link" onClick={() => deleteBudgetItem(item.id)}>Remove</button>}</div>)}</div> : <p className="budget-empty">No planned categories yet. Add accommodation, transport, food or activities.</p>}
+                {selectedTrip.currentUserRole === "owner" && <form className="budget-item-form" onSubmit={addBudgetItem}>
+                  <label>Category<input value={budgetCategory} onChange={e => setBudgetCategory(e.target.value)} placeholder="e.g. Accommodation" maxLength={80} required /></label>
+                  <label>Planned amount<input type="number" min="0" step="0.01" value={budgetItemAmount} onChange={e => setBudgetItemAmount(e.target.value)} placeholder="0.00" required /></label>
+                  <label>Currency<select value={budgetItemCurrency || budget.currencyCode} onChange={e => setBudgetItemCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
+                  <button className="btn btn-quiet" disabled={busy}>＋ Add item</button>
+                </form>}
+                <p className="budget-footnote">Amounts are planned estimates. Different currencies are shown separately; no exchange-rate conversion is applied.</p>
+              </> : <p className="budget-empty">{selectedTrip.currentUserRole === "owner" ? "Set a budget cap to start tracking planned trip costs." : "The trip owner hasn't set a budget yet."}</p>}
             </section>
 
             {selectedTrip.currentUserRole === "owner" && <section className="ai-planner-card">
