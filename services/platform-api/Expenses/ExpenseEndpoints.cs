@@ -300,10 +300,9 @@ public static class ExpenseEndpoints
             errors["paidByUserId"] = ["The person who paid must be included in the split."];
         if (request.ExpenseDate == default)
             errors["expenseDate"] = ["A valid expense date is required."];
-        if (errors.Count == 0 && !TryAllocate(amount, participants, splitType, customShares, out var allocations, out var splitErrors))
+        if (errors.Count == 0
+            && !TryAllocate(amount, participants, splitType, customShares, out _, out var splitErrors))
             foreach (var pair in splitErrors) errors[pair.Key] = pair.Value;
-        else if (errors.Count == 0)
-            await Task.CompletedTask;
 
         if (errors.Count > 0) return Results.ValidationProblem(errors);
         if (await HasConfirmedRepaymentsAsync(tripId, expense.CurrencyCode, db, ct)
