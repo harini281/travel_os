@@ -2,9 +2,9 @@
 
 ## Bootstrap schema
 
-The initial schema is in `database/migrations/001_initial_schema.sql`. ASP.NET Core Identity tables and columns are added by `002_identity_schema.sql`.
+The initial schema is in `database/migrations/001_initial_schema.sql`. ASP.NET Core Identity tables and columns are added by `002_identity_schema.sql`. The itinerary version uniqueness constraint is added by `003_itinerary_constraints.sql`.
 
-Docker Compose mounts both scripts into the official PostgreSQL image's initialization directory. They run in filename order only when the PostgreSQL data directory is first initialized.
+Docker Compose mounts all three scripts into the official PostgreSQL image's initialization directory. They run in filename order only when the PostgreSQL data directory is first initialized.
 
 For an existing development database, take a backup and apply the required migration deliberately. Do not delete a data volume to force initialization if it contains data you need.
 
@@ -14,7 +14,7 @@ For an existing development database, take a backup and apply the required migra
 - AspNetRoles, AspNetRoleClaims
 - AspNetUserClaims, AspNetUserLogins, AspNetUserRoles, AspNetUserTokens
 - Trips, TripMembers
-- Itineraries, ItineraryDays, Activities
+- Itineraries (unique trip/version), ItineraryDays, Activities
 - GeneratedItineraryDrafts
 - Budgets, BudgetItems
 
