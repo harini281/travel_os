@@ -12,6 +12,7 @@ using TravelOS.PlatformApi.Domain;
 using TravelOS.PlatformApi.Itineraries;
 using TravelOS.PlatformApi.Groups;
 using TravelOS.PlatformApi.Preferences;
+using TravelOS.PlatformApi.Voting;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -123,6 +124,7 @@ app.MapItineraryEndpoints();
 app.MapBudgetEndpoints();
 app.MapGroupEndpoints();
 app.MapPreferenceEndpoints();
+app.MapGroupVotingEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
