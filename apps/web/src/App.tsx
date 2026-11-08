@@ -45,6 +45,7 @@ type SettlementBalance = { userId: string; displayName: string; netAmount: numbe
 type SettlementTransfer = { fromUserId: string; fromName: string; toUserId: string; toName: string; amount: number };
 type CurrencySettlement = { currencyCode: string; totalExpenses: number; balances: SettlementBalance[]; suggestedTransfers: SettlementTransfer[] };
 type TripSettlement = { tripId: string; expenseCount: number; currencies: CurrencySettlement[] };
+type TripRepayment = { id: string; tripId: string; fromUserId: string; fromName: string; toUserId: string; toName: string; amount: number; currencyCode: string; status: "pending" | "confirmed" | "rejected"; note: string | null; createdAt: string; respondedAt: string | null };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -134,6 +135,10 @@ export default function App() {
   const [pollClosesAt, setPollClosesAt] = useState("");
   const [tripExpenses, setTripExpenses] = useState<TripExpense[]>([]);
   const [tripSettlement, setTripSettlement] = useState<TripSettlement | null>(null);
+  const [tripRepayments, setTripRepayments] = useState<TripRepayment[]>([]);
+  const [repaymentTarget, setRepaymentTarget] = useState<{ toUserId: string; toName: string; fromName: string; currencyCode: string; suggestedAmount: number } | null>(null);
+  const [repaymentAmount, setRepaymentAmount] = useState("");
+  const [repaymentNote, setRepaymentNote] = useState("");
   const [expenseTitle, setExpenseTitle] = useState("");
   const [expenseCategory, setExpenseCategory] = useState("food");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -240,6 +245,63 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to calculate settlement suggestions.");
     }
+  }
+
+
+  async function loadTripRepayments(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<TripRepayment[]>(`/api/v1/trips/${trip.id}/repayments`, accessToken);
+      setTripRepayments(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load repayment records.");
+    }
+  }
+
+  function beginRepayment(transfer: SettlementTransfer, currencyCode: string) {
+    if (!user || transfer.fromUserId !== user.id) return;
+    setRepaymentTarget({
+      toUserId: transfer.toUserId, toName: transfer.toName,
+      fromName: transfer.fromName, currencyCode, suggestedAmount: transfer.amount
+    });
+    setRepaymentAmount(transfer.amount.toFixed(2));
+    setRepaymentNote("");
+  }
+
+  async function submitRepayment(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip || !repaymentTarget) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/repayments`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          toUserId: repaymentTarget.toUserId,
+          amount: Number(repaymentAmount),
+          currencyCode: repaymentTarget.currencyCode,
+          note: repaymentNote.trim() || null
+        })
+      });
+      setRepaymentTarget(null); setRepaymentAmount(""); setRepaymentNote("");
+      await Promise.all([loadTripRepayments(selectedTrip), loadTripSettlement(selectedTrip)]);
+      setNotice("Repayment submitted. The recipient must confirm receipt before balances change.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to submit repayment."); }
+    finally { setBusy(false); }
+  }
+
+  async function respondToRepayment(repayment: TripRepayment, decision: "confirm" | "reject") {
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/repayments/${repayment.id}/respond`, token, {
+        method: "POST", body: JSON.stringify({ decision })
+      });
+      await Promise.all([loadTripRepayments(selectedTrip), loadTripSettlement(selectedTrip)]);
+      setNotice(decision === "confirm"
+        ? "Repayment confirmed. Outstanding balances have been updated."
+        : "Repayment rejected. Outstanding balances remain unchanged.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to update repayment."); }
+    finally { setBusy(false); }
   }
 
   async function createTripExpense(event: FormEvent<HTMLFormElement>) {
@@ -390,10 +452,10 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip)]);
   }
 
   function closeTrip() {
@@ -865,9 +927,27 @@ export default function App() {
                 {tripSettlement?.currencies.length ? tripSettlement.currencies.map(currency => <div className="settlement-currency" key={currency.currencyCode}>
                   <div className="settlement-currency-heading"><strong>{currency.currencyCode}</strong><span>{currency.totalExpenses.toLocaleString()} {currency.currencyCode} recorded</span></div>
                   <div className="settlement-balances">{currency.balances.map(balance => <div key={balance.userId}><span>{balance.displayName}</span><b className={balance.netAmount > 0 ? "balance-positive" : "balance-negative"}>{balance.netAmount > 0 ? "+" : ""}{balance.netAmount.toLocaleString()} {currency.currencyCode}</b></div>)}</div>
-                  {currency.suggestedTransfers.length ? <div className="settlement-transfers"><strong>Suggested transfers</strong>{currency.suggestedTransfers.map((transfer,index) => <div key={index}><span>{transfer.fromName} <i>pays</i> {transfer.toName}</span><b>{transfer.amount.toLocaleString()} {currency.currencyCode}</b></div>)}</div> : <p className="budget-empty">Everyone is even in this currency.</p>}
+                  {currency.suggestedTransfers.length ? <div className="settlement-transfers"><strong>Suggested transfers</strong>{currency.suggestedTransfers.map((transfer,index) => <div key={index}><span>{transfer.fromName} <i>pays</i> {transfer.toName}</span><b>{transfer.amount.toLocaleString()} {currency.currencyCode}</b>{user?.id === transfer.fromUserId && <button type="button" className="repayment-action" onClick={() => beginRepayment(transfer,currency.currencyCode)}>Record repayment</button>}</div>)}</div> : <p className="budget-empty">Everyone is even in this currency.</p>}
                 </div>) : <p className="budget-empty">Add shared expenses to calculate who owes whom.</p>}
-                <p className="expense-footnote">Suggestions are calculated separately per currency and are not payments. Members must arrange repayments themselves.</p>
+
+                {repaymentTarget && <form className="repayment-form" onSubmit={submitRepayment}>
+                  <div><strong>Record payment to {repaymentTarget.toName}</strong><button type="button" className="repayment-cancel" onClick={() => setRepaymentTarget(null)}>Cancel</button></div>
+                  <label>Amount ({repaymentTarget.currencyCode})<input type="number" min="0.0001" max={repaymentTarget.suggestedAmount} step="0.0001" value={repaymentAmount} onChange={e => setRepaymentAmount(e.target.value)} required /></label>
+                  <label>Note (optional)<input value={repaymentNote} maxLength={500} onChange={e => setRepaymentNote(e.target.value)} placeholder="e.g. Bank transfer reference" /></label>
+                  <p>Partial repayments are allowed. The recipient must confirm receipt.</p>
+                  <button className="btn btn-primary" disabled={busy || Number(repaymentAmount)<=0 || Number(repaymentAmount)>repaymentTarget.suggestedAmount}>Submit repayment</button>
+                </form>}
+                <div className="repayment-history">
+                  <div className="subheading"><strong>Repayment history</strong><span>{tripRepayments.length} records</span></div>
+                  {tripRepayments.length ? tripRepayments.map(repayment => <article className="repayment-record" key={repayment.id}>
+                    <div className="repayment-record-main"><strong>{repayment.fromName} <i>→</i> {repayment.toName}</strong><b>{repayment.amount.toLocaleString()} {repayment.currencyCode}</b></div>
+                    <div className="repayment-record-meta"><span>{formatDate(repayment.createdAt.slice(0,10))}{repayment.note ? ` · ${repayment.note}` : ""}</span><span className={`repayment-status status-${repayment.status}`}>{repayment.status}</span></div>
+                    {repayment.status === "pending" && user?.id === repayment.toUserId && <div className="repayment-response"><span>Did you receive this payment?</span><div><button type="button" disabled={busy} onClick={() => respondToRepayment(repayment,"confirm")}>Confirm received</button><button type="button" disabled={busy} onClick={() => respondToRepayment(repayment,"reject")}>Reject</button></div></div>}
+                    {repayment.status === "pending" && user?.id === repayment.fromUserId && <p className="repayment-waiting">Waiting for recipient confirmation</p>}
+                  </article>) : <p className="budget-empty">No repayments have been recorded yet.</p>}
+                </div>
+
+                <p className="expense-footnote">Only recipient-confirmed repayments reduce outstanding balances. Pending and rejected records remain visible in the history.</p>
               </div>
 
             </section>

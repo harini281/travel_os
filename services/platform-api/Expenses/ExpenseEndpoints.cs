@@ -142,6 +142,10 @@ public static class ExpenseEndpoints
         var expense = await db.TripExpenses.FirstOrDefaultAsync(
             x => x.Id == expenseId && x.TripId == tripId, ct);
         if (expense is null) return Results.NotFound();
+        var hasConfirmedRepayments = await db.TripRepayments.AnyAsync(
+            x => x.TripId == tripId && x.CurrencyCode == expense.CurrencyCode && x.Status == "confirmed", ct);
+        if (hasConfirmedRepayments)
+            return Results.Conflict(new { message = "Expenses in this currency cannot be removed after a repayment has been confirmed. Add an adjustment expense instead." });
         var isOwner = await db.Trips.AnyAsync(x => x.Id == tripId && x.OwnerUserId == userId, ct);
         if (expense.CreatedByUserId != userId && !isOwner) return Results.Forbid();
 

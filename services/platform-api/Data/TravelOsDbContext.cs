@@ -23,6 +23,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<GroupPollVote> GroupPollVotes => Set<GroupPollVote>();
     public DbSet<TripExpense> TripExpenses => Set<TripExpense>();
     public DbSet<TripExpenseShare> TripExpenseShares => Set<TripExpenseShare>();
+    public DbSet<TripRepayment> TripRepayments => Set<TripRepayment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,6 +144,25 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.ExpenseId, x.UserId }).IsUnique();
+        });
+
+        modelBuilder.Entity<TripRepayment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Amount).HasPrecision(19, 4);
+            entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Note).HasMaxLength(500);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.FromUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.ToUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.TripId, x.Status, x.CurrencyCode });
+            entity.HasIndex(x => new { x.FromUserId, x.ToUserId, x.Status });
         });
 
         modelBuilder.Entity<GroupPoll>(entity =>

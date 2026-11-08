@@ -41,8 +41,12 @@ public static class SettlementEndpoints
             .Include(x => x.Shares)
             .Where(x => x.TripId == tripId)
             .ToListAsync(ct);
+        var repayments = await db.TripRepayments.AsNoTracking()
+            .Where(x => x.TripId == tripId && x.Status == "confirmed").ToListAsync(ct);
         var userIds = expenses.SelectMany(x => x.Shares.Select(s => s.UserId))
-            .Concat(expenses.Select(x => x.PaidByUserId)).Distinct().ToArray();
+            .Concat(expenses.Select(x => x.PaidByUserId))
+            .Concat(repayments.SelectMany(x => new[] { x.FromUserId, x.ToUserId }))
+            .Distinct().ToArray();
         var names = await db.Users.AsNoTracking().Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, ct);
 
@@ -56,6 +60,12 @@ public static class SettlementEndpoints
                     nets[expense.PaidByUserId] = nets.GetValueOrDefault(expense.PaidByUserId) + expense.Amount;
                     foreach (var share in expense.Shares)
                         nets[share.UserId] = nets.GetValueOrDefault(share.UserId) - share.ShareAmount;
+                }
+
+                foreach (var repayment in repayments.Where(x => x.CurrencyCode == group.Key))
+                {
+                    nets[repayment.FromUserId] = nets.GetValueOrDefault(repayment.FromUserId) + repayment.Amount;
+                    nets[repayment.ToUserId] = nets.GetValueOrDefault(repayment.ToUserId) - repayment.Amount;
                 }
 
                 var balances = nets
