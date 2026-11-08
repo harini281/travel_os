@@ -109,8 +109,8 @@ tests                    Cross-service integration test area
 
 The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion and a day-by-day itinerary workspace.
 
-- Set `VITE_PLATFORM_API_URL` to the platform API base URL before building the frontend.
-- The development default is `http://localhost:8080`.
+- Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
+- The local default is `http://localhost:8080`.
 - The browser client keeps the short-lived access token in `sessionStorage` for this preview. This reduces persistence after the browser session but is not a substitute for a production-grade HttpOnly, Secure, SameSite cookie/BFF design.
 - Configure `Cors__AllowedOrigins__0` on the API to the exact deployed frontend origin. The default local origin is `http://localhost:5173`.
 
