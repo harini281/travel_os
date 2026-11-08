@@ -555,8 +555,8 @@ public static class ItineraryEndpoints
                 draft.CreatedAt,
                 provider = root.TryGetProperty("provider", out var provider) ? provider.GetString() : null,
                 model = root.TryGetProperty("model", out var model) ? model.GetString() : null,
-                itinerary = root.TryGetProperty("itinerary", out var itinerary) ? itinerary : (JsonElement?)null,
-                warnings = root.TryGetProperty("warnings", out var warnings) ? warnings : (JsonElement?)null
+                itinerary = root.TryGetProperty("itinerary", out var itinerary) ? itinerary.Clone() : (JsonElement?)null,
+                warnings = root.TryGetProperty("warnings", out var warnings) ? warnings.Clone() : (JsonElement?)null
             };
         }).ToArray();
 
@@ -585,7 +585,7 @@ public static class ItineraryEndpoints
             draft.TripId,
             draft.Status,
             draft.CreatedAt,
-            payload = payload.RootElement
+            payload = payload.RootElement.Clone()
         });
     }
 
