@@ -95,6 +95,9 @@ public static class ItineraryEndpoints
         if (request.DurationMinutes is <= 0)
             errors["durationMinutes"] = ["Duration must be greater than zero."];
 
+        if (request.SortOrder < 0)
+            errors["sortOrder"] = ["Sort order cannot be negative."];
+
         if (request.EstimatedCost is < 0)
             errors["estimatedCost"] = ["Estimated cost cannot be negative."];
 
@@ -179,7 +182,7 @@ public static class ItineraryEndpoints
                 ["date"] = ["Day date must fall within the trip date range."]
             });
 
-        var expectedDayNumber = request.Date.DayNumber - trip.StartDate.DayNumber;
+        var expectedDayNumber = request.Date.DayNumber - trip.StartDate.DayNumber + 1;
         if (request.DayNumber != expectedDayNumber)
             return Results.ValidationProblem(new Dictionary<string, string[]>
             {
