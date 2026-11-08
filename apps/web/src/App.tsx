@@ -31,6 +31,9 @@ type Budget = {
   id: string; tripId: string; amount: number; currencyCode: string;
   items: BudgetItem[]; totalsByCurrency: { currencyCode: string; plannedAmount: number }[];
 };
+type TripMember = { userId: string; displayName: string; email: string; role: string; joinedAt: string };
+type TripInvitation = { id: string; tripId: string; tripName: string; destination: string; invitedByName: string; createdAt: string; expiresAt: string };
+type TripInvitationRecord = { id: string; tripId: string; tripName: string; destination: string; invitedByName: string; status: string; createdAt: string; expiresAt: string };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -101,6 +104,10 @@ export default function App() {
   const [budgetCategory, setBudgetCategory] = useState("");
   const [budgetItemAmount, setBudgetItemAmount] = useState("");
   const [budgetItemCurrency, setBudgetItemCurrency] = useState("");
+  const [tripMembers, setTripMembers] = useState<TripMember[]>([]);
+  const [tripInvitations, setTripInvitations] = useState<TripInvitationRecord[]>([]);
+  const [myInvitations, setMyInvitations] = useState<TripInvitation[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -109,7 +116,10 @@ export default function App() {
   const loadProfile = useCallback(async (accessToken: string) => {
     const profile = await api<AuthUser>("/api/v1/auth/me", accessToken);
     setUser(profile);
-    await loadTrips(accessToken);
+    await Promise.all([
+      loadTrips(accessToken),
+      api<TripInvitation[]>("/api/v1/me/invitations", accessToken).then(setMyInvitations),
+    ]);
   }, [loadTrips]);
 
   useEffect(() => {
@@ -158,14 +168,36 @@ export default function App() {
     }
   }
 
+  async function loadGroupMembers(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const members = await api<TripMember[]>(`/api/v1/trips/${trip.id}/members`, accessToken);
+      setTripMembers(members);
+      if (trip.currentUserRole === "owner") {
+        const invitations = await api<TripInvitationRecord[]>(`/api/v1/trips/${trip.id}/invitations`, accessToken);
+        setTripInvitations(invitations);
+      } else setTripInvitations([]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load group members.");
+    }
+  }
+
+  async function loadMyInvitations(accessToken = token) {
+    if (!accessToken) return;
+    const invitations = await api<TripInvitation[]>("/api/v1/me/invitations", accessToken);
+    setMyInvitations(invitations);
+  }
+
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
+    setTripMembers([]); setTripInvitations([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
+    setTripMembers([]); setTripInvitations([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -290,6 +322,53 @@ export default function App() {
   }
 
 
+
+
+  async function sendTripInvitation(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/invitations`, token, {
+        method: "POST", body: JSON.stringify({ email: inviteEmail }),
+      });
+      setInviteEmail("");
+      await loadGroupMembers(selectedTrip);
+      setNotice("Trip invitation created. The traveller can accept it from their TravelOS invitation inbox.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to invite traveller."); }
+    finally { setBusy(false); }
+  }
+
+  async function acceptTripInvitation(invitation: TripInvitation) {
+    if (!token) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${invitation.tripId}/invitations/${invitation.id}/accept`, token, { method: "POST" });
+      await Promise.all([loadTrips(token), loadMyInvitations(token)]);
+      setNotice(`You joined ${invitation.tripName}.`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to accept invitation."); }
+    finally { setBusy(false); }
+  }
+
+  async function revokeTripInvitation(invitationId: string) {
+    if (!token || !selectedTrip) return;
+    setError("");
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/invitations/${invitationId}`, token, { method: "DELETE" });
+      await loadGroupMembers(selectedTrip);
+      setNotice("Invitation revoked.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to revoke invitation."); }
+  }
+
+  async function removeTripMember(member: TripMember) {
+    if (!token || !selectedTrip || !window.confirm(`Remove ${member.displayName} from this trip?`)) return;
+    setError("");
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/members/${member.userId}`, token, { method: "DELETE" });
+      await Promise.all([loadGroupMembers(selectedTrip), loadTrips(token)]);
+      setNotice(`${member.displayName} was removed from the trip.`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove member."); }
+  }
 
   async function saveBudget(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -437,6 +516,15 @@ export default function App() {
               <div><p className="eyebrow">YOUR TRAVEL SPACE</p><h1>Good to see you, {user.displayName.split(" ")[0]}.</h1><p className="muted">Every great journey starts with a plan. What's next?</p></div>
               <button className="btn btn-primary" onClick={() => { setShowCreate(v => !v); setError(""); }}>＋ Plan a trip</button>
             </section>
+
+            {myInvitations.length > 0 && <section className="invitation-inbox">
+              <div className="section-heading"><div><p className="eyebrow">TRAVEL TOGETHER</p><h2>Trip invitations</h2></div><span className="count-label">{myInvitations.length} PENDING</span></div>
+              {myInvitations.map(invitation => <article className="invitation-card" key={invitation.id}>
+                <div><strong>{invitation.tripName}</strong><span>{invitation.destination} · Invited by {invitation.invitedByName}</span><small>Expires {formatDate(invitation.expiresAt.slice(0,10))}</small></div>
+                <button className="btn btn-primary" disabled={busy} onClick={() => acceptTripInvitation(invitation)}>Accept invitation</button>
+              </article>)}
+            </section>}
+
             <section className="stats-row">
               <article><span>YOUR TRIPS</span><strong>{trips.length.toString().padStart(2, "0")}</strong><small>Trips in your workspace</small></article>
               <article><span>UPCOMING</span><strong>{trips.filter(t => t.startDate >= new Date().toISOString().slice(0, 10)).length.toString().padStart(2, "0")}</strong><small>Journeys ahead</small></article>
@@ -469,6 +557,25 @@ export default function App() {
               {itinerary && <span className={itinerary.isApproved ? "approval-pill approved" : "approval-pill"}>{itinerary.isApproved ? "✓ APPROVED" : "DRAFT PLAN"}</span>}
             </section>
 
+
+
+            <section className="group-workspace">
+              <div className="section-heading"><div><p className="eyebrow">TRAVEL TOGETHER</p><h2>Trip members</h2></div><span className="count-label">{tripMembers.length} TRAVELLERS</span></div>
+              <div className="member-list">{tripMembers.map(member => <div className="member-row" key={member.userId}>
+                <span className="member-avatar">{initials(member.displayName)}</span>
+                <div className="member-details"><strong>{member.displayName}{member.userId === user.id ? " · You" : ""}</strong><span>{member.email}</span></div>
+                <span className={member.role === "owner" ? "role owner" : "role"}>{member.role}</span>
+                {selectedTrip.currentUserRole === "owner" && member.role !== "owner" && <button className="delete-link" onClick={() => removeTripMember(member)}>Remove</button>}
+              </div>)}</div>
+              {selectedTrip.currentUserRole === "owner" && <>
+                <form className="invite-form" onSubmit={sendTripInvitation}>
+                  <label>Invite a registered TravelOS traveller<input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="traveller@example.com" required /></label>
+                  <button className="btn btn-primary" disabled={busy || !inviteEmail.trim()}>{busy ? "Sending…" : "＋ Invite traveller"}</button>
+                </form>
+                <p className="budget-footnote">Invitations are available to existing TravelOS accounts and expire after 7 days. Email delivery is not configured yet; invited travellers see requests in their TravelOS inbox.</p>
+                {tripInvitations.filter(invitation => invitation.status === "pending").length > 0 && <div className="pending-invites"><strong>Pending invitations</strong>{tripInvitations.filter(invitation => invitation.status === "pending").map(invitation => <div key={invitation.id}><span>{invitation.id.slice(0,8)} · Expires {formatDate(invitation.expiresAt.slice(0,10))}</span><button className="delete-link" onClick={() => revokeTripInvitation(invitation.id)}>Revoke</button></div>)}</div>}
+              </>}
+            </section>
 
             <section className="budget-workspace">
               <div className="section-heading"><div><p className="eyebrow">TRIP FINANCES</p><h2>Budget overview</h2></div>{budget && <span className="count-label">{budget.items.length} PLANNED ITEMS</span>}</div>
