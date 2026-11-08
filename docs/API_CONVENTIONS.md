@@ -190,3 +190,13 @@ A poll is a group decision aid, not an automatic itinerary change. The group sti
 A member can record a trip expense, its category, amount, currency, date and the member who paid. The payer must be included in the selected split participants, and every participant must be a current trip member. The API calculates an equal share for each selected participant. Amounts are stored to four decimal places; any fractional remainder is assigned deterministically to the first participant by user ID so that shares add up exactly to the recorded amount.
 
 Expense totals and shares retain their original currency. They are not converted or combined across currencies. This stage records expense shares only; it does not yet calculate net trip balances, reimbursements, settlements, receipts or custom split ratios.
+
+## Debt settlement suggestions
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/settlements` | Trip member |
+
+For each currency independently, the API adds the amount paid by each payer and subtracts each member's recorded share to calculate a net balance. Positive balances are owed money; negative balances owe money. A greedy creditor/debtor matching algorithm produces a practical set of suggested transfers. It is a recommendation, not a guarantee of the mathematically smallest possible transfer count.
+
+Currencies are never combined. The endpoint does not initiate payments, mark debts as settled or record repayments. If an expense is deleted, the next calculation reflects the remaining expenses.
