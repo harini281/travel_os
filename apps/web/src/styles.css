@@ -230,3 +230,22 @@
 .expense-delete{margin-top:10px}
 .expense-footnote{font-size:9px;line-height:1.5;color:#929c94;margin:13px 0 0}
 @media(max-width:560px){.expense-fields{grid-template-columns:1fr}.expense-submit{align-items:stretch;flex-direction:column}.expense-submit .btn{width:100%}.expense-card-top{flex-direction:column}.expense-total{text-align:left}}
+
+
+/* Debt settlement summary */
+.settlement-panel{margin-top:17px;padding:15px;background:#f8f9f6;border:1px solid #e9ede7;border-radius:9px}
+.settlement-panel>.subheading{margin-bottom:12px}
+.settlement-currency{border-top:1px solid #e7ebe5;padding:12px 0}
+.settlement-currency-heading{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:9px}
+.settlement-currency-heading strong{font-size:10px;color:#a57549;letter-spacing:1px}
+.settlement-currency-heading span{font-size:9px;color:#929c94}
+.settlement-balances{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.settlement-balances>div{display:flex;justify-content:space-between;gap:8px;padding:8px 9px;background:#fff;border-radius:7px}
+.settlement-balances span{font-size:9px;color:#7c887f}
+.settlement-balances b{font-size:9px;white-space:nowrap}
+.balance-positive{color:#4f8059}.balance-negative{color:#b16e54}
+.settlement-transfers{display:grid;gap:7px;margin-top:12px;padding-top:10px;border-top:1px solid #e7ebe5}
+.settlement-transfers>strong{font-size:9px;color:#68756c;text-transform:uppercase;letter-spacing:1px}
+.settlement-transfers>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;background:#fff;border-radius:7px}
+.settlement-transfers span{font-size:9px;color:#56645b}.settlement-transfers i{font-style:normal;color:#a57549}.settlement-transfers b{font-size:10px;color:#344239;white-space:nowrap}
+@media(max-width:520px){.settlement-balances{grid-template-columns:1fr}.settlement-currency-heading{align-items:flex-start;flex-direction:column}.settlement-transfers>div{align-items:flex-start;flex-direction:column}}
