@@ -4,17 +4,13 @@
 
 Local platform API: `http://localhost:8080`
 
-All application routes are versioned under `/api/v1`.
+All application routes are versioned under `/api/v1`. Protected routes require a bearer access token.
 
 ## Authentication
-
-Protected routes require:
 
 ```http
 Authorization: Bearer <access-token>
 ```
-
-Access tokens are issued by `POST /api/v1/auth/register` and `POST /api/v1/auth/login`.
 
 ## Trip management
 
@@ -26,29 +22,54 @@ Access tokens are issued by `POST /api/v1/auth/register` and `POST /api/v1/auth/
 | PUT | `/api/v1/trips/{tripId}` | Trip owner |
 | DELETE | `/api/v1/trips/{tripId}` | Trip owner |
 
-### Create trip request
+## Itinerary management
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/itinerary` | Trip owner or member |
+| POST | `/api/v1/trips/{tripId}/itinerary` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/itinerary/days` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/itinerary/days/{dayId}/activities` | Trip owner |
+| PUT | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Trip owner |
+| DELETE | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/itinerary/approve` | Trip owner |
+
+### Add day
 
 ```json
 {
-  "name": "Summer in Japan",
-  "destination": "Tokyo, Japan",
-  "startDate": "2027-07-10",
-  "endDate": "2027-07-18",
-  "currencyCode": "JPY"
+  "dayNumber": 1,
+  "date": "2027-07-10"
 }
 ```
 
-### Rules
+The day number must match the date's one-based position in the trip date range. A date can only be added once.
 
-- The authenticated user is always the owner; clients cannot supply an owner ID.
-- The creator is automatically added as the first trip member with role `owner`.
-- Only trip owners can update or delete a trip.
-- Members can view trips they belong to.
-- Non-members receive `404` for a trip detail request.
-- Dates use ISO 8601 calendar-date values.
-- Currency codes use three letters and are normalized to uppercase.
-- The end date must be on or after the start date.
-- The API returns validation errors using the standard problem-details format.
+### Add activity
+
+```json
+{
+  "title": "Visit Fushimi Inari Shrine",
+  "description": "Walk the lower torii gate trail.",
+  "placeName": "Fushimi Inari Taisha",
+  "latitude": 34.9671,
+  "longitude": 135.7727,
+  "durationMinutes": 120,
+  "estimatedCost": 0,
+  "currencyCode": "JPY",
+  "sortOrder": 1
+}
+```
+
+Coordinates and duration are optional. If cost is supplied without a currency, the trip's currency is used. Cost is an estimate and does not represent live pricing.
+
+### Approval rules
+
+- The owner creates the initial itinerary and manages days and activities.
+- Members can view the itinerary but cannot edit it.
+- Approval requires at least one day containing at least one activity.
+- Once approved, the itinerary is read-only.
+- Editing an approved itinerary through a new version is a planned follow-up, not implemented yet.
 
 ## Error conventions
 
@@ -56,5 +77,5 @@ Access tokens are issued by `POST /api/v1/auth/register` and `POST /api/v1/auth/
 - `401`: missing or invalid authentication.
 - `403`: authenticated user lacks permission for an action.
 - `404`: resource does not exist or is not visible to the caller.
-- `409`: request conflicts with existing state (for example duplicate account email).
+- `409`: request conflicts with existing state.
 - `429`: authentication rate limit exceeded.
