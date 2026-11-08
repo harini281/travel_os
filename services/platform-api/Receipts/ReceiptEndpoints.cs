@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
 
@@ -63,7 +64,7 @@ public static class ReceiptEndpoints
     }
 
     private static async Task<IResult> UploadAsync(
-        Guid tripId, IFormFile? file, Guid? expenseId,
+        Guid tripId, [FromForm] IFormFile? file, [FromForm] Guid? expenseId,
         ClaimsPrincipal principal, TravelOsDbContext db, IHttpClientFactory clients,
         IConfiguration config, CancellationToken ct)
     {
