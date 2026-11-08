@@ -21,6 +21,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<GroupPoll> GroupPolls => Set<GroupPoll>();
     public DbSet<GroupPollOption> GroupPollOptions => Set<GroupPollOption>();
     public DbSet<GroupPollVote> GroupPollVotes => Set<GroupPollVote>();
+    public DbSet<TripExpense> TripExpenses => Set<TripExpense>();
+    public DbSet<TripExpenseShare> TripExpenseShares => Set<TripExpenseShare>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -113,6 +115,34 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.InvitedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.TripId, x.InvitedUserId, x.Status });
+        });
+
+        modelBuilder.Entity<TripExpense>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Category).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Notes).HasMaxLength(500);
+            entity.Property(x => x.Amount).HasPrecision(19, 4);
+            entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.PaidByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(x => x.Shares).WithOne().HasForeignKey(x => x.ExpenseId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.TripId, x.ExpenseDate });
+        });
+
+        modelBuilder.Entity<TripExpenseShare>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ShareAmount).HasPrecision(19, 4);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.ExpenseId, x.UserId }).IsUnique();
         });
 
         modelBuilder.Entity<GroupPoll>(entity =>

@@ -38,7 +38,7 @@ tests                    Cross-service integration test area
    docker compose ps
    ```
 
-   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply later scripts in `database/migrations` in numeric order; Stage 10 adds `003_trip_invitations.sql` and `004_trip_member_preferences.sql` and `005_group_polls.sql`.
+   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply the later scripts in `database/migrations` in dependency order: `003_trip_invitations.sql`, `004_trip_member_preferences.sql`, `005_group_polls.sql`, and `006_shared_expenses.sql`. The independent `003_itinerary_constraints.sql` script should also be applied if it has not already been run.
 
 3. Start the platform API in another terminal:
 
@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, plus shared expense tracking with equal participant splits.
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
 - The local default is `http://localhost:8080`.
@@ -194,13 +194,17 @@ The trip owner can set a budget cap and manage planned category items. Trip memb
 | PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
 | DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
 
-Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange rates and actual expense tracking are future work.
+Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion, receipt capture, custom split ratios and net-balance settlement are future work.
 
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
 - Identity schema extension: `database/migrations/002_identity_schema.sql`.
 - Itinerary version uniqueness: `database/migrations/003_itinerary_constraints.sql`.
+- Group invitations: `database/migrations/003_trip_invitations.sql`.
+- Traveller preferences: `database/migrations/004_trip_member_preferences.sql`.
+- Group polls: `database/migrations/005_group_polls.sql`.
+- Shared expenses: `database/migrations/006_shared_expenses.sql`.
 - Docker executes it only when initializing a new empty PostgreSQL volume.
 - If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
 - The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
