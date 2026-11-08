@@ -180,6 +180,20 @@ The trip owner can request an AI-generated itinerary draft from the itinerary wo
 - The owner must explicitly apply a reviewed draft. Applying it creates a new itinerary version; if a previous itinerary is still a draft, approve it first.
 - AI suggestions may be inaccurate. Verify places, opening hours, routes and costs. Estimates are not live prices.
 
+## Trip budget API
+
+The trip owner can set a budget cap and manage planned category items. Trip members can view the budget.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/budget` | View budget and category totals |
+| PUT | `/api/v1/trips/{tripId}/budget` | Create or update budget cap |
+| POST | `/api/v1/trips/{tripId}/budget/items` | Add a planned category item |
+| PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
+| DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
+
+Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange rates and actual expense tracking are future work.
+
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
