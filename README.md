@@ -194,13 +194,17 @@ The trip owner can set a budget cap and manage planned category items. Trip memb
 | PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
 | DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
 
-Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange rates and actual expense tracking are future work.
+Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion, receipt capture, custom split ratios and net-balance settlement are future work.
 
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
 - Identity schema extension: `database/migrations/002_identity_schema.sql`.
 - Itinerary version uniqueness: `database/migrations/003_itinerary_constraints.sql`.
+- Group invitations: `database/migrations/003_trip_invitations.sql`.
+- Traveller preferences: `database/migrations/004_trip_member_preferences.sql`.
+- Group polls: `database/migrations/005_group_polls.sql`.
+- Shared expenses: `database/migrations/006_shared_expenses.sql`.
 - Docker executes it only when initializing a new empty PostgreSQL volume.
 - If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
 - The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
