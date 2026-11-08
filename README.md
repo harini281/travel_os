@@ -167,6 +167,18 @@ Open a trip from the dashboard to manage its itinerary.
 - Activity duration, place, notes and estimated cost are optional fields.
 - The itinerary builder does not generate AI recommendations or verify live opening hours, routes, availability or prices yet.
 
+## AI itinerary drafts
+
+The trip owner can request an AI-generated itinerary draft from the itinerary workspace. The platform API sends trip dates, destination, traveller count, budget, interests and pace to the isolated FastAPI service.
+
+- The AI service defaults to `AI_PROVIDER=demo`; demo mode deliberately creates no itinerary.
+- To enable real generation locally, set `AI_PROVIDER=openai`, `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the AI service environment.
+- Never commit provider keys or place them in frontend environment variables.
+- AI output is validated by the AI service and again by the platform API before being saved.
+- Generated plans are stored as `pending_review` drafts and are not approved or applied automatically.
+- The owner must explicitly apply a reviewed draft. Applying it creates a new itinerary version; if a previous itinerary is still a draft, approve it first.
+- AI suggestions may be inaccurate. Verify places, opening hours, routes and costs. Estimates are not live prices.
+
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
