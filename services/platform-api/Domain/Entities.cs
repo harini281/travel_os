@@ -152,3 +152,28 @@ public sealed class GroupPollVote
     public Guid UserId { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+
+public sealed class TripExpense
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid PaidByUserId { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public string Title { get; set; } = "";
+    public string Category { get; set; } = "other";
+    public string? Notes { get; set; }
+    public decimal Amount { get; set; }
+    public string CurrencyCode { get; set; } = "USD";
+    public DateOnly ExpenseDate { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public ICollection<TripExpenseShare> Shares { get; set; } = new List<TripExpenseShare>();
+}
+
+public sealed class TripExpenseShare
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ExpenseId { get; set; }
+    public Guid UserId { get; set; }
+    public decimal ShareAmount { get; set; }
+}
