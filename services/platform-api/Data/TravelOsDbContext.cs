@@ -17,6 +17,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<Budget> Budgets => Set<Budget>();
     public DbSet<BudgetItem> BudgetItems => Set<BudgetItem>();
     public DbSet<TripInvitation> TripInvitations => Set<TripInvitation>();
+    public DbSet<TripMemberPreference> TripMemberPreferences => Set<TripMemberPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -109,6 +110,22 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.InvitedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.TripId, x.InvitedUserId, x.Status });
+        });
+
+        modelBuilder.Entity<TripMemberPreference>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.InterestsJson).HasColumnType("jsonb").IsRequired();
+            entity.Property(x => x.Pace).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.TravelStyle).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.DailyBudgetAmount).HasPrecision(19, 4);
+            entity.Property(x => x.DailyBudgetCurrencyCode).HasMaxLength(3);
+            entity.Property(x => x.Notes).HasMaxLength(500);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.TripId, x.UserId }).IsUnique();
         });
 
         modelBuilder.Entity<Budget>(entity =>

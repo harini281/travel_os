@@ -105,3 +105,18 @@ public sealed class TripInvitation
     public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.UtcNow.AddDays(7);
     public DateTimeOffset? RespondedAt { get; set; }
 }
+
+
+public sealed class TripMemberPreference
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid UserId { get; set; }
+    public string InterestsJson { get; set; } = "[]";
+    public string Pace { get; set; } = "balanced";
+    public string TravelStyle { get; set; } = "mixed";
+    public decimal? DailyBudgetAmount { get; set; }
+    public string? DailyBudgetCurrencyCode { get; set; }
+    public string? Notes { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

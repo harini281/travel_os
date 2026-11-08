@@ -153,3 +153,15 @@ When an item currency is omitted, the budget currency is used. Item totals are g
 Invitations are currently limited to existing TravelOS accounts. The owner supplies the account email; the invited account sees pending invitations in its TravelOS inbox and must be signed in to accept. Invitations expire after seven days. Email delivery, public invitation links and invitations to unregistered email addresses are not implemented.
 
 Only the trip owner can invite or remove members. Members can view the trip, itinerary, budget and group roster. Accepting an invitation creates a member role; it does not grant owner permissions.
+
+## Traveller preferences
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/preferences/me` | Trip member; own profile only |
+| PUT | `/api/v1/trips/{tripId}/preferences/me` | Trip member; own profile only |
+| GET | `/api/v1/trips/{tripId}/preferences/group` | Trip member; shared summaries |
+
+A member can choose up to eight interests, a preferred pace (`relaxed`, `balanced`, `fast`), a travel style (`mixed`, `culture`, `nature`, `adventure`, `food`, `relaxation`) and an optional daily budget with ISO-style three-letter currency code. Optional personal notes are limited to 500 characters.
+
+The group endpoint returns shared interests, pace, travel style and optional daily budget. It deliberately does not return personal notes. Budgets remain in each traveller's stated currency; no currency conversion is applied. Preference data is user-submitted context and does not automatically alter or approve an itinerary.
