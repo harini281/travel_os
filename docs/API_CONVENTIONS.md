@@ -178,3 +178,15 @@ The group endpoint returns shared interests, pace, travel style and optional dai
 Polls have a title, optional description, 2–8 distinct options and an optional closing time. Each member has one vote per poll and can change that vote while the poll is open. Results show option totals and percentages. Polls close when the creator or trip owner closes them, or when their closing time has passed and the poll list is next loaded or a vote is attempted.
 
 A poll is a group decision aid, not an automatic itinerary change. The group still needs to apply the chosen result to the trip plan.
+
+## Shared expenses
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/expenses` | Trip member |
+| POST | `/api/v1/trips/{tripId}/expenses` | Trip member |
+| DELETE | `/api/v1/trips/{tripId}/expenses/{expenseId}` | Expense creator or trip owner |
+
+A member can record a trip expense, its category, amount, currency, date and the member who paid. The payer must be included in the selected split participants, and every participant must be a current trip member. The API calculates an equal share for each selected participant. Amounts are stored to four decimal places; any fractional remainder is assigned deterministically to the first participant by user ID so that shares add up exactly to the recorded amount.
+
+Expense totals and shares retain their original currency. They are not converted or combined across currencies. This stage records expense shares only; it does not yet calculate net trip balances, reimbursements, settlements, receipts or custom split ratios.
