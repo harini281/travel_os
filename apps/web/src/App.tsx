@@ -398,7 +398,7 @@ export default function App() {
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
