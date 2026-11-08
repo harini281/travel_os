@@ -39,6 +39,8 @@ type GroupTripPreference = { userId: string; displayName: string; interests: str
 const preferenceInterestOptions = ["culture","history","nature","adventure","food","shopping","photography","nightlife","beaches","art","wellness","local experiences"];
 type GroupPollOption = { id: string; label: string; voteCount: number; isSelected: boolean };
 type GroupPoll = { id: string; tripId: string; title: string; description: string | null; status: string; createdByUserId: string; createdByName: string; createdAt: string; closesAt: string | null; totalVotes: number; myVoteOptionId: string | null; options: GroupPollOption[] };
+type TripExpenseShare = { userId: string; displayName: string; shareAmount: number };
+type TripExpense = { id: string; tripId: string; title: string; category: string; notes: string | null; amount: number; currencyCode: string; expenseDate: string; paidByUserId: string; paidByName: string; createdByUserId: string; createdAt: string; shares: TripExpenseShare[] };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -126,6 +128,15 @@ export default function App() {
   const [pollDescription, setPollDescription] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [pollClosesAt, setPollClosesAt] = useState("");
+  const [tripExpenses, setTripExpenses] = useState<TripExpense[]>([]);
+  const [expenseTitle, setExpenseTitle] = useState("");
+  const [expenseCategory, setExpenseCategory] = useState("food");
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseCurrency, setExpenseCurrency] = useState("USD");
+  const [expenseDate, setExpenseDate] = useState(new Date().toISOString().slice(0,10));
+  const [expenseNotes, setExpenseNotes] = useState("");
+  const [expensePaidBy, setExpensePaidBy] = useState("");
+  const [expenseParticipants, setExpenseParticipants] = useState<string[]>([]);
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -191,6 +202,8 @@ export default function App() {
     try {
       const members = await api<TripMember[]>(`/api/v1/trips/${trip.id}/members`, accessToken);
       setTripMembers(members);
+      setExpenseParticipants(members.map(member => member.userId));
+      setExpensePaidBy(current => current || members.find(member => member.role === "owner")?.userId || members[0]?.userId || "");
       if (trip.currentUserRole === "owner") {
         const invitations = await api<TripInvitationRecord[]>(`/api/v1/trips/${trip.id}/invitations`, accessToken);
         setTripInvitations(invitations);
@@ -201,6 +214,53 @@ export default function App() {
   }
 
 
+
+
+  async function loadTripExpenses(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<TripExpense[]>(`/api/v1/trips/${trip.id}/expenses`, accessToken);
+      setTripExpenses(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load shared expenses.");
+    }
+  }
+
+  async function createTripExpense(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip || !expensePaidBy) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/expenses`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          title: expenseTitle, category: expenseCategory, notes: expenseNotes.trim() || null,
+          amount: Number(expenseAmount), currencyCode: expenseCurrency, expenseDate,
+          paidByUserId: expensePaidBy, participantUserIds: expenseParticipants,
+        }),
+      });
+      setExpenseTitle(""); setExpenseAmount(""); setExpenseNotes("");
+      await loadTripExpenses(selectedTrip);
+      setNotice("Shared expense added and split equally between selected travellers.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to add shared expense."); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteTripExpense(expense: TripExpense) {
+    if (!token || !selectedTrip || !window.confirm(`Remove expense "${expense.title}"?`)) return;
+    setError("");
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}`, token, { method: "DELETE" });
+      await loadTripExpenses(selectedTrip);
+      setNotice("Expense removed.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove expense."); }
+  }
+
+  function toggleExpenseParticipant(userId: string) {
+    setExpenseParticipants(current => current.includes(userId)
+      ? current.filter(id => id !== userId)
+      : [...current, userId]);
+  }
 
   async function loadGroupPolls(trip: Trip, accessToken = token) {
     if (!accessToken) return;
@@ -314,14 +374,15 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]);
+    setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -754,6 +815,35 @@ export default function App() {
                   <small className="poll-help">{poll.status === "open" ? "Select an option to vote. You can change your vote until the poll closes." : "Voting is closed. These are the final results."}</small>
                 </article>) : <p className="budget-empty">No group polls yet. Create one to make your first decision together.</p>}
               </div>
+            </section>
+
+
+            <section className="expense-workspace">
+              <div className="section-heading"><div><p className="eyebrow">SHARED TRIP COSTS</p><h2>Expense tracker</h2></div><span className="count-label">{tripExpenses.length} EXPENSES</span></div>
+              <p className="expense-intro">Record a payment, choose who shared it and TravelOS calculates each traveller's equal share.</p>
+              <form className="expense-create-form" onSubmit={createTripExpense}>
+                <div className="expense-fields">
+                  <label>What was paid for?<input value={expenseTitle} onChange={e => setExpenseTitle(e.target.value)} placeholder="e.g. Dinner at the beach" maxLength={160} required /></label>
+                  <label>Category<select value={expenseCategory} onChange={e => setExpenseCategory(e.target.value)}><option value="accommodation">Accommodation</option><option value="transport">Transport</option><option value="food">Food</option><option value="activities">Activities</option><option value="shopping">Shopping</option><option value="other">Other</option></select></label>
+                  <label>Amount<input type="number" min="0.0001" step="0.0001" value={expenseAmount} onChange={e => setExpenseAmount(e.target.value)} placeholder="0.00" required /></label>
+                  <label>Currency<select value={expenseCurrency} onChange={e => setExpenseCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
+                  <label>Date<input type="date" value={expenseDate} onChange={e => setExpenseDate(e.target.value)} required /></label>
+                  <label>Who paid?<select value={expensePaidBy} onChange={e => setExpensePaidBy(e.target.value)} required>{tripMembers.map(member => <option value={member.userId} key={member.userId}>{member.displayName}</option>)}</select></label>
+                </div>
+                <fieldset className="expense-participants"><legend>Split between <span>Choose the travellers sharing this cost</span></legend>
+                  <div>{tripMembers.map(member => <label key={member.userId}><input type="checkbox" checked={expenseParticipants.includes(member.userId)} onChange={() => toggleExpenseParticipant(member.userId)} />{member.displayName}{member.userId === expensePaidBy ? " · Payer" : ""}</label>)}</div>
+                </fieldset>
+                <label className="expense-notes">Notes <span>Optional</span><textarea rows={2} maxLength={500} value={expenseNotes} onChange={e => setExpenseNotes(e.target.value)} placeholder="Add a receipt reference or a short note…" /></label>
+                <div className="expense-submit"><small>{expenseParticipants.length} travellers selected · Equal split · Currency kept as entered</small><button className="btn btn-primary" disabled={busy || !expenseTitle.trim() || !expenseAmount || !expensePaidBy || !expenseParticipants.includes(expensePaidBy) || expenseParticipants.length===0}>{busy ? "Saving…" : "＋ Add shared expense"}</button></div>
+              </form>
+              <div className="expense-list">
+                {tripExpenses.length ? tripExpenses.map(expense => <article className="expense-card" key={expense.id}>
+                  <div className="expense-card-top"><div><span className="expense-category">{expense.category}</span><h3>{expense.title}</h3><small>{formatDate(expense.expenseDate)} · Paid by {expense.paidByName}</small></div><div className="expense-total"><strong>{expense.amount.toLocaleString()} {expense.currencyCode}</strong><small>{expense.shares.length} shares</small></div></div>
+                  <div className="expense-shares">{expense.shares.map(share => <div key={share.userId}><span>{share.displayName}{share.userId === expense.paidByUserId ? " (paid)" : ""}</span><b>{share.shareAmount.toLocaleString()} {expense.currencyCode}</b></div>)}</div>
+                  {(expense.createdByUserId === user.id || selectedTrip.currentUserRole === "owner") && <button className="delete-link expense-delete" onClick={() => deleteTripExpense(expense)}>Remove expense</button>}
+                </article>) : <p className="budget-empty">No shared expenses yet. Add the first group payment above.</p>}
+              </div>
+              <p className="expense-footnote">These are planned records of payments and equal shares, not settled balances. Different currencies are shown separately. Debt settlement and custom splits are planned for a later stage.</p>
             </section>
 
             <section className="budget-workspace">
