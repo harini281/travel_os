@@ -172,7 +172,8 @@ Open a trip from the dashboard to manage its itinerary.
 The trip owner can request an AI-generated itinerary draft from the itinerary workspace. The platform API sends trip dates, destination, traveller count, budget, interests and pace to the isolated FastAPI service.
 
 - The AI service defaults to `AI_PROVIDER=demo`; demo mode deliberately creates no itinerary.
-- To enable real generation locally, set `AI_PROVIDER=openai`, `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the AI service environment.
+- To enable real generation locally, set `AI_PROVIDER=openai`, `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the AI service process environment. The root `.env.example` is a reference template; Python does not automatically load it. For PowerShell, set `$env:AI_PROVIDER="openai"` and `$env:OPENAI_API_KEY="your-key"` in the terminal before starting Uvicorn. On macOS/Linux, use `export AI_PROVIDER=openai` and `export OPENAI_API_KEY='your-key'`.
+- The platform API calls the AI service at `AiService:BaseUrl` (local default `http://localhost:8001`).
 - Never commit provider keys or place them in frontend environment variables.
 - AI output is validated by the AI service and again by the platform API before being saved.
 - Generated plans are stored as `pending_review` drafts and are not approved or applied automatically.
