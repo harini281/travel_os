@@ -92,3 +92,16 @@ public sealed class BudgetItem
     public decimal Amount { get; set; }
     public string CurrencyCode { get; set; } = "USD";
 }
+
+
+public sealed class TripInvitation
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid InvitedUserId { get; set; }
+    public Guid InvitedByUserId { get; set; }
+    public string Status { get; set; } = "pending";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ExpiresAt { get; set; } = DateTimeOffset.UtcNow.AddDays(7);
+    public DateTimeOffset? RespondedAt { get; set; }
+}

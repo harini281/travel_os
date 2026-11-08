@@ -137,3 +137,19 @@ The API persists only a successful real-provider result. Demo-mode responses are
 ```
 
 When an item currency is omitted, the budget currency is used. Item totals are grouped by currency; the API does not combine currencies without a conversion rate.
+
+## Group collaboration
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/members` | Trip owner or member |
+| POST | `/api/v1/trips/{tripId}/invitations` | Trip owner |
+| GET | `/api/v1/trips/{tripId}/invitations` | Trip owner |
+| DELETE | `/api/v1/trips/{tripId}/invitations/{invitationId}` | Trip owner; pending only |
+| POST | `/api/v1/trips/{tripId}/invitations/{invitationId}/accept` | Invited account only |
+| DELETE | `/api/v1/trips/{tripId}/members/{memberUserId}` | Trip owner; cannot remove owner |
+| GET | `/api/v1/me/invitations` | Authenticated invited user |
+
+Invitations are currently limited to existing TravelOS accounts. The owner supplies the account email; the invited account sees pending invitations in its TravelOS inbox and must be signed in to accept. Invitations expire after seven days. Email delivery, public invitation links and invitations to unregistered email addresses are not implemented.
+
+Only the trip owner can invite or remove members. Members can view the trip, itinerary, budget and group roster. Accepting an invitation creates a member role; it does not grant owner permissions.

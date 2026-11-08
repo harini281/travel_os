@@ -10,6 +10,7 @@ using TravelOS.PlatformApi.Budgets;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
 using TravelOS.PlatformApi.Itineraries;
+using TravelOS.PlatformApi.Groups;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -119,6 +120,7 @@ app.MapAuthEndpoints();
 app.MapTripEndpoints();
 app.MapItineraryEndpoints();
 app.MapBudgetEndpoints();
+app.MapGroupEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
