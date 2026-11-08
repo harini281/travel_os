@@ -23,7 +23,7 @@ public static class ReceiptEndpoints
     public static IEndpointRouteBuilder MapReceiptEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/trips/{tripId:guid}/receipts")
-            .WithTags("Trip receipts").RequireAuthorization();
+            .WithTags("Trip receipts").RequireAuthorization().RequireRateLimiting("receipt-upload");
         group.MapGet("/", ListAsync);
         group.MapPost("/", UploadAsync).DisableAntiforgery();
         group.MapGet("/{receiptId:guid}/file", FileAsync);
