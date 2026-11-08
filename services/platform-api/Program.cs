@@ -91,6 +91,10 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddHttpClient("ai-planner", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(70);
+});
 
 var app = builder.Build();
 
