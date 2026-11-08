@@ -328,13 +328,22 @@ public static class ExpenseEndpoints
         expense.CurrencyCode = currency;
         expense.ExpenseDate = request.ExpenseDate;
         expense.PaidByUserId = request.PaidByUserId;
-        db.TripExpenseShares.RemoveRange(expense.Shares);
-        expense.Shares.Clear();
+        var existingShares = expense.Shares.ToDictionary(x => x.UserId);
+        foreach (var existing in existingShares.Values.Where(x => !shares.ContainsKey(x.UserId)).ToArray())
+        {
+            db.TripExpenseShares.Remove(existing);
+            expense.Shares.Remove(existing);
+        }
         foreach (var item in shares)
-            expense.Shares.Add(new TripExpenseShare
-            {
-                ExpenseId = expense.Id, UserId = item.Key, ShareAmount = item.Value
-            });
+        {
+            if (existingShares.TryGetValue(item.Key, out var existing))
+                existing.ShareAmount = item.Value;
+            else
+                expense.Shares.Add(new TripExpenseShare
+                {
+                    ExpenseId = expense.Id, UserId = item.Key, ShareAmount = item.Value
+                });
+        }
 
         db.TripExpenseAudits.Add(new TripExpenseAudit
         {
