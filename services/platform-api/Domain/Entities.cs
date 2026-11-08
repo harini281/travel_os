@@ -1,9 +1,9 @@
+using Microsoft.AspNetCore.Identity;
+
 namespace TravelOS.PlatformApi.Domain;
 
-public sealed class User
+public sealed class User : IdentityUser<Guid>
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
-    public string Email { get; set; } = "";
     public string DisplayName { get; set; } = "";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

@@ -11,7 +11,7 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - travelos-postgres-data:/var/lib/postgresql/data
-      - ./database/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro
+      - ./database/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/001_initial_schema.sql:ro\n      - ./database/migrations/002_identity_schema.sql:/docker-entrypoint-initdb.d/002_identity_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-travelos} -d ${POSTGRES_DB:-travelos}"]
       interval: 5s

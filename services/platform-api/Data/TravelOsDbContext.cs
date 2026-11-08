@@ -1,11 +1,13 @@
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using TravelOS.PlatformApi.Domain;
 
 namespace TravelOS.PlatformApi.Data;
 
-public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> options) : DbContext(options)
+public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> options)
+    : IdentityDbContext<User, IdentityRole<Guid>, Guid>(options)
 {
-    public DbSet<User> Users => Set<User>();
     public DbSet<Trip> Trips => Set<Trip>();
     public DbSet<TripMember> TripMembers => Set<TripMember>();
     public DbSet<Itinerary> Itineraries => Set<Itinerary>();
@@ -17,11 +19,14 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.Entity<User>(entity =>
         {
-            entity.HasKey(x => x.Id);
+            entity.ToTable("Users");
             entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
             entity.Property(x => x.DisplayName).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.CreatedAt).IsRequired();
             entity.HasIndex(x => x.Email).IsUnique();
         });
 
