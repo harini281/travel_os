@@ -160,6 +160,7 @@ Approval requires at least one activity. Once approved, the itinerary becomes re
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
 - Identity schema extension: `database/migrations/002_identity_schema.sql`.
+- Itinerary version uniqueness: `database/migrations/003_itinerary_constraints.sql`.
 - Docker executes it only when initializing a new empty PostgreSQL volume.
 - If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
 - The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
