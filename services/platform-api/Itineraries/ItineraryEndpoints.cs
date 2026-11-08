@@ -23,6 +23,7 @@ public static class ItineraryEndpoints
         group.MapDelete("/activities/{activityId:guid}", DeleteActivityAsync).WithName("DeleteItineraryActivity");
         group.MapPost("/approve", ApproveAsync).WithName("ApproveItinerary");
         group.MapPost("/drafts", GenerateDraftAsync).WithName("GenerateAiItineraryDraft");
+        group.MapGet("/drafts", ListDraftsAsync).WithName("ListAiItineraryDrafts");
         group.MapGet("/drafts/{draftId:guid}", GetDraftAsync).WithName("GetAiItineraryDraft");
         group.MapPost("/drafts/{draftId:guid}/apply", ApplyDraftAsync).WithName("ApplyAiItineraryDraft");
 
@@ -524,6 +525,42 @@ public static class ItineraryEndpoints
         {
             return Results.Problem("The AI service returned an unreadable response.", statusCode: 502);
         }
+    }
+
+
+    private static async Task<IResult> ListDraftsAsync(
+        Guid tripId,
+        ClaimsPrincipal principal,
+        TravelOsDbContext db,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var trip = await FindTripForMemberAsync(tripId, userId, db, ct);
+        if (trip is null) return Results.NotFound();
+
+        var drafts = await db.GeneratedItineraryDrafts.AsNoTracking()
+            .Where(x => x.TripId == tripId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+
+        var results = drafts.Select(draft =>
+        {
+            using var payload = JsonDocument.Parse(draft.PayloadJson);
+            var root = payload.RootElement;
+            return new
+            {
+                draft.Id,
+                draft.TripId,
+                draft.Status,
+                draft.CreatedAt,
+                provider = root.TryGetProperty("provider", out var provider) ? provider.GetString() : null,
+                model = root.TryGetProperty("model", out var model) ? model.GetString() : null,
+                itinerary = root.TryGetProperty("itinerary", out var itinerary) ? itinerary : (JsonElement?)null,
+                warnings = root.TryGetProperty("warnings", out var warnings) ? warnings : (JsonElement?)null
+            };
+        }).ToArray();
+
+        return Results.Ok(results);
     }
 
     private static async Task<IResult> GetDraftAsync(
