@@ -1,4 +1,5 @@
 from datetime import date
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
@@ -100,5 +101,5 @@ def test_model_provider_rejects_incomplete_trip_days():
     try:
         PlannerProvider._validate_trip_dates(suggestion, request)
         assert False, "Expected incomplete day count to fail."
-    except Exception as exc:
-        assert "incomplete set" in str(exc)
+    except HTTPException as exc:
+        assert "incomplete set" in exc.detail
