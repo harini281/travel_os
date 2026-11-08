@@ -8,6 +8,7 @@ using Microsoft.IdentityModel.Tokens;
 using TravelOS.PlatformApi.Auth;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
+using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
@@ -89,6 +90,7 @@ app.UseRateLimiter();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
+app.MapTripEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
