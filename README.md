@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, shared expense tracking with equal, percentage-based and exact participant splits, and suggested repayments calculated from group balances, with recipient-confirmed repayment tracking.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, shared expense tracking with equal, percentage-based and exact participant splits, expense editing and immutable audit history, and suggested repayments calculated from group balances, with recipient-confirmed repayment tracking.
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
 - The local default is `http://localhost:8080`.
@@ -206,6 +206,7 @@ Budget items retain their own currency. Totals are grouped by currency; the API 
 - Group polls: `database/migrations/005_group_polls.sql`.
 - Shared expenses: `database/migrations/006_shared_expenses.sql`.
 - Repayment tracking: `database/migrations/007_trip_repayments.sql`.
+- Expense audit history: `database/migrations/008_trip_expense_audits.sql`.
 - Docker executes it only when initializing a new empty PostgreSQL volume.
 - If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
 - The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
