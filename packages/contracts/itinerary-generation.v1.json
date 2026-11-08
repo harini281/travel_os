@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://travelos.example/contracts/itinerary-generation.v1.json",
+  "title": "TravelOS Itinerary Generation Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contractVersion", "destination", "startDate", "endDate", "travellerCount", "currency"],
+  "properties": {
+    "contractVersion": { "const": "1.0" },
+    "destination": { "type": "string", "minLength": 2, "maxLength": 160 },
+    "startDate": { "type": "string", "format": "date" },
+    "endDate": { "type": "string", "format": "date" },
+    "travellerCount": { "type": "integer", "minimum": 1, "maximum": 30 },
+    "budgetAmount": { "type": ["number", "null"], "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "interests": { "type": "array", "items": { "type": "string", "maxLength": 60 }, "maxItems": 20 },
+    "travelPace": { "type": "string", "enum": ["relaxed", "balanced", "fast"] }
+  }
+}
