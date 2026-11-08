@@ -106,3 +106,34 @@ The web app supports initial itinerary creation, adding days and activities, act
 The generation request accepts `travellerCount`, optional `budgetAmount`, `interests` and `travelPace`. Destination, dates and currency are taken from the stored trip record.
 
 The API persists only a successful real-provider result. Demo-mode responses are not saved as generated itineraries. Applying a draft creates a new itinerary version and never approves it automatically.
+
+## Budget management
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/budget` | Trip owner or member |
+| PUT | `/api/v1/trips/{tripId}/budget` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/budget/items` | Trip owner |
+| PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Trip owner |
+| DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Trip owner |
+
+### Upsert budget
+
+```json
+{
+  "amount": 1500,
+  "currencyCode": "USD"
+}
+```
+
+### Add planned item
+
+```json
+{
+  "category": "Accommodation",
+  "amount": 500,
+  "currencyCode": "USD"
+}
+```
+
+When an item currency is omitted, the budget currency is used. Item totals are grouped by currency; the API does not combine currencies without a conversion rate.
