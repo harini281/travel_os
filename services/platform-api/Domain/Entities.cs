@@ -193,3 +193,16 @@ public sealed class TripRepayment
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? RespondedAt { get; set; }
 }
+
+
+public sealed class TripExpenseAudit
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid ExpenseId { get; set; }
+    public Guid ChangedByUserId { get; set; }
+    public string Action { get; set; } = "updated";
+    public string BeforeJson { get; set; } = "{}";
+    public string AfterJson { get; set; } = "{}";
+    public DateTimeOffset ChangedAt { get; set; } = DateTimeOffset.UtcNow;
+}
