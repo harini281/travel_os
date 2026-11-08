@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard and trip creation/deletion flows.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion and a day-by-day itinerary workspace.
 
 - Set `VITE_PLATFORM_API_URL` to the platform API base URL before building the frontend.
 - The development default is `http://localhost:8080`.
@@ -155,6 +155,17 @@ An itinerary is created by the trip owner. Trip members can read it; only the ow
 | POST | `/api/v1/trips/{tripId}/itinerary/approve` | Approve the itinerary (owner only) |
 
 Approval requires at least one activity. Once approved, the itinerary becomes read-only; editing an approved plan will require a future versioning workflow. Activity costs are estimates, not live supplier prices. Coordinates are optional and are not independently verified.
+
+## Itinerary workspace
+
+Open a trip from the dashboard to manage its itinerary.
+
+- Trip owners can create the initial itinerary, add trip days and add or remove activities.
+- Trip members can view the itinerary.
+- Owners can approve a plan after at least one activity has been added.
+- Approved plans become read-only.
+- Activity duration, place, notes and estimated cost are optional fields.
+- The itinerary builder does not generate AI recommendations or verify live opening hours, routes, availability or prices yet.
 
 ## Database notes
 
