@@ -45,7 +45,7 @@ public static class ExpenseEndpoints
             .ToListAsync(ct);
 
         var userIds = expenses.SelectMany(x => x.Shares.Select(s => s.UserId))
-            .Append(expenses.Select(x => x.PaidByUserId).FirstOrDefault())
+            .Concat(expenses.Select(x => x.PaidByUserId))
             .Where(x => x != Guid.Empty).Distinct().ToArray();
         var names = await db.Users.AsNoTracking().Where(x => userIds.Contains(x.Id))
             .ToDictionaryAsync(x => x.Id, x => x.DisplayName, ct);
@@ -98,12 +98,19 @@ public static class ExpenseEndpoints
                 ["participantUserIds"] = ["Every participant must be a current member of this trip."]
             });
 
+        var roundedAmount = decimal.Round(request.Amount, 4, MidpointRounding.AwayFromZero);
+        if (roundedAmount <= 0)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["amount"] = ["Amount is too small for the supported precision."]
+            });
+
         var expense = new TripExpense
         {
             TripId = tripId, PaidByUserId = request.PaidByUserId,
             CreatedByUserId = userId, Title = title, Category = category,
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
-            Amount = decimal.Round(request.Amount, 4, MidpointRounding.AwayFromZero),
+            Amount = roundedAmount,
             CurrencyCode = currency, ExpenseDate = request.ExpenseDate
         };
 
