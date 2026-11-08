@@ -22,7 +22,9 @@ public static class ItineraryEndpoints
         group.MapPut("/activities/{activityId:guid}", UpdateActivityAsync).WithName("UpdateItineraryActivity");
         group.MapDelete("/activities/{activityId:guid}", DeleteActivityAsync).WithName("DeleteItineraryActivity");
         group.MapPost("/approve", ApproveAsync).WithName("ApproveItinerary");
-        group.MapPost("/drafts", GenerateDraftAsync).WithName("GenerateAiItineraryDraft");
+        group.MapPost("/drafts", GenerateDraftAsync)
+            .RequireRateLimiting("ai-generation")
+            .WithName("GenerateAiItineraryDraft");
         group.MapGet("/drafts", ListDraftsAsync).WithName("ListAiItineraryDrafts");
         group.MapGet("/drafts/{draftId:guid}", GetDraftAsync).WithName("GetAiItineraryDraft");
         group.MapPost("/drafts/{draftId:guid}/apply", ApplyDraftAsync).WithName("ApplyAiItineraryDraft");
@@ -433,6 +435,12 @@ public static class ItineraryEndpoints
         if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
         var trip = await FindTripForOwnerAsync(tripId, userId, db, ct);
         if (trip is null) return Results.NotFound();
+
+        if ((trip.EndDate.DayNumber - trip.StartDate.DayNumber + 1) > 31)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["tripDates"] = ["AI draft generation currently supports trips of up to 31 days."]
+            });
 
         var interests = request.Interests ?? Array.Empty<string>();
         var errors = new Dictionary<string, string[]>();
