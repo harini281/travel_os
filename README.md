@@ -140,6 +140,22 @@ Example create request:
 }
 ```
 
+## Itinerary builder API
+
+An itinerary is created by the trip owner. Trip members can read it; only the owner can edit or approve it.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/itinerary` | Read itinerary and all days/activities |
+| POST | `/api/v1/trips/{tripId}/itinerary` | Create the trip's initial itinerary |
+| POST | `/api/v1/trips/{tripId}/itinerary/days` | Add a day within the trip dates |
+| POST | `/api/v1/trips/{tripId}/itinerary/days/{dayId}/activities` | Add an activity |
+| PUT | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Update an activity |
+| DELETE | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Delete an activity |
+| POST | `/api/v1/trips/{tripId}/itinerary/approve` | Approve the itinerary (owner only) |
+
+Approval requires at least one activity. Once approved, the itinerary becomes read-only; editing an approved plan will require a future versioning workflow. Activity costs are estimates, not live supplier prices. Coordinates are optional and are not independently verified.
+
 ## Database notes
 
 - Bootstrap schema: `database/migrations/001_initial_schema.sql`.
