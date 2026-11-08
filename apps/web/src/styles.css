@@ -294,3 +294,30 @@
 .custom-share-editor small{min-width:38px;color:#929c94;font-size:9px}
 .custom-share-reset{justify-self:start;border:0;background:transparent;color:#64836a;font-size:9px;font-weight:700;cursor:pointer;padding:5px 0}
 @media(max-width:520px){.custom-share-heading{align-items:flex-start;flex-direction:column}.custom-share-editor>label{align-items:flex-start}}
+
+
+/* Expense editing and immutable change history */
+.expense-actions{display:flex;align-items:center;gap:14px;margin-top:12px}
+.expense-edit,.expense-history-toggle{border:0;background:transparent;color:#64836a;font-size:9px;font-weight:700;cursor:pointer;padding:5px 0}
+.expense-history-toggle{display:block;margin-top:3px;color:#89948b;font-weight:600}
+.expense-edit-form{display:grid;gap:10px;margin-top:13px;padding:14px;border:1px solid #dfe8dc;border-radius:9px;background:#fafbf8}
+.expense-edit-form>strong{font-size:11px;color:#435148}
+.expense-edit-form label{display:grid;gap:5px;font-size:9px;color:#758177;font-weight:700}
+.expense-edit-form input,.expense-edit-form select,.expense-edit-form textarea{width:100%;min-width:0;border:1px solid #dfe4dd;border-radius:6px;padding:8px;background:#fff;color:#344239;font:inherit;font-size:10px}
+.expense-edit-form textarea{min-height:56px;resize:vertical}
+.expense-edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.edit-share-list{display:grid;gap:7px;padding-top:10px;border-top:1px solid #e7ece4}
+.edit-share-list>strong{font-size:10px;color:#4d5b51}
+.edit-share-list label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.edit-share-list input{max-width:150px;text-align:right}
+.expense-edit-form>small{font-size:9px;line-height:1.5;color:#929c94}
+.expense-edit-form .btn{font-size:10px;padding:8px 12px}
+.expense-history-list{display:grid;gap:8px;margin-top:8px;padding:10px;background:#f8f9f6;border:1px solid #e8ede6;border-radius:7px}
+.expense-history-list article{display:grid;gap:4px;padding-bottom:8px;border-bottom:1px solid #e7ebe5}
+.expense-history-list article:last-child{border-bottom:0;padding-bottom:0}
+.expense-history-list strong{font-size:9px;color:#4c5c50}
+.expense-history-list small{font-size:8px;color:#909a92}
+.expense-history-list details{font-size:9px;color:#758177}
+.expense-history-list summary{cursor:pointer;margin:4px 0}
+.expense-history-list pre{max-width:100%;overflow:auto;padding:8px;background:#fff;border-radius:5px;font-size:8px;color:#58665c}
+@media(max-width:520px){.expense-edit-grid{grid-template-columns:1fr}.expense-edit-form .expense-actions{flex-wrap:wrap}}
