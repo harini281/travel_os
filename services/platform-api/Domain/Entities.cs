@@ -177,3 +177,19 @@ public sealed class TripExpenseShare
     public Guid UserId { get; set; }
     public decimal ShareAmount { get; set; }
 }
+
+
+public sealed class TripRepayment
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid FromUserId { get; set; }
+    public Guid ToUserId { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public decimal Amount { get; set; }
+    public string CurrencyCode { get; set; } = "USD";
+    public string Status { get; set; } = "pending";
+    public string? Note { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? RespondedAt { get; set; }
+}
