@@ -197,3 +197,15 @@ def test_receipt_extraction_rejects_invalid_base64():
         "imageBase64": "not-base64" * 20,
     })
     assert response.status_code == 422
+
+
+def test_receipt_provider_openai_mode_requires_key(monkeypatch):
+    from app.main import receipt_provider
+    monkeypatch.setattr(receipt_provider, "mode", "openai")
+    monkeypatch.setattr(receipt_provider, "api_key", "")
+    response = client.post("/api/v1/receipts/extract", json={
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    })
+    assert response.status_code == 503
+    assert "OPENAI_API_KEY" in response.json()["detail"]
