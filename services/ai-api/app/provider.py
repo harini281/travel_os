@@ -134,7 +134,7 @@ class PlannerProvider:
                     "schema": OUTPUT_SCHEMA,
                 }
             },
-            "max_output_tokens": 6000,
+            "max_output_tokens": 10000,
         }
 
         try:
