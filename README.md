@@ -38,7 +38,7 @@ tests                    Cross-service integration test area
    docker compose ps
    ```
 
-   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply later scripts in `database/migrations` in numeric order; Stage 10 adds `003_trip_invitations.sql` and `004_trip_member_preferences.sql` and `005_group_polls.sql`.
+   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply later scripts in `database/migrations` in numeric order; Stage 10 adds `003_trip_invitations.sql` and `004_trip_member_preferences.sql`  `005_group_polls.sql` and `006_shared_expenses.sql`.
 
 3. Start the platform API in another terminal:
 
@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, plus shared expense tracking with equal participant splits.
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
 - The local default is `http://localhost:8080`.
