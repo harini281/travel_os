@@ -66,6 +66,14 @@ builder.Services
         };
     });
 
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+    ?? new[] { "http://localhost:5173" };
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("web", policy =>
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod());
+});
+
 builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
 {
@@ -85,6 +93,7 @@ builder.Services.AddScoped<JwtTokenService>();
 
 var app = builder.Build();
 
+app.UseCors("web");
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
