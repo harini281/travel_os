@@ -9,8 +9,8 @@ public static class AuthEndpoints
     public static IEndpointRouteBuilder MapAuthEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/auth").WithTags("Authentication");
-        group.MapPost("/register", RegisterAsync).AllowAnonymous().WithName("RegisterUser");
-        group.MapPost("/login", LoginAsync).AllowAnonymous().WithName("LoginUser");
+        group.MapPost("/register", RegisterAsync).AllowAnonymous().RequireRateLimiting("auth").WithName("RegisterUser");
+        group.MapPost("/login", LoginAsync).AllowAnonymous().RequireRateLimiting("auth").WithName("LoginUser");
         group.MapGet("/me", GetCurrentUserAsync).RequireAuthorization().WithName("GetCurrentUser");
         return endpoints;
     }
@@ -64,7 +64,7 @@ public static class AuthEndpoints
         const string travellerRole = "Traveller";
         if (!await roleManager.RoleExistsAsync(travellerRole))
         {
-            var roleResult = await roleManager.CreateAsync(new IdentityRole<Guid>(travellerRole));
+            var roleResult = await roleManager.CreateAsync(new IdentityRole<Guid> { Id = Guid.NewGuid(), Name = travellerRole });
             if (!roleResult.Succeeded)
             {
                 await userManager.DeleteAsync(user);
