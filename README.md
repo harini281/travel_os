@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion and a day-by-day itinerary workspace.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace and trip budget planning.
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
 - The local default is `http://localhost:8080`.
@@ -158,14 +158,15 @@ Approval requires at least one activity. Once approved, the itinerary becomes re
 
 ## Itinerary workspace
 
-Open a trip from the dashboard to manage its itinerary.
+Open a trip from the dashboard to manage its itinerary and budget.
 
 - Trip owners can create the initial itinerary, add trip days and add or remove activities.
 - Trip members can view the itinerary.
 - Owners can approve a plan after at least one activity has been added.
 - Approved plans become read-only.
 - Activity duration, place, notes and estimated cost are optional fields.
-- The itinerary builder does not generate AI recommendations or verify live opening hours, routes, availability or prices yet.
+- The itinerary builder does not verify live opening hours, routes, availability or prices.
+- Trip owners can set a budget cap and add planned category amounts; members can view them.
 
 ## AI itinerary drafts
 
@@ -179,6 +180,20 @@ The trip owner can request an AI-generated itinerary draft from the itinerary wo
 - Generated plans are stored as `pending_review` drafts and are not approved or applied automatically.
 - The owner must explicitly apply a reviewed draft. Applying it creates a new itinerary version; if a previous itinerary is still a draft, approve it first.
 - AI suggestions may be inaccurate. Verify places, opening hours, routes and costs. Estimates are not live prices.
+
+## Trip budget API
+
+The trip owner can set a budget cap and manage planned category items. Trip members can view the budget.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/budget` | View budget and category totals |
+| PUT | `/api/v1/trips/{tripId}/budget` | Create or update budget cap |
+| POST | `/api/v1/trips/{tripId}/budget/items` | Add a planned category item |
+| PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
+| DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
+
+Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange rates and actual expense tracking are future work.
 
 ## Database notes
 

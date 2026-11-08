@@ -81,6 +81,7 @@ public sealed class Budget
     public Guid TripId { get; set; }
     public decimal Amount { get; set; }
     public string CurrencyCode { get; set; } = "USD";
+    public ICollection<BudgetItem> Items { get; set; } = new List<BudgetItem>();
 }
 
 public sealed class BudgetItem
