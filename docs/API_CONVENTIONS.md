@@ -165,3 +165,16 @@ Only the trip owner can invite or remove members. Members can view the trip, iti
 A member can choose up to eight interests, a preferred pace (`relaxed`, `balanced`, `fast`), a travel style (`mixed`, `culture`, `nature`, `adventure`, `food`, `relaxation`) and an optional daily budget with ISO-style three-letter currency code. Optional personal notes are limited to 500 characters.
 
 The group endpoint returns shared interests, pace, travel style and optional daily budget. It deliberately does not return personal notes. Budgets remain in each traveller's stated currency; no currency conversion is applied. Preference data is user-submitted context and does not automatically alter or approve an itinerary.
+
+## Group voting
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/polls` | Trip member |
+| POST | `/api/v1/trips/{tripId}/polls` | Trip member |
+| POST | `/api/v1/trips/{tripId}/polls/{pollId}/vote` | Trip member; open polls only |
+| POST | `/api/v1/trips/{tripId}/polls/{pollId}/close` | Poll creator or trip owner |
+
+Polls have a title, optional description, 2–8 distinct options and an optional closing time. Each member has one vote per poll and can change that vote while the poll is open. Results show option totals and percentages. Polls close when the creator or trip owner closes them, or when their closing time has passed and the poll list is next loaded or a vote is attempted.
+
+A poll is a group decision aid, not an automatic itinerary change. The group still needs to apply the chosen result to the trip plan.

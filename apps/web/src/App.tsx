@@ -37,6 +37,8 @@ type TripInvitationRecord = { id: string; tripId: string; tripName: string; dest
 type MyTripPreference = { id: string; tripId: string; userId: string; interests: string[]; pace: string; travelStyle: string; dailyBudgetAmount: number | null; dailyBudgetCurrencyCode: string | null; notes: string | null; updatedAt: string };
 type GroupTripPreference = { userId: string; displayName: string; interests: string[]; pace: string; travelStyle: string; dailyBudgetAmount: number | null; dailyBudgetCurrencyCode: string | null; updatedAt: string };
 const preferenceInterestOptions = ["culture","history","nature","adventure","food","shopping","photography","nightlife","beaches","art","wellness","local experiences"];
+type GroupPollOption = { id: string; label: string; voteCount: number; isSelected: boolean };
+type GroupPoll = { id: string; tripId: string; title: string; description: string | null; status: string; createdByUserId: string; createdByName: string; createdAt: string; closesAt: string | null; totalVotes: number; myVoteOptionId: string | null; options: GroupPollOption[] };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -119,6 +121,11 @@ export default function App() {
   const [preferenceBudget, setPreferenceBudget] = useState("");
   const [preferenceCurrency, setPreferenceCurrency] = useState("USD");
   const [preferenceNotes, setPreferenceNotes] = useState("");
+  const [groupPolls, setGroupPolls] = useState<GroupPoll[]>([]);
+  const [pollTitle, setPollTitle] = useState("");
+  const [pollDescription, setPollDescription] = useState("");
+  const [pollOptions, setPollOptions] = useState(["", ""]);
+  const [pollClosesAt, setPollClosesAt] = useState("");
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -194,6 +201,63 @@ export default function App() {
   }
 
 
+
+  async function loadGroupPolls(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<GroupPoll[]>(`/api/v1/trips/${trip.id}/polls`, accessToken);
+      setGroupPolls(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load group polls.");
+    }
+  }
+
+  async function createGroupPoll(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/polls`, token, {
+        method: "POST",
+        body: JSON.stringify({
+          title: pollTitle, description: pollDescription.trim() || null,
+          options: pollOptions.map(option => option.trim()).filter(Boolean),
+          closesAt: pollClosesAt ? new Date(pollClosesAt).toISOString() : null,
+        }),
+      });
+      setPollTitle(""); setPollDescription(""); setPollOptions(["", ""]); setPollClosesAt("");
+      await loadGroupPolls(selectedTrip);
+      setNotice("Your group poll has been created.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to create group poll."); }
+    finally { setBusy(false); }
+  }
+
+  async function castGroupVote(poll: GroupPoll, optionId: string) {
+    if (!token || !selectedTrip || poll.status !== "open") return;
+    setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/polls/${poll.id}/vote`, token, {
+        method: "POST", body: JSON.stringify({ optionId }),
+      });
+      await loadGroupPolls(selectedTrip);
+      setNotice("Your vote has been recorded.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to record vote."); }
+  }
+
+  async function closeGroupPoll(poll: GroupPoll) {
+    if (!token || !selectedTrip || !window.confirm("Close this poll? Members will no longer be able to change their votes.")) return;
+    setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/polls/${poll.id}/close`, token, { method: "POST" });
+      await loadGroupPolls(selectedTrip);
+      setNotice("Poll closed. Results are final.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to close poll."); }
+  }
+
+  function updatePollOption(index: number, value: string) {
+    setPollOptions(current => current.map((option, optionIndex) => optionIndex === index ? value : option));
+  }
+
   async function loadPreferences(trip: Trip, accessToken = token) {
     if (!accessToken) return;
     try {
@@ -250,14 +314,14 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -660,6 +724,35 @@ export default function App() {
                   <div className="group-preference-content"><strong>{preference.displayName}{preference.userId === user.id ? " · You" : ""}</strong><span>{preference.travelStyle} · {preference.pace} pace</span><div className="preference-tags">{preference.interests.map(interest => <small key={interest}>{interest}</small>)}</div></div>
                   {preference.dailyBudgetAmount != null && <b className="preference-budget">{preference.dailyBudgetAmount.toLocaleString()} {preference.dailyBudgetCurrencyCode}/day</b>}
                 </article>) : <p className="budget-empty">No one has shared preferences yet. Be the first to add yours.</p>}
+              </div>
+            </section>
+
+
+            <section className="poll-workspace">
+              <div className="section-heading"><div><p className="eyebrow">DECIDE TOGETHER</p><h2>Group decisions</h2></div><span className="count-label">{groupPolls.filter(poll => poll.status === "open").length} OPEN POLLS</span></div>
+              <p className="poll-intro">Can't agree on the next activity or where to eat? Create a poll and let every trip member vote.</p>
+              <form className="poll-create-form" onSubmit={createGroupPoll}>
+                <label>What should the group decide?<input value={pollTitle} onChange={e => setPollTitle(e.target.value)} placeholder="e.g. Which day should we visit the national park?" minLength={3} maxLength={160} required /></label>
+                <label>Extra context <span>Optional</span><textarea value={pollDescription} onChange={e => setPollDescription(e.target.value)} rows={2} maxLength={1000} placeholder="Add details to help everyone decide…" /></label>
+                <div className="poll-option-editor"><strong>Voting options <span>2–8 choices</span></strong>
+                  {pollOptions.map((option,index) => <div className="poll-option-input" key={index}><input value={option} onChange={e => updatePollOption(index,e.target.value)} placeholder={`Option ${index+1}`} maxLength={160} required={index<2} /><button type="button" className="delete-link" disabled={pollOptions.length<=2} onClick={() => setPollOptions(current => current.filter((_,i) => i!==index))}>Remove</button></div>)}
+                  {pollOptions.length<8 && <button type="button" className="add-option-link" onClick={() => setPollOptions(current => [...current,""])}>＋ Add another option</button>}
+                </div>
+                <div className="poll-create-footer"><label>Optional closing time<input type="datetime-local" value={pollClosesAt} onChange={e => setPollClosesAt(e.target.value)} /></label><button className="btn btn-primary" disabled={busy}>{busy ? "Creating…" : "Create group poll"}</button></div>
+              </form>
+              <div className="poll-list">
+                {groupPolls.length ? groupPolls.map(poll => <article className="poll-card" key={poll.id}>
+                  <div className="poll-card-heading"><div><span className={poll.status === "open" ? "poll-status open" : "poll-status"}>{poll.status}</span><h3>{poll.title}</h3>{poll.description && <p>{poll.description}</p>}<small>Created by {poll.createdByName} · {poll.totalVotes} {poll.totalVotes === 1 ? "vote" : "votes"}{poll.closesAt ? ` · Closes ${new Date(poll.closesAt).toLocaleString()}` : ""}</small></div>
+                    {(poll.createdByUserId === user.id || selectedTrip.currentUserRole === "owner") && poll.status === "open" && <button className="delete-link" onClick={() => closeGroupPoll(poll)}>Close poll</button>}
+                  </div>
+                  <div className="poll-options">{poll.options.map(option => {
+                    const percent = poll.totalVotes ? Math.round(option.voteCount / poll.totalVotes * 100) : 0;
+                    return <button type="button" key={option.id} className={option.isSelected ? "poll-option selected" : "poll-option"} disabled={poll.status !== "open"} onClick={() => castGroupVote(poll,option.id)}>
+                      <span className="poll-option-top"><b>{option.label}</b><span>{option.voteCount} · {percent}% {option.isSelected ? "✓ Your vote" : ""}</span></span><span className="poll-bar"><i style={{width:`${percent}%`}} /></span>
+                    </button>;
+                  })}</div>
+                  <small className="poll-help">{poll.status === "open" ? "Select an option to vote. You can change your vote until the poll closes." : "Voting is closed. These are the final results."}</small>
+                </article>) : <p className="budget-empty">No group polls yet. Create one to make your first decision together.</p>}
               </div>
             </section>
 

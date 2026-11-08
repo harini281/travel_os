@@ -120,3 +120,35 @@ public sealed class TripMemberPreference
     public string? Notes { get; set; }
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+
+public sealed class GroupPoll
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public string Title { get; set; } = "";
+    public string? Description { get; set; }
+    public string Status { get; set; } = "open";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ClosesAt { get; set; }
+    public ICollection<GroupPollOption> Options { get; set; } = new List<GroupPollOption>();
+    public ICollection<GroupPollVote> Votes { get; set; } = new List<GroupPollVote>();
+}
+
+public sealed class GroupPollOption
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PollId { get; set; }
+    public string Label { get; set; } = "";
+    public int SortOrder { get; set; }
+}
+
+public sealed class GroupPollVote
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid PollId { get; set; }
+    public Guid OptionId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

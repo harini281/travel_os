@@ -38,7 +38,7 @@ tests                    Cross-service integration test area
    docker compose ps
    ```
 
-   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply later scripts in `database/migrations` in numeric order; Stage 10 adds `003_trip_invitations.sql` and `004_trip_member_preferences.sql`.
+   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply later scripts in `database/migrations` in numeric order; Stage 10 adds `003_trip_invitations.sql` and `004_trip_member_preferences.sql` and `005_group_polls.sql`.
 
 3. Start the platform API in another terminal:
 
@@ -107,7 +107,7 @@ tests                    Cross-service integration test area
 
 ## Traveller web app
 
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles.
+The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting.
 
 - Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
 - The local default is `http://localhost:8080`.
@@ -167,7 +167,7 @@ Open a trip from the dashboard to manage its itinerary and budget.
 - Activity duration, place, notes and estimated cost are optional fields.
 - The itinerary builder does not verify live opening hours, routes, availability or prices.
 - Trip owners can set a budget cap and add planned category amounts; members can view them.
-- Trip owners can invite existing TravelOS accounts, revoke pending invitations and remove members. Invited travellers accept from their invitation inbox. Invitations expire after seven days. Email delivery is not configured in this preview. Trip members can also save their interests, preferred pace, travel style and optional daily budget. Group members see shared preference summaries; personal notes remain private.
+- Trip owners can invite existing TravelOS accounts, revoke pending invitations and remove members. Invited travellers accept from their invitation inbox. Invitations expire after seven days. Email delivery is not configured in this preview. Trip members can also save their interests, preferred pace, travel style and optional daily budget. Group members see shared preference summaries; personal notes remain private. Group members can also create polls, vote on options and view live results; poll creators or trip owners can close polls.
 
 ## AI itinerary drafts
 
