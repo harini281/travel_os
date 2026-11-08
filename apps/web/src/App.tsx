@@ -9,6 +9,16 @@ type Trip = {
   currencyCode: string; ownerUserId: string; currentUserRole: string; memberCount: number;
   createdAt: string;
 };
+type Activity = {
+  id: string; title: string; description: string | null; placeName: string | null;
+  latitude: number | null; longitude: number | null; durationMinutes: number | null;
+  estimatedCost: number | null; currencyCode: string | null; sortOrder: number;
+};
+type ItineraryDay = { id: string; dayNumber: number; date: string; activities: Activity[] };
+type Itinerary = {
+  id: string; tripId: string; version: number; isApproved: boolean;
+  approvedAt: string | null; days: ItineraryDay[];
+};
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -22,9 +32,7 @@ async function api<T>(path: string, token?: string, init: RequestInit = {}): Pro
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({})) as ApiError;
-    const validation = payload.errors
-      ? Object.values(payload.errors).flat().join(" ")
-      : "";
+    const validation = payload.errors ? Object.values(payload.errors).flat().join(" ") : "";
     throw new Error(validation || payload.message || payload.title || `Request failed (${response.status})`);
   }
   if (response.status === 204) return undefined as T;
@@ -36,9 +44,13 @@ function formatDate(value: string) {
     day: "numeric", month: "short", year: "numeric",
   });
 }
-
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase()).join("");
+}
+function dayNumberFor(date: string, tripStart: string) {
+  const selected = new Date(`${date}T00:00:00Z`).getTime();
+  const start = new Date(`${tripStart}T00:00:00Z`).getTime();
+  return Math.floor((selected - start) / 86400000) + 1;
 }
 
 export default function App() {
@@ -56,11 +68,22 @@ export default function App() {
   const [endDate, setEndDate] = useState("");
   const [currencyCode, setCurrencyCode] = useState("USD");
 
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [loadingItinerary, setLoadingItinerary] = useState(false);
+  const [showAddDay, setShowAddDay] = useState(false);
+  const [newDayDate, setNewDayDate] = useState("");
+  const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  const [activityTitle, setActivityTitle] = useState("");
+  const [activityPlace, setActivityPlace] = useState("");
+  const [activityDescription, setActivityDescription] = useState("");
+  const [activityDuration, setActivityDuration] = useState("");
+  const [activityCost, setActivityCost] = useState("");
+
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
     setTrips(data);
   }, []);
-
   const loadProfile = useCallback(async (accessToken: string) => {
     const profile = await api<AuthUser>("/api/v1/auth/me", accessToken);
     setUser(profile);
@@ -71,12 +94,36 @@ export default function App() {
     if (!token) return;
     loadProfile(token).catch(() => {
       sessionStorage.removeItem("travelos.accessToken");
-      setToken(null);
-      setUser(null);
-      setTrips([]);
+      setToken(null); setUser(null); setTrips([]);
       setError("Your session expired. Please sign in again.");
     });
   }, [token, loadProfile]);
+
+  async function loadItinerary(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingItinerary(true); setError("");
+    try {
+      const result = await api<Itinerary | undefined>(
+        `/api/v1/trips/${trip.id}/itinerary`, accessToken,
+      );
+      setItinerary(result ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load itinerary.");
+    } finally {
+      setLoadingItinerary(false);
+    }
+  }
+
+  async function openTrip(trip: Trip) {
+    setSelectedTrip(trip); setItinerary(null); setShowAddDay(false);
+    setActiveDayId(null);
+    await loadItinerary(trip);
+  }
+
+  function closeTrip() {
+    setSelectedTrip(null); setItinerary(null); setShowAddDay(false);
+    setActiveDayId(null); setError("");
+  }
 
   async function handleAuth(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -84,53 +131,39 @@ export default function App() {
     setBusy(true); setError("");
     try {
       const payload = authMode === "register"
-        ? {
-            email: String(form.get("email")),
-            displayName: String(form.get("displayName")),
-            password: String(form.get("password")),
-          }
+        ? { email: String(form.get("email")), displayName: String(form.get("displayName")), password: String(form.get("password")) }
         : { email: String(form.get("email")), password: String(form.get("password")) };
       const result = await api<AuthResponse>(
         `/api/v1/auth/${authMode === "register" ? "register" : "login"}`,
-        undefined,
-        { method: "POST", body: JSON.stringify(payload) },
+        undefined, { method: "POST", body: JSON.stringify(payload) },
       );
       sessionStorage.setItem("travelos.accessToken", result.accessToken);
-      setToken(result.accessToken);
-      setUser(result.user);
+      setToken(result.accessToken); setUser(result.user);
       setNotice(authMode === "register" ? "Your TravelOS account is ready." : "Welcome back.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to sign in.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   function signOut() {
     sessionStorage.removeItem("travelos.accessToken");
-    setToken(null); setUser(null); setTrips([]);
-    setNotice("You have signed out.");
-    setError("");
+    setToken(null); setUser(null); setTrips([]); setSelectedTrip(null);
+    setNotice("You have signed out."); setError("");
   }
 
   async function createTrip(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!token) return;
+    event.preventDefault(); if (!token) return;
     setBusy(true); setError("");
     try {
       const trip = await api<Trip>("/api/v1/trips", token, {
-        method: "POST",
-        body: JSON.stringify({ name, destination, startDate, endDate, currencyCode }),
+        method: "POST", body: JSON.stringify({ name, destination, startDate, endDate, currencyCode }),
       });
       setTrips(current => [...current, trip].sort((a, b) => a.startDate.localeCompare(b.startDate)));
       setName(""); setDestination(""); setStartDate(""); setEndDate("");
-      setCurrencyCode("USD"); setShowCreate(false);
-      setNotice("Your trip has been created.");
+      setCurrencyCode("USD"); setShowCreate(false); setNotice("Your trip has been created.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to create trip.");
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
   async function deleteTrip(trip: Trip) {
@@ -140,9 +173,76 @@ export default function App() {
       await api<void>(`/api/v1/trips/${trip.id}`, token, { method: "DELETE" });
       setTrips(current => current.filter(item => item.id !== trip.id));
       setNotice("Trip deleted.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to delete trip.");
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to delete trip."); }
+  }
+
+  async function createItinerary() {
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api<Itinerary>(`/api/v1/trips/${selectedTrip.id}/itinerary`, token, { method: "POST" });
+      await loadItinerary(selectedTrip);
+      setNotice("Your itinerary workspace is ready.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to create itinerary."); }
+    finally { setBusy(false); }
+  }
+
+  async function addDay(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    const dayNumber = dayNumberFor(newDayDate, selectedTrip.startDate);
+    setBusy(true); setError("");
+    try {
+      await api<ItineraryDay>(`/api/v1/trips/${selectedTrip.id}/itinerary/days`, token, {
+        method: "POST", body: JSON.stringify({ dayNumber, date: newDayDate }),
+      });
+      await loadItinerary(selectedTrip);
+      setNewDayDate(""); setShowAddDay(false); setNotice("Day added to your itinerary.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to add day."); }
+    finally { setBusy(false); }
+  }
+
+  async function addActivity(event: FormEvent<HTMLFormElement>, dayId: string) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api<Activity>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/days/${dayId}/activities`, token,
+        { method: "POST", body: JSON.stringify({
+          title: activityTitle, description: activityDescription || null,
+          placeName: activityPlace || null, latitude: null, longitude: null,
+          durationMinutes: activityDuration ? Number(activityDuration) : null,
+          estimatedCost: activityCost ? Number(activityCost) : null,
+          currencyCode: activityCost ? selectedTrip.currencyCode : null, sortOrder: 0,
+        }) },
+      );
+      await loadItinerary(selectedTrip);
+      setActivityTitle(""); setActivityPlace(""); setActivityDescription("");
+      setActivityDuration(""); setActivityCost(""); setActiveDayId(null);
+      setNotice("Activity added.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to add activity."); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteActivity(activityId: string) {
+    if (!token || !selectedTrip || !window.confirm("Remove this activity from the itinerary?")) return;
+    setError("");
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/itinerary/activities/${activityId}`, token, { method: "DELETE" });
+      await loadItinerary(selectedTrip); setNotice("Activity removed.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove activity."); }
+  }
+
+  async function approveItinerary() {
+    if (!token || !selectedTrip) return;
+    if (!window.confirm("Approve this itinerary? It will become read-only.")) return;
+    setBusy(true); setError("");
+    try {
+      const approved = await api<Itinerary>(`/api/v1/trips/${selectedTrip.id}/itinerary/approve`, token, { method: "POST" });
+      setItinerary(approved); setNotice("Itinerary approved.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to approve itinerary."); }
+    finally { setBusy(false); }
   }
 
   if (!token || !user) {
@@ -181,12 +281,14 @@ export default function App() {
     );
   }
 
+  const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved;
+
   return (
     <main className="dashboard">
       <aside className="sidebar">
         <a className="brand" href="/">travel<span>OS</span></a>
         <div className="side-label">WORKSPACE</div>
-        <a className="side-link selected" href="#trips"><span>▦</span> My trips</a>
+        <button className={selectedTrip ? "side-link" : "side-link selected"} onClick={closeTrip}><span>▦</span> My trips</button>
         <div className="side-note"><span className="side-dot" /> Your travel space, all together.</div>
         <div className="sidebar-bottom">
           <div className="avatar">{initials(user.displayName)}</div>
@@ -194,42 +296,84 @@ export default function App() {
           <button className="icon-button" onClick={signOut} title="Sign out" aria-label="Sign out">↗</button>
         </div>
       </aside>
-      <section className="main-panel" id="trips">
+      <section className="main-panel">
         <header className="topbar">
-          <span className="breadcrumb">Workspace <b>/</b> My trips</span>
+          <span className="breadcrumb">Workspace <b>/</b> {selectedTrip ? selectedTrip.name : "My trips"}</span>
           <span className="preview-tag">TRAVELOS PREVIEW</span>
         </header>
         <div className="content-wrap">
           {notice && <div className="alert success">{notice}<button onClick={() => setNotice("")}>×</button></div>}
           {error && <div className="alert error">{error}<button onClick={() => setError("")}>×</button></div>}
-          <section className="welcome-row">
-            <div><p className="eyebrow">YOUR TRAVEL SPACE</p><h1>Good to see you, {user.displayName.split(" ")[0]}.</h1><p className="muted">Every great journey starts with a plan. What's next?</p></div>
-            <button className="btn btn-primary" onClick={() => { setShowCreate(v => !v); setError(""); }}>＋ Plan a trip</button>
-          </section>
-          <section className="stats-row">
-            <article><span>YOUR TRIPS</span><strong>{trips.length.toString().padStart(2, "0")}</strong><small>Trips in your workspace</small></article>
-            <article><span>UPCOMING</span><strong>{trips.filter(t => t.startDate >= new Date().toISOString().slice(0, 10)).length.toString().padStart(2, "0")}</strong><small>Journeys ahead</small></article>
-            <article><span>AS A GROUP</span><strong>{trips.filter(t => t.memberCount > 1).length.toString().padStart(2, "0")}</strong><small>Trips with other travellers</small></article>
-          </section>
-          {showCreate && <section className="create-card">
-            <div className="section-heading"><div><p className="eyebrow">NEW JOURNEY</p><h2>Let's plan somewhere.</h2></div><button className="icon-button" onClick={() => setShowCreate(false)} aria-label="Close form">×</button></div>
-            <form className="trip-form" onSubmit={createTrip}>
-              <label>Trip name<input value={name} onChange={e => setName(e.target.value)} placeholder="A summer to remember" maxLength={160} required /></label>
-              <label>Destination<input value={destination} onChange={e => setDestination(e.target.value)} placeholder="e.g. Kyoto, Japan" maxLength={160} required /></label>
-              <label>Start date<input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required /></label>
-              <label>End date<input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} required /></label>
-              <label>Currency<select value={currencyCode} onChange={e => setCurrencyCode(e.target.value)}><option value="USD">USD — US Dollar</option><option value="LKR">LKR — Sri Lankan Rupee</option><option value="EUR">EUR — Euro</option><option value="GBP">GBP — Pound Sterling</option><option value="JPY">JPY — Japanese Yen</option><option value="AUD">AUD — Australian Dollar</option><option value="INR">INR — Indian Rupee</option><option value="SGD">SGD — Singapore Dollar</option></select></label>
-              <div className="form-actions"><button type="button" className="btn btn-quiet" onClick={() => setShowCreate(false)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy ? "Creating…" : "Create trip →"}</button></div>
-            </form>
-          </section>}
-          <div className="section-heading trips-heading"><div><p className="eyebrow">COLLECTION</p><h2>Your journeys</h2></div><span className="count-label">{trips.length} {trips.length === 1 ? "TRIP" : "TRIPS"}</span></div>
-          {trips.length === 0 ? <section className="empty-state"><div className="empty-icon">✳</div><h3>Your next story starts here.</h3><p>You haven't created a trip yet. Start with a destination and a few dates — you can shape the details as you go.</p><button className="btn btn-primary" onClick={() => setShowCreate(true)}>Create your first trip →</button></section> :
-            <section className="trip-grid">{trips.map(trip => <article className="trip-card" key={trip.id}>
-              <div className="trip-card-top"><span className="trip-mark">✳</span><span className={trip.currentUserRole === "owner" ? "role owner" : "role"}>{trip.currentUserRole}</span></div>
-              <p className="trip-destination">{trip.destination}</p><h3>{trip.name}</h3>
-              <div className="trip-dates"><span>◷</span>{formatDate(trip.startDate)} — {formatDate(trip.endDate)}</div>
-              <div className="trip-card-foot"><span>{trip.memberCount} {trip.memberCount === 1 ? "traveller" : "travellers"} · {trip.currencyCode}</span>{trip.currentUserRole === "owner" && <button onClick={() => deleteTrip(trip)} className="delete-link">Delete</button>}</div>
-            </article>)}</section>}
+
+          {!selectedTrip ? <>
+            <section className="welcome-row">
+              <div><p className="eyebrow">YOUR TRAVEL SPACE</p><h1>Good to see you, {user.displayName.split(" ")[0]}.</h1><p className="muted">Every great journey starts with a plan. What's next?</p></div>
+              <button className="btn btn-primary" onClick={() => { setShowCreate(v => !v); setError(""); }}>＋ Plan a trip</button>
+            </section>
+            <section className="stats-row">
+              <article><span>YOUR TRIPS</span><strong>{trips.length.toString().padStart(2, "0")}</strong><small>Trips in your workspace</small></article>
+              <article><span>UPCOMING</span><strong>{trips.filter(t => t.startDate >= new Date().toISOString().slice(0, 10)).length.toString().padStart(2, "0")}</strong><small>Journeys ahead</small></article>
+              <article><span>AS A GROUP</span><strong>{trips.filter(t => t.memberCount > 1).length.toString().padStart(2, "0")}</strong><small>Trips with other travellers</small></article>
+            </section>
+            {showCreate && <section className="create-card">
+              <div className="section-heading"><div><p className="eyebrow">NEW JOURNEY</p><h2>Let's plan somewhere.</h2></div><button className="icon-button" onClick={() => setShowCreate(false)} aria-label="Close form">×</button></div>
+              <form className="trip-form" onSubmit={createTrip}>
+                <label>Trip name<input value={name} onChange={e => setName(e.target.value)} placeholder="A summer to remember" maxLength={160} required /></label>
+                <label>Destination<input value={destination} onChange={e => setDestination(e.target.value)} placeholder="e.g. Kyoto, Japan" maxLength={160} required /></label>
+                <label>Start date<input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required /></label>
+                <label>End date<input type="date" value={endDate} min={startDate || undefined} onChange={e => setEndDate(e.target.value)} required /></label>
+                <label>Currency<select value={currencyCode} onChange={e => setCurrencyCode(e.target.value)}><option value="USD">USD — US Dollar</option><option value="LKR">LKR — Sri Lankan Rupee</option><option value="EUR">EUR — Euro</option><option value="GBP">GBP — Pound Sterling</option><option value="JPY">JPY — Japanese Yen</option><option value="AUD">AUD — Australian Dollar</option><option value="INR">INR — Indian Rupee</option><option value="SGD">SGD — Singapore Dollar</option></select></label>
+                <div className="form-actions"><button type="button" className="btn btn-quiet" onClick={() => setShowCreate(false)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy ? "Creating…" : "Create trip →"}</button></div>
+              </form>
+            </section>}
+            <div className="section-heading trips-heading"><div><p className="eyebrow">COLLECTION</p><h2>Your journeys</h2></div><span className="count-label">{trips.length} {trips.length === 1 ? "TRIP" : "TRIPS"}</span></div>
+            {trips.length === 0 ? <section className="empty-state"><div className="empty-icon">✳</div><h3>Your next story starts here.</h3><p>You haven't created a trip yet. Start with a destination and a few dates — you can shape the details as you go.</p><button className="btn btn-primary" onClick={() => setShowCreate(true)}>Create your first trip →</button></section> :
+              <section className="trip-grid">{trips.map(trip => <article className="trip-card" key={trip.id}>
+                <div className="trip-card-top"><span className="trip-mark">✳</span><span className={trip.currentUserRole === "owner" ? "role owner" : "role"}>{trip.currentUserRole}</span></div>
+                <p className="trip-destination">{trip.destination}</p><h3>{trip.name}</h3>
+                <div className="trip-dates"><span>◷</span>{formatDate(trip.startDate)} — {formatDate(trip.endDate)}</div>
+                <div className="trip-card-foot"><span>{trip.memberCount} {trip.memberCount === 1 ? "traveller" : "travellers"} · {trip.currencyCode}</span>{trip.currentUserRole === "owner" && <button onClick={() => deleteTrip(trip)} className="delete-link">Delete</button>}</div>
+                <button className="open-trip-link" onClick={() => openTrip(trip)}>Open itinerary →</button>
+              </article>)}</section>}
+          </> : <>
+            <button className="back-link" onClick={closeTrip}>← Back to all trips</button>
+            <section className="itinerary-hero">
+              <div><p className="eyebrow">YOUR JOURNEY · {selectedTrip.currencyCode}</p><h1>{selectedTrip.name}</h1><p className="muted">{selectedTrip.destination} <span>·</span> {formatDate(selectedTrip.startDate)} — {formatDate(selectedTrip.endDate)}</p></div>
+              {itinerary && <span className={itinerary.isApproved ? "approval-pill approved" : "approval-pill"}>{itinerary.isApproved ? "✓ APPROVED" : "DRAFT PLAN"}</span>}
+            </section>
+            {loadingItinerary ? <section className="empty-state"><p>Loading your itinerary…</p></section> :
+              !itinerary ? <section className="empty-state itinerary-empty"><div className="empty-icon">✳</div><h3>Your itinerary starts here.</h3><p>Create a day-by-day plan for {selectedTrip.destination}. Add places and activities, then approve it when you're happy.</p>{selectedTrip.currentUserRole === "owner" && <button className="btn btn-primary" disabled={busy} onClick={createItinerary}>Create itinerary →</button>}</section> :
+              <>
+                <section className="itinerary-toolbar">
+                  <div><strong>{itinerary.days.length} planned days</strong><span>{itinerary.days.reduce((sum, day) => sum + day.activities.length, 0)} activities</span></div>
+                  {canEditItinerary && <div className="toolbar-actions"><button className="btn btn-quiet" onClick={() => setShowAddDay(v => !v)}>＋ Add a day</button><button className="btn btn-primary" disabled={busy || itinerary.days.every(day => day.activities.length === 0)} onClick={approveItinerary}>Approve plan</button></div>}
+                </section>
+                {showAddDay && canEditItinerary && <form className="add-day-form" onSubmit={addDay}><label>Choose a date within your trip<input type="date" min={selectedTrip.startDate} max={selectedTrip.endDate} value={newDayDate} onChange={e => setNewDayDate(e.target.value)} required /></label><button className="btn btn-primary" disabled={busy || !newDayDate}>Add day</button><button type="button" className="btn btn-quiet" onClick={() => setShowAddDay(false)}>Cancel</button></form>}
+                {itinerary.isApproved && <div className="approved-note">This itinerary has been approved and is now read-only.</div>}
+                {itinerary.days.length === 0 ? <section className="empty-state"><h3>No days added yet.</h3><p>Add a date from your trip to start building your itinerary.</p></section> :
+                  <section className="day-list">{itinerary.days.map(day => <article className="day-card" key={day.id}>
+                    <div className="day-date"><span>DAY {day.dayNumber.toString().padStart(2, "0")}</span><strong>{formatDate(day.date)}</strong></div>
+                    <div className="day-content">
+                      {day.activities.length === 0 ? <p className="no-activities">Nothing planned yet. Add your first activity.</p> :
+                        <div className="activity-list">{day.activities.map(activity => <div className="activity-row" key={activity.id}>
+                          <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{activity.placeName && <span>{activity.placeName}</span>}{activity.description && <p>{activity.description}</p>}</div>
+                          <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
+                          {canEditItinerary && <button className="delete-link" onClick={() => deleteActivity(activity.id)}>Remove</button>}
+                        </div>)}</div>}
+                      {canEditItinerary && (activeDayId === day.id ?
+                        <form className="activity-form" onSubmit={event => addActivity(event, day.id)}>
+                          <label>Activity name<input value={activityTitle} onChange={e => setActivityTitle(e.target.value)} placeholder="e.g. Explore the old town" maxLength={180} required /></label>
+                          <label>Place<input value={activityPlace} onChange={e => setActivityPlace(e.target.value)} placeholder="Place or attraction" maxLength={200} /></label>
+                          <label className="wide-field">Notes<textarea value={activityDescription} onChange={e => setActivityDescription(e.target.value)} placeholder="A little detail about this stop…" maxLength={2000} rows={2} /></label>
+                          <label>Duration (minutes)<input type="number" min="1" value={activityDuration} onChange={e => setActivityDuration(e.target.value)} placeholder="90" /></label>
+                          <label>Estimated cost ({selectedTrip.currencyCode})<input type="number" min="0" step="0.01" value={activityCost} onChange={e => setActivityCost(e.target.value)} placeholder="0.00" /></label>
+                          <div className="form-actions wide-field"><button type="button" className="btn btn-quiet" onClick={() => setActiveDayId(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy ? "Adding…" : "Save activity"}</button></div>
+                        </form> :
+                        <button className="add-activity-link" onClick={() => setActiveDayId(day.id)}>＋ Add activity</button>)}
+                    </div>
+                  </article>)}</section>}
+              </>}
+          </>}
           <footer className="dashboard-footer">TRAVELOS · THOUGHTFULLY CONNECTED TRAVEL</footer>
         </div>
       </section>
