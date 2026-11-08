@@ -61,3 +61,15 @@ Expense 1---* ExpenseSplits
 - Store money as `numeric(19,4)`, never floating point.
 - Keep original amount/currency and converted estimate/rate timestamp separately.
 - Use restrictive foreign keys for financial and approved itinerary records.
+
+
+## Implemented shared expense ledger
+
+The current platform implementation uses `TripExpenses`, `TripExpenseShares`, `TripRepayments` and `TripExpenseAudits`.
+
+- `TripExpenses` stores the payer, creator, original amount, currency, date and descriptive fields.
+- `TripExpenseShares` stores the per-member amount for equal, percentage or exact splits.
+- `TripRepayments` stores user-entered repayment attestations and recipient confirmation status.
+- `TripExpenseAudits` stores append-only before/after JSON snapshots, action, actor and UTC timestamp.
+
+The audit table intentionally has no foreign key to `TripExpenses`, so expense deletion does not cascade-delete its audit history. It is scoped to the trip and actor through restrictive/cascading foreign keys. The audit row and expense change are persisted in the same EF Core save operation.

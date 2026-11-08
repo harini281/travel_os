@@ -1,30 +1,63 @@
--- Shared trip expenses and equal participant shares.
--- Apply after 005_group_polls.sql on an existing TravelOS database.
+# Initial Database Schema
 
-CREATE TABLE IF NOT EXISTS "TripExpenses" (
-  "Id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "TripId" uuid NOT NULL REFERENCES "Trips" ("Id") ON DELETE CASCADE,
-  "PaidByUserId" uuid NOT NULL REFERENCES "Users" ("Id") ON DELETE RESTRICT,
-  "CreatedByUserId" uuid NOT NULL REFERENCES "Users" ("Id") ON DELETE RESTRICT,
-  "Title" varchar(160) NOT NULL,
-  "Category" varchar(40) NOT NULL,
-  "Notes" varchar(500) NULL,
-  "Amount" numeric(19,4) NOT NULL,
-  "CurrencyCode" varchar(3) NOT NULL,
-  "ExpenseDate" date NOT NULL,
-  "CreatedAt" timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT "CK_TripExpenses_Amount" CHECK ("Amount" > 0),
-  CONSTRAINT "CK_TripExpenses_Currency" CHECK ("CurrencyCode" ~ '^[A-Z]{3}$')
-);
+Stage 1 defines the domain model and relationship plan. The first EF Core migration should be generated after the model is reviewed and the .NET SDK is available.
 
-CREATE TABLE IF NOT EXISTS "TripExpenseShares" (
-  "Id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  "ExpenseId" uuid NOT NULL REFERENCES "TripExpenses" ("Id") ON DELETE CASCADE,
-  "UserId" uuid NOT NULL REFERENCES "Users" ("Id") ON DELETE RESTRICT,
-  "ShareAmount" numeric(19,4) NOT NULL,
-  CONSTRAINT "CK_TripExpenseShares_Amount" CHECK ("ShareAmount" >= 0),
-  CONSTRAINT "UQ_TripExpenseShares_ExpenseId_UserId" UNIQUE ("ExpenseId", "UserId")
-);
+## Identity
+- Users
+- UserProfiles
+- RefreshTokens (future authentication hardening)
 
-CREATE INDEX IF NOT EXISTS "IX_TripExpenses_TripId_ExpenseDate"
-  ON "TripExpenses" ("TripId", "ExpenseDate" DESC);
+## Destination catalogue
+- Countries
+- Destinations
+- Places
+
+## Trip management
+- Trips
+- TripMembers
+- TripPreferences
+- Invitations
+
+## Itinerary
+- Itineraries (approved/current itinerary aggregate)
+- ItineraryDays
+- Activities
+- GeneratedItineraryDrafts (separate, unapproved AI output)
+
+## Budget and expenses
+- Budgets
+- BudgetItems
+- Expenses
+- ExpenseSplits
+- Settlements
+- Currencies
+
+## AI and audit
+- AIRequests
+- AuditLogs
+
+## Core relationships
+
+```text
+User 1---* Trips (owner)
+User *---* Trips through TripMembers
+Trip 1---* TripPreferences
+Trip 1---* Invitations
+Trip 1---* GeneratedItineraryDrafts
+Trip 1---* Itineraries
+Itinerary 1---* ItineraryDays
+ItineraryDay 1---* Activities
+Trip 1---0..1 Budget
+Budget 1---* BudgetItems
+Trip 1---* Expenses
+Expense 1---* ExpenseSplits
+```
+
+## Data rules
+
+- Use UUID primary keys.
+- Store instants in UTC (`timestamp with time zone`).
+- Store currency using ISO 4217 codes.
+- Store money as `numeric(19,4)`, never floating point.
+- Keep original amount/currency and converted estimate/rate timestamp separately.
+- Use restrictive foreign keys for financial and approved itinerary records.

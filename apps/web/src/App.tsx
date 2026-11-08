@@ -46,6 +46,7 @@ type SettlementTransfer = { fromUserId: string; fromName: string; toUserId: stri
 type CurrencySettlement = { currencyCode: string; totalExpenses: number; balances: SettlementBalance[]; suggestedTransfers: SettlementTransfer[] };
 type TripSettlement = { tripId: string; expenseCount: number; currencies: CurrencySettlement[] };
 type TripRepayment = { id: string; tripId: string; fromUserId: string; fromName: string; toUserId: string; toName: string; amount: number; currencyCode: string; status: "pending" | "confirmed" | "rejected"; note: string | null; createdAt: string; respondedAt: string | null };
+type TripExpenseAudit = { id: string; expenseId: string; action: "created" | "updated" | "deleted"; changedByUserId: string; changedByName: string; changedAt: string; beforeJson: string; afterJson: string };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -149,6 +150,11 @@ export default function App() {
   const [expenseParticipants, setExpenseParticipants] = useState<string[]>([]);
   const [expenseSplitType, setExpenseSplitType] = useState<"equal" | "percentage" | "exact">("equal");
   const [expenseCustomShares, setExpenseCustomShares] = useState<Record<string, string>>({});
+  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null);
+  const [editExpenseDraft, setEditExpenseDraft] = useState<{title:string;category:string;notes:string;amount:string;currencyCode:string;expenseDate:string;paidByUserId:string}>({title:"",category:"food",notes:"",amount:"",currencyCode:"USD",expenseDate:"",paidByUserId:""});
+  const [editExpenseShares, setEditExpenseShares] = useState<Record<string,string>>({});
+  const [expenseAuditHistory, setExpenseAuditHistory] = useState<Record<string,TripExpenseAudit[]>>({});
+  const [expandedExpenseHistory, setExpandedExpenseHistory] = useState<string | null>(null);
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -329,6 +335,48 @@ export default function App() {
       setNotice(`Shared expense added with ${expenseSplitType} splitting.`);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add shared expense."); }
     finally { setBusy(false); }
+  }
+
+
+  function beginEditExpense(expense: TripExpense) {
+    setEditingExpenseId(expense.id);
+    setEditExpenseDraft({
+      title: expense.title, category: expense.category, notes: expense.notes ?? "",
+      amount: String(expense.amount), currencyCode: expense.currencyCode,
+      expenseDate: expense.expenseDate, paidByUserId: expense.paidByUserId
+    });
+    setEditExpenseShares(Object.fromEntries(expense.shares.map(s => [s.userId, String(s.shareAmount)])));
+  }
+
+  async function saveExpenseEdit(event: FormEvent<HTMLFormElement>, expense: TripExpense) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    const participants = Object.keys(editExpenseShares);
+    setBusy(true); setError("");
+    try {
+      await api(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}`, token, {
+        method: "PUT",
+        body: JSON.stringify({
+          ...editExpenseDraft, amount: Number(editExpenseDraft.amount),
+          participantUserIds: participants, splitType: "exact",
+          customShares: participants.map(userId => ({userId,value:Number(editExpenseShares[userId])}))
+        })
+      });
+      setEditingExpenseId(null);
+      await Promise.all([loadTripExpenses(selectedTrip),loadTripSettlement(selectedTrip)]);
+      setNotice("Expense updated. Settlement balances have been recalculated and the change was recorded.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to update expense."); }
+    finally { setBusy(false); }
+  }
+
+  async function loadExpenseHistory(expense: TripExpense) {
+    if (!token || !selectedTrip) return;
+    if (expandedExpenseHistory === expense.id) { setExpandedExpenseHistory(null); return; }
+    setExpandedExpenseHistory(expense.id);
+    try {
+      const history = await api<TripExpenseAudit[]>(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}/history`, token);
+      setExpenseAuditHistory(current => ({...current,[expense.id]:history}));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to load expense history."); }
   }
 
   async function deleteTripExpense(expense: TripExpense) {
@@ -955,7 +1003,24 @@ export default function App() {
                 {tripExpenses.length ? tripExpenses.map(expense => <article className="expense-card" key={expense.id}>
                   <div className="expense-card-top"><div><span className="expense-category">{expense.category}</span><h3>{expense.title}</h3><small>{formatDate(expense.expenseDate)} · Paid by {expense.paidByName}</small></div><div className="expense-total"><strong>{expense.amount.toLocaleString()} {expense.currencyCode}</strong><small>{expense.shares.length} shares</small></div></div>
                   <div className="expense-shares">{expense.shares.map(share => <div key={share.userId}><span>{share.displayName}{share.userId === expense.paidByUserId ? " (paid)" : ""}</span><b>{share.shareAmount.toLocaleString()} {expense.currencyCode}</b></div>)}</div>
-                  {(expense.createdByUserId === user.id || selectedTrip.currentUserRole === "owner") && <button className="delete-link expense-delete" onClick={() => deleteTripExpense(expense)}>Remove expense</button>}
+                  {(expense.createdByUserId === user.id || selectedTrip.currentUserRole === "owner") && <div className="expense-actions"><button type="button" className="expense-edit" onClick={() => editingExpenseId === expense.id ? setEditingExpenseId(null) : beginEditExpense(expense)}>Edit expense</button><button className="delete-link expense-delete" onClick={() => deleteTripExpense(expense)}>Remove expense</button></div>}
+                  <button type="button" className="expense-history-toggle" onClick={() => loadExpenseHistory(expense)}>{expandedExpenseHistory === expense.id ? "Hide change history" : "View change history"}</button>
+                  {expandedExpenseHistory === expense.id && <div className="expense-history-list">{(expenseAuditHistory[expense.id] ?? []).length ? expenseAuditHistory[expense.id].map(entry => <article key={entry.id}><strong>{entry.action === "created" ? "Created" : entry.action === "updated" ? "Updated" : "Removed"} by {entry.changedByName}</strong><small>{new Date(entry.changedAt).toLocaleString()}</small>{entry.action === "updated" && <details><summary>View before and after</summary><pre>{JSON.stringify(JSON.parse(entry.beforeJson),null,2)}</pre><pre>{JSON.stringify(JSON.parse(entry.afterJson),null,2)}</pre></details>}</article>) : <small>No changes recorded.</small>}</div>}
+                  {editingExpenseId === expense.id && <form className="expense-edit-form" onSubmit={event => saveExpenseEdit(event,expense)}>
+                    <strong>Edit expense</strong>
+                    <label>Title<input value={editExpenseDraft.title} maxLength={160} onChange={e => setEditExpenseDraft(d => ({...d,title:e.target.value}))} required /></label>
+                    <div className="expense-edit-grid">
+                      <label>Category<select value={editExpenseDraft.category} onChange={e => setEditExpenseDraft(d => ({...d,category:e.target.value}))}><option value="accommodation">Accommodation</option><option value="transport">Transport</option><option value="food">Food</option><option value="activities">Activities</option><option value="shopping">Shopping</option><option value="other">Other</option></select></label>
+                      <label>Amount<input type="number" min="0.0001" step="0.0001" value={editExpenseDraft.amount} onChange={e => setEditExpenseDraft(d => ({...d,amount:e.target.value}))} required /></label>
+                      <label>Currency<input maxLength={3} value={editExpenseDraft.currencyCode} onChange={e => setEditExpenseDraft(d => ({...d,currencyCode:e.target.value.toUpperCase()}))} required /></label>
+                      <label>Date<input type="date" value={editExpenseDraft.expenseDate} onChange={e => setEditExpenseDraft(d => ({...d,expenseDate:e.target.value}))} required /></label>
+                      <label>Who paid?<select value={editExpenseDraft.paidByUserId} onChange={e => setEditExpenseDraft(d => ({...d,paidByUserId:e.target.value}))}>{tripMembers.map(m => <option key={m.userId} value={m.userId}>{m.displayName}</option>)}</select></label>
+                    </div>
+                    <label>Notes<textarea value={editExpenseDraft.notes} maxLength={500} onChange={e => setEditExpenseDraft(d => ({...d,notes:e.target.value}))} /></label>
+                    <div className="edit-share-list"><strong>Exact shares ({editExpenseDraft.currencyCode})</strong>{expense.shares.map(share => <label key={share.userId}><span>{share.displayName}</span><input type="number" min="0.0001" step="0.0001" value={editExpenseShares[share.userId] ?? ""} onChange={e => setEditExpenseShares(s => ({...s,[share.userId]:e.target.value}))} required /></label>)}</div>
+                    <small>Shares must remain positive and add up exactly to the edited total. Changing the currency is blocked if a confirmed repayment exists in either currency.</small>
+                    <div className="expense-actions"><button type="submit" className="btn btn-primary" disabled={busy || Object.values(editExpenseShares).some(v => !(Number(v)>0)) || Math.abs(Object.values(editExpenseShares).reduce((sum,v)=>sum+Number(v),0)-Number(editExpenseDraft.amount))>0.00005}>Save changes</button><button type="button" className="expense-edit" onClick={() => setEditingExpenseId(null)}>Cancel</button></div>
+                  </form>}
                 </article>) : <p className="budget-empty">No shared expenses yet. Add the first group payment above.</p>}
               </div>
 

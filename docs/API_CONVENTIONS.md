@@ -260,3 +260,16 @@ Example response action:
 ```
 
 Deleting an expense in a currency after a repayment in that currency has been confirmed is blocked. Add a separate adjustment expense instead so the financial history remains auditable. TravelOS records user attestations only; it does not connect to banks, verify transfers, or move money.
+
+## Expense editing and audit history
+
+| Method | Route | Access |
+|---|---|---|
+| PUT | `/api/v1/trips/{tripId}/expenses/{expenseId}` | Expense creator or trip owner |
+| GET | `/api/v1/trips/{tripId}/expenses/{expenseId}/history` | Trip member |
+
+The expense creator or trip owner can update the expense title, category, notes, total, currency, date, payer and participant shares. The update request uses the same validation rules as expense creation. The payer must be one of the selected current trip members. Equal, percentage and exact split modes are supported by the API; the web editor uses exact per-member shares to preserve the existing allocation unless the user changes them.
+
+Every creation, update and deletion appends an audit record with the actor, UTC timestamp, action, and before/after JSON snapshots. Audit rows intentionally do not have a foreign key to the expense row, so deleting an expense does not erase its history. Trip members can view an expense's history while the record exists; deleted records' audit entries remain stored for future administrative/audit tooling.
+
+Edits and deletions are blocked when a confirmed repayment exists in the expense's currency (and edits are also blocked if changing to a currency with confirmed repayments). This is deliberately conservative because repayments are currently recorded at trip/currency ledger level rather than linked to a specific expense. Add an adjustment expense instead. Expense update and its audit row are saved together in one database save operation.
