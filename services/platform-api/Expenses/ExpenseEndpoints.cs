@@ -102,10 +102,13 @@ public static class ExpenseEndpoints
             errors["customShares"] = ["A participant's percentage cannot exceed 100%."];
         if (splitType == "exact" && customShares.Any(x => x.Value > request.Amount))
             errors["customShares"] = ["An individual share cannot exceed the expense total."];
-        if (splitType == "percentage" && customShares.Sum(x => x.Value) != 100m)
+        if (splitType == "percentage" && customShares.All(x => x.Value > 0m && x.Value <= 100m)
+            && customShares.Sum(x => x.Value) != 100m)
             errors["customShares"] = ["Percentage shares must add up to exactly 100%."];
-        if (splitType == "exact" && decimal.Round(customShares.Sum(x => x.Value), 4, MidpointRounding.AwayFromZero)
-            != decimal.Round(request.Amount, 4, MidpointRounding.AwayFromZero))
+        if (splitType == "exact" && request.Amount > 0m && request.Amount <= 999999999999999.9999m
+            && customShares.All(x => x.Value > 0m && x.Value <= request.Amount)
+            && decimal.Round(customShares.Sum(x => x.Value), 4, MidpointRounding.AwayFromZero)
+                != decimal.Round(request.Amount, 4, MidpointRounding.AwayFromZero))
             errors["customShares"] = ["Exact shares must add up to the expense total."];
         if (!participants.Contains(request.PaidByUserId))
             errors["paidByUserId"] = ["The person who paid must be included in the split."];
