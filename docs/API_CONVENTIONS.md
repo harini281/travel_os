@@ -99,6 +99,7 @@ The web app supports initial itinerary creation, adding days and activities, act
 | Method | Route | Access |
 |---|---|---|
 | POST | `/api/v1/trips/{tripId}/itinerary/drafts` | Trip owner; requests generation |
+| GET | `/api/v1/trips/{tripId}/itinerary/drafts` | Trip owner or member; lists drafts |
 | GET | `/api/v1/trips/{tripId}/itinerary/drafts/{draftId}` | Trip owner or member |
 | POST | `/api/v1/trips/{tripId}/itinerary/drafts/{draftId}/apply` | Trip owner; applies reviewed draft |
 
