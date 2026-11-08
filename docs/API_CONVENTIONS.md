@@ -79,3 +79,17 @@ Coordinates and duration are optional. If cost is supplied without a currency, t
 - `404`: resource does not exist or is not visible to the caller.
 - `409`: request conflicts with existing state.
 - `429`: authentication rate limit exceeded.
+
+## Itinerary management
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/itinerary` | Trip owner or member |
+| POST | `/api/v1/trips/{tripId}/itinerary` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/itinerary/days` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/itinerary/days/{dayId}/activities` | Trip owner |
+| PUT | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Trip owner |
+| DELETE | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Trip owner |
+| POST | `/api/v1/trips/{tripId}/itinerary/approve` | Trip owner |
+
+The web app supports initial itinerary creation, adding days and activities, activity removal, and approval. Approved itineraries are read-only.
