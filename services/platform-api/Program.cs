@@ -16,6 +16,7 @@ using TravelOS.PlatformApi.Voting;
 using TravelOS.PlatformApi.Expenses;
 using TravelOS.PlatformApi.Settlements;
 using TravelOS.PlatformApi.Repayments;
+using TravelOS.PlatformApi.Receipts;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -109,6 +110,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddHttpClient("ai-receipts", client => { client.Timeout = TimeSpan.FromSeconds(45); });
 builder.Services.AddHttpClient("ai-planner", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(70);
@@ -131,6 +133,7 @@ app.MapGroupVotingEndpoints();
 app.MapExpenseEndpoints();
 app.MapSettlementEndpoints();
 app.MapRepaymentEndpoints();
+app.MapReceiptEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
