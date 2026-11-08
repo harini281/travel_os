@@ -37,6 +37,31 @@ public static class GroupEndpoints
         Guid tripId, Guid userId, TravelOsDbContext db, CancellationToken ct) =>
         await db.TripMembers.AnyAsync(x => x.TripId == tripId && x.UserId == userId, ct);
 
+
+    private static async Task<IResult> ListMyInvitationsAsync(
+        ClaimsPrincipal principal, TravelOsDbContext db, CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var now = DateTimeOffset.UtcNow;
+        var expired = await db.TripInvitations
+            .Where(x => x.InvitedUserId == userId && x.Status == "pending" && x.ExpiresAt <= now)
+            .ToListAsync(ct);
+        foreach (var invitation in expired) invitation.Status = "expired";
+        if (expired.Count > 0) await db.SaveChangesAsync(ct);
+
+        var invitations = await (
+            from invitation in db.TripInvitations.AsNoTracking()
+            join trip in db.Trips.AsNoTracking() on invitation.TripId equals trip.Id
+            join inviter in db.Users.AsNoTracking() on invitation.InvitedByUserId equals inviter.Id
+            where invitation.InvitedUserId == userId && invitation.Status == "pending"
+            orderby invitation.CreatedAt descending
+            select new MyTripInvitationResponse(
+                invitation.Id, trip.Id, trip.Name, trip.Destination,
+                inviter.DisplayName, invitation.CreatedAt, invitation.ExpiresAt)
+        ).ToListAsync(ct);
+        return Results.Ok(invitations);
+    }
+
     private static async Task<IResult> ListMembersAsync(
         Guid tripId, ClaimsPrincipal principal, TravelOsDbContext db, CancellationToken ct)
     {
