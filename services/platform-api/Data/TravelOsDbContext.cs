@@ -18,6 +18,9 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<BudgetItem> BudgetItems => Set<BudgetItem>();
     public DbSet<TripInvitation> TripInvitations => Set<TripInvitation>();
     public DbSet<TripMemberPreference> TripMemberPreferences => Set<TripMemberPreference>();
+    public DbSet<GroupPoll> GroupPolls => Set<GroupPoll>();
+    public DbSet<GroupPollOption> GroupPollOptions => Set<GroupPollOption>();
+    public DbSet<GroupPollVote> GroupPollVotes => Set<GroupPollVote>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -110,6 +113,42 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.InvitedByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.TripId, x.InvitedUserId, x.Status });
+        });
+
+        modelBuilder.Entity<GroupPoll>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Title).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Description).HasMaxLength(1000);
+            entity.Property(x => x.Status).HasMaxLength(16).IsRequired();
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasMany(x => x.Options).WithOne().HasForeignKey(x => x.PollId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Votes).WithOne().HasForeignKey(x => x.PollId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.TripId, x.CreatedAt });
+        });
+
+        modelBuilder.Entity<GroupPollOption>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Label).HasMaxLength(160).IsRequired();
+            entity.HasIndex(x => new { x.PollId, x.SortOrder }).IsUnique();
+        });
+
+        modelBuilder.Entity<GroupPollVote>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasOne<GroupPoll>().WithMany().HasForeignKey(x => x.PollId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<GroupPollOption>().WithMany().HasForeignKey(x => x.OptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.PollId, x.UserId }).IsUnique();
         });
 
         modelBuilder.Entity<TripMemberPreference>(entity =>
