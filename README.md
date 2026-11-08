@@ -38,7 +38,7 @@ tests                    Cross-service integration test area
    docker compose ps
    ```
 
-   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply later scripts in `database/migrations` in numeric order; Stage 10 adds `003_trip_invitations.sql` and `004_trip_member_preferences.sql`  `005_group_polls.sql` and `006_shared_expenses.sql`.
+   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply the later scripts in `database/migrations` in dependency order: `003_trip_invitations.sql`, `004_trip_member_preferences.sql`, `005_group_polls.sql`, and `006_shared_expenses.sql`. The independent `003_itinerary_constraints.sql` script should also be applied if it has not already been run.
 
 3. Start the platform API in another terminal:
 
