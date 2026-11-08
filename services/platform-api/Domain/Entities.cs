@@ -206,3 +206,27 @@ public sealed class TripExpenseAudit
     public string AfterJson { get; set; } = "{}";
     public DateTimeOffset ChangedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+
+public sealed class TripReceipt
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid? ExpenseId { get; set; }
+    public Guid UploadedByUserId { get; set; }
+    public string OriginalFileName { get; set; } = "";
+    public string StoredFileName { get; set; } = "";
+    public string ContentType { get; set; } = "";
+    public long FileSizeBytes { get; set; }
+    public string Sha256 { get; set; } = "";
+    public string ExtractionStatus { get; set; } = "pending_review";
+    public string? MerchantName { get; set; }
+    public DateOnly? ReceiptDate { get; set; }
+    public decimal? TotalAmount { get; set; }
+    public string? CurrencyCode { get; set; }
+    public decimal? Confidence { get; set; }
+    public string? ExtractionWarning { get; set; }
+    public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ConfirmedAt { get; set; }
+    public Guid? ConfirmedByUserId { get; set; }
+}
