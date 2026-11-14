@@ -114,7 +114,7 @@ public static class CurrencyEndpoints
             .Select(x => new CurrencyConversionResponse(
                 x.Id, x.ExpenseId, x.OriginalAmount, x.OriginalCurrencyCode,
                 x.ConvertedAmount, x.ConvertedCurrencyCode, x.ExchangeRate,
-                x.RateDate, x.Provider, x.CreatedAt))
+                x.ExpenseDate, x.RateDate, x.Provider, x.CreatedAt))
             .ToListAsync(ct);
         return Results.Ok(snapshots);
     }
