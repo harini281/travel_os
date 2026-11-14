@@ -111,7 +111,7 @@ public static class BudgetIntelligenceEndpoints
         var budgetComparable = budget is not null && budget.CurrencyCode == target;
         decimal? budgetAmount = budgetComparable ? budget!.Amount : null;
         var convertedTotal = converted.Sum(x => x.ConvertedAmount);
-        var remaining = budgetAmount.HasValue ? budgetAmount.Value - convertedTotal : null;
+        decimal? remaining = budgetAmount.HasValue ? budgetAmount.Value - convertedTotal : null;
         var elapsedDays = Math.Max(0, Math.Min(
             DateOnly.FromDateTime(DateTime.UtcNow).DayNumber - trip.StartDate.DayNumber + 1,
             trip.EndDate.DayNumber - trip.StartDate.DayNumber + 1));
