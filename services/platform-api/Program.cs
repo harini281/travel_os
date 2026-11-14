@@ -18,6 +18,7 @@ using TravelOS.PlatformApi.Settlements;
 using TravelOS.PlatformApi.Repayments;
 using TravelOS.PlatformApi.Receipts;
 using TravelOS.PlatformApi.ExpenseIntelligence;
+using TravelOS.PlatformApi.Currency;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -122,6 +123,11 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddHttpClient<FrankfurterExchangeRateProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://api.frankfurter.dev");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
 builder.Services.AddHttpClient("ai-receipts", client => { client.Timeout = TimeSpan.FromSeconds(45); });
 builder.Services.AddHttpClient("ai-planner", client =>
 {
@@ -147,6 +153,7 @@ app.MapSettlementEndpoints();
 app.MapRepaymentEndpoints();
 app.MapReceiptEndpoints();
 app.MapExpenseIntelligenceEndpoints();
+app.MapCurrencyEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
