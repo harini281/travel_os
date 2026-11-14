@@ -17,6 +17,7 @@ using TravelOS.PlatformApi.Expenses;
 using TravelOS.PlatformApi.Settlements;
 using TravelOS.PlatformApi.Repayments;
 using TravelOS.PlatformApi.Receipts;
+using TravelOS.PlatformApi.ExpenseIntelligence;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -145,6 +146,7 @@ app.MapExpenseEndpoints();
 app.MapSettlementEndpoints();
 app.MapRepaymentEndpoints();
 app.MapReceiptEndpoints();
+app.MapExpenseIntelligenceEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
