@@ -6,8 +6,13 @@ ALTER TABLE "TripExpenseConversions"
 -- Backfill older snapshots from their effective rate date. These legacy rows are
 -- conservative: if the actual expense date differed, Stage 21 will not use them
 -- unless it matches this backfilled date. New snapshots always store exact source date.
-UPDATE "TripExpenseConversions"
-SET "ExpenseDate" = "RateDate"
+UPDATE "TripExpenseConversions" conversion
+SET "ExpenseDate" = COALESCE(
+    (SELECT expense."ExpenseDate"
+     FROM "TripExpenses" expense
+     WHERE expense."Id" = conversion."ExpenseId"
+       AND expense."TripId" = conversion."TripId"),
+    conversion."RateDate")
 WHERE "ExpenseDate" IS NULL;
 
 ALTER TABLE "TripExpenseConversions"
