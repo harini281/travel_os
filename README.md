@@ -38,7 +38,7 @@ tests                    Cross-service integration test area
    docker compose ps
    ```
 
-   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply the later scripts in `database/migrations` in dependency order: `003_trip_invitations.sql`, `004_trip_member_preferences.sql`, `005_group_polls.sql`, and `006_shared_expenses.sql`. The independent `003_itinerary_constraints.sql` script should also be applied if it has not already been run.
+   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply the database migrations in dependency order: `003_itinerary_constraints.sql` (if not already applied), `003_trip_invitations.sql`, `004_trip_member_preferences.sql`, `005_group_polls.sql`, `006_shared_expenses.sql`, `007_trip_repayments.sql`, `008_trip_expense_audits.sql`, `009_trip_receipts.sql`, and `010_currency_conversions.sql`.
 
 3. Start the platform API in another terminal:
 
@@ -223,3 +223,16 @@ Budget items retain their own currency. Totals are grouped by currency; the API 
 - Secrets belong in environment variables or a secrets manager, never in frontend code or source control.
 
 See `docs/` for the architecture, schema, and API conventions.
+
+
+## Stage 20 — Global currency intelligence
+
+TravelOS uses the Frankfurter v2 reference-rate API through the platform backend. The API requires no key and returns blended reference rates from central banks and official sources. These are not guaranteed bank, card-network, cash-exchange or real-time trading rates.
+
+- Supported ISO currency catalogue: `GET /api/v1/trips/{tripId}/currency-conversions/currencies`
+- Convert a recorded expense into a selected target currency: `POST /api/v1/trips/{tripId}/currency-conversions`
+- List immutable conversion snapshots: `GET /api/v1/trips/{tripId}/currency-conversions`
+
+A conversion uses the historical reference rate for the expense date. The provider's effective publication date is stored, which may be earlier than the expense date on weekends or holidays. Original expense values and settlement balances are never changed. Conversion snapshots preserve the original amount/currency, converted amount/currency, rate, effective date and provider attribution.
+
+The API is called from the backend, not the browser. If the provider is unavailable or cannot supply the requested currency pair/date, the conversion fails safely and the expense remains unchanged.

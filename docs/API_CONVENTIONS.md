@@ -316,3 +316,29 @@ The endpoint returns deterministic summaries from the trip's recorded expenses, 
 Forecasts use the elapsed calendar days in the trip window and the average recorded spend in the budget currency. For trips that have not started or have no recorded spend, the projected total is unavailable rather than fabricated. This is a simple pace-based estimate, not a prediction model.
 
 Duplicate and mismatch results are review flags, not fraud findings. Multiple legitimate purchases can have identical details. The endpoint never updates, deletes or reconciles financial records. No currency conversion or live bank data is used.
+
+
+## Global currency intelligence
+
+All currency conversion requests go through the platform API. The browser never calls the exchange-rate provider directly.
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/currency-conversions/currencies` | Trip member |
+| POST | `/api/v1/trips/{tripId}/currency-conversions` | Trip member |
+| GET | `/api/v1/trips/{tripId}/currency-conversions` | Trip member |
+
+### Create a conversion snapshot
+
+```json
+{
+  "expenseId": "00000000-0000-0000-0000-000000000000",
+  "targetCurrencyCode": "LKR"
+}
+```
+
+The source amount, source currency and historical rate date are read from the recorded expense on the server; clients cannot override them. The provider is queried for the expense date. The provider's returned effective date is retained because weekends and public holidays may result in the latest preceding publication date.
+
+Each snapshot is immutable and stores the original amount/currency, converted amount/currency, decimal exchange rate, effective rate date, provider name, requesting user and creation time. The expense ID is intentionally not a foreign key so a later expense deletion does not erase the conversion history. Trip deletion cascades to the snapshots.
+
+Converted amounts are rounded to four decimal places for storage and display. They are reference estimates only. They are not used for expense splits, repayments, settlement balances or automatic budget reconciliation. Same-currency conversions use an identity rate of 1 without an external request.

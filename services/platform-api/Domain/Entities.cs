@@ -230,3 +230,24 @@ public sealed class TripReceipt
     public DateTimeOffset? ConfirmedAt { get; set; }
     public Guid? ConfirmedByUserId { get; set; }
 }
+
+
+/// <summary>
+/// Immutable record of a reference-rate conversion. The original expense is never modified.
+/// ExpenseId intentionally has no FK so the conversion audit survives expense deletion.
+/// </summary>
+public sealed class TripExpenseConversion
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid ExpenseId { get; set; }
+    public Guid RequestedByUserId { get; set; }
+    public decimal OriginalAmount { get; set; }
+    public string OriginalCurrencyCode { get; set; } = "USD";
+    public decimal ConvertedAmount { get; set; }
+    public string ConvertedCurrencyCode { get; set; } = "EUR";
+    public decimal ExchangeRate { get; set; }
+    public DateOnly RateDate { get; set; }
+    public string Provider { get; set; } = "Frankfurter blended reference rate";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}

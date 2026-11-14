@@ -59,6 +59,8 @@ type ExpenseIntelligence = {
   duplicateExpenseCandidates:{expenseDate:string;amount:number;currencyCode:string;expenses:{expenseId:string;title:string;category:string}[];explanation:string}[];
 };
 
+type CurrencyOption = { isoCode:string; name:string; symbol:string|null };
+type CurrencyConversion = { id:string; expenseId:string; originalAmount:number; originalCurrencyCode:string; convertedAmount:number; convertedCurrencyCode:string; exchangeRate:number; rateDate:string; provider:string; createdAt:string };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -173,6 +175,10 @@ export default function App() {
   const [receiptDrafts, setReceiptDrafts] = useState<Record<string,ReceiptDraft>>({});
   const [expenseIntelligence, setExpenseIntelligence] = useState<ExpenseIntelligence | null>(null);
   const [loadingExpenseIntelligence, setLoadingExpenseIntelligence] = useState(false);
+  const [currencyOptions, setCurrencyOptions] = useState<CurrencyOption[]>([]);
+  const [currencyConversions, setCurrencyConversions] = useState<CurrencyConversion[]>([]);
+  const [conversionTargetCurrency, setConversionTargetCurrency] = useState("USD");
+  const [convertingExpenseId, setConvertingExpenseId] = useState<string | null>(null);
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -274,6 +280,42 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load expense intelligence.");
     } finally { setLoadingExpenseIntelligence(false); }
+  }
+
+  async function loadCurrencyIntelligence(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const snapshots = await api<CurrencyConversion[]>("/api/v1/trips/" + trip.id + "/currency-conversions", accessToken);
+      setCurrencyConversions(snapshots);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load saved conversion history.");
+    }
+    try {
+      const currencies = await api<CurrencyOption[]>("/api/v1/trips/" + trip.id + "/currency-conversions/currencies", accessToken);
+      setCurrencyOptions(currencies);
+      setConversionTargetCurrency(current =>
+        currencies.some(item => item.isoCode === current) ? current : trip.currencyCode);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load supported currencies.");
+    }
+  }
+
+  async function convertExpenseCurrency(expense: TripExpense) {
+    if (!token || !selectedTrip) return;
+    setConvertingExpenseId(expense.id);
+    setError("");
+    try {
+      const snapshot = await api<CurrencyConversion>(
+        `/api/v1/trips/${selectedTrip.id}/currency-conversions`, token,
+        { method: "POST", body: JSON.stringify({
+          expenseId: expense.id, targetCurrencyCode: conversionTargetCurrency
+        }) }
+      );
+      setCurrencyConversions(current => [snapshot, ...current]);
+      setNotice(`Reference conversion saved: ${snapshot.originalAmount.toLocaleString()} ${snapshot.originalCurrencyCode} = ${snapshot.convertedAmount.toLocaleString()} ${snapshot.convertedCurrencyCode}.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to convert this expense.");
+    } finally { setConvertingExpenseId(null); }
   }
 
   async function loadTripReceipts(trip: Trip, accessToken = token) {
@@ -626,15 +668,15 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setRepaymentTarget(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -1098,10 +1140,36 @@ export default function App() {
                 <label className="expense-notes">Notes <span>Optional</span><textarea rows={2} maxLength={500} value={expenseNotes} onChange={e => setExpenseNotes(e.target.value)} placeholder="Add a receipt reference or a short note…" /></label>
                 <div className="expense-submit"><small>{expenseParticipants.length} travellers selected · {expenseSplitType === "equal" ? "Equal split" : expenseSplitType === "percentage" ? "Percentage split" : "Exact amount split"} · Currency kept as entered</small><button className="btn btn-primary" disabled={busy || !expenseTitle.trim() || !expenseAmount || !expensePaidBy || !expenseParticipants.includes(expensePaidBy) || expenseParticipants.length===0 || (expenseSplitType !== "equal" && expenseParticipants.some(id => !(Number(expenseCustomShares[id] ?? defaultCustomShareValues(expenseSplitType, expenseAmount, expenseParticipants)[id]) > 0)))}>{busy ? "Saving…" : "＋ Add shared expense"}</button></div>
               </form>
+              <section className="currency-intelligence-panel">
+                <div className="section-heading"><div><p className="eyebrow">GLOBAL CURRENCY</p><h3>Historical currency conversion</h3></div><span className="count-label">{currencyOptions.length} SUPPORTED ISO CURRENCIES</span></div>
+                <div className="currency-convert-toolbar">
+                  <label>Convert expenses into
+                    <select value={conversionTargetCurrency} onChange={event => setConversionTargetCurrency(event.target.value)}>
+                      {currencyOptions.map(item => <option key={item.isoCode} value={item.isoCode}>{item.isoCode} — {item.name}</option>)}
+                    </select>
+                  </label>
+                  <p>Choose a target currency, then use “Convert expense” on any recorded expense. TravelOS looks up the reference rate for that expense's date.</p>
+                </div>
+                {currencyConversions.length > 0 ? <div className="currency-snapshot-list">
+                  <div className="subheading"><strong>Saved conversion snapshots</strong><span>Newest first · original expenses unchanged</span></div>
+                  {currencyConversions.slice(0,8).map(item => <article key={item.id}>
+                    <div><strong>{item.originalAmount.toLocaleString()} {item.originalCurrencyCode}</strong><span>→</span><strong>{item.convertedAmount.toLocaleString()} {item.convertedCurrencyCode}</strong></div>
+                    <small>Rate: 1 {item.originalCurrencyCode} = {item.exchangeRate.toLocaleString(undefined,{maximumFractionDigits:8})} {item.convertedCurrencyCode} · Effective {formatDate(item.rateDate)}</small>
+                    <small>{item.provider} · Saved {new Date(item.createdAt).toLocaleString()}</small>
+                  </article>)}
+                </div> : <p className="budget-empty">No conversion snapshots yet. Convert an expense to preserve its historical reference rate.</p>}
+                <small className="currency-disclaimer">Reference rates are estimates, not bank, card-network or cash-exchange quotes. The provider's effective publication date may differ from the expense date on weekends and holidays.</small>
+              </section>
               <div className="expense-list">
                 {tripExpenses.length ? tripExpenses.map(expense => <article className="expense-card" key={expense.id}>
                   <div className="expense-card-top"><div><span className="expense-category">{expense.category}</span><h3>{expense.title}</h3><small>{formatDate(expense.expenseDate)} · Paid by {expense.paidByName}</small></div><div className="expense-total"><strong>{expense.amount.toLocaleString()} {expense.currencyCode}</strong><small>{expense.shares.length} shares</small></div></div>
                   <div className="expense-shares">{expense.shares.map(share => <div key={share.userId}><span>{share.displayName}{share.userId === expense.paidByUserId ? " (paid)" : ""}</span><b>{share.shareAmount.toLocaleString()} {expense.currencyCode}</b></div>)}</div>
+                  <div className="expense-conversion-actions">
+                    <button type="button" className="expense-edit" disabled={convertingExpenseId === expense.id || expense.currencyCode === conversionTargetCurrency} onClick={() => convertExpenseCurrency(expense)}>
+                      {convertingExpenseId === expense.id ? "Converting…" : `Convert expense to ${conversionTargetCurrency}`}
+                    </button>
+                    {currencyConversions.find(item => item.expenseId === expense.id && item.convertedCurrencyCode === conversionTargetCurrency) && <small>Latest saved estimate: {currencyConversions.find(item => item.expenseId === expense.id && item.convertedCurrencyCode === conversionTargetCurrency)!.convertedAmount.toLocaleString()} {conversionTargetCurrency}</small>}
+                  </div>
                   {(expense.createdByUserId === user.id || selectedTrip.currentUserRole === "owner") && <div className="expense-actions"><button type="button" className="expense-edit" onClick={() => editingExpenseId === expense.id ? setEditingExpenseId(null) : beginEditExpense(expense)}>Edit expense</button><button className="delete-link expense-delete" onClick={() => deleteTripExpense(expense)}>Remove expense</button></div>}
                   <button type="button" className="expense-history-toggle" onClick={() => loadExpenseHistory(expense)}>{expandedExpenseHistory === expense.id ? "Hide change history" : "View change history"}</button>
                   {expandedExpenseHistory === expense.id && <div className="expense-history-list">{(expenseAuditHistory[expense.id] ?? []).length ? expenseAuditHistory[expense.id].map(entry => <article key={entry.id}><strong>{entry.action === "created" ? "Created" : entry.action === "updated" ? "Updated" : "Removed"} by {entry.changedByName}</strong><small>{new Date(entry.changedAt).toLocaleString()}</small>{entry.action === "updated" && <details><summary>View before and after</summary><pre>{JSON.stringify(JSON.parse(entry.beforeJson),null,2)}</pre><pre>{JSON.stringify(JSON.parse(entry.afterJson),null,2)}</pre></details>}</article>) : <small>No changes recorded.</small>}</div>}

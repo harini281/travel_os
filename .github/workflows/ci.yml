@@ -54,3 +54,46 @@ jobs:
         run: dotnet restore services/platform-api/TravelOS.PlatformApi.csproj
       - name: Build
         run: dotnet build services/platform-api/TravelOS.PlatformApi.csproj --no-restore --configuration Release
+
+  database-migrations:
+    name: PostgreSQL migration validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: travelos
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d travelos"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply all database migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in \
+            001_initial_schema.sql \
+            002_identity_schema.sql \
+            003_itinerary_constraints.sql \
+            003_trip_invitations.sql \
+            004_trip_member_preferences.sql \
+            005_group_polls.sql \
+            006_shared_expenses.sql \
+            007_trip_repayments.sql \
+            008_trip_expense_audits.sql \
+            009_trip_receipts.sql \
+            010_currency_conversions.sql
+          do
+            echo "Applying $migration"
+            psql -h localhost -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+          done
