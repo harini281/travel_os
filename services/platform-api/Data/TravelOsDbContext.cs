@@ -213,6 +213,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.OriginalAmount).HasPrecision(19, 4);
             entity.Property(x => x.ConvertedAmount).HasPrecision(19, 4);
             entity.Property(x => x.ExchangeRate).HasPrecision(28, 12);
+            entity.Property(x => x.ExpenseDate).IsRequired();
             entity.Property(x => x.OriginalCurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(x => x.ConvertedCurrencyCode).HasMaxLength(3).IsRequired();
             entity.Property(x => x.Provider).HasMaxLength(120).IsRequired();
