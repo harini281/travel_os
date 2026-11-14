@@ -114,7 +114,7 @@ public static class CurrencyEndpoints
             .Select(x => new CurrencyConversionResponse(
                 x.Id, x.ExpenseId, x.OriginalAmount, x.OriginalCurrencyCode,
                 x.ConvertedAmount, x.ConvertedCurrencyCode, x.ExchangeRate,
-                x.RateDate, x.Provider, x.CreatedAt))
+                x.ExpenseDate, x.RateDate, x.Provider, x.CreatedAt))
             .ToListAsync(ct);
         return Results.Ok(snapshots);
     }
@@ -194,6 +194,7 @@ public static class CurrencyEndpoints
             ConvertedAmount = converted,
             ConvertedCurrencyCode = target,
             ExchangeRate = quote.Rate,
+            ExpenseDate = expense.ExpenseDate,
             RateDate = quote.EffectiveDate,
             Provider = quote.Provider
         };
@@ -205,7 +206,7 @@ public static class CurrencyEndpoints
                 snapshot.Id, snapshot.ExpenseId, snapshot.OriginalAmount,
                 snapshot.OriginalCurrencyCode, snapshot.ConvertedAmount,
                 snapshot.ConvertedCurrencyCode, snapshot.ExchangeRate,
-                snapshot.RateDate, snapshot.Provider, snapshot.CreatedAt));
+                snapshot.ExpenseDate, snapshot.RateDate, snapshot.Provider, snapshot.CreatedAt));
     }
 }
 
@@ -214,4 +215,4 @@ public sealed record CreateCurrencyConversionRequest(string ExpenseId, string Ta
 public sealed record CurrencyConversionResponse(
     Guid Id, Guid ExpenseId, decimal OriginalAmount, string OriginalCurrencyCode,
     decimal ConvertedAmount, string ConvertedCurrencyCode, decimal ExchangeRate,
-    DateOnly RateDate, string Provider, DateTimeOffset CreatedAt);
+    DateOnly ExpenseDate, DateOnly RateDate, string Provider, DateTimeOffset CreatedAt);

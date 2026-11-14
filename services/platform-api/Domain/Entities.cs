@@ -247,6 +247,7 @@ public sealed class TripExpenseConversion
     public decimal ConvertedAmount { get; set; }
     public string ConvertedCurrencyCode { get; set; } = "EUR";
     public decimal ExchangeRate { get; set; }
+    public DateOnly ExpenseDate { get; set; }
     public DateOnly RateDate { get; set; }
     public string Provider { get; set; } = "Frankfurter blended reference rate";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;

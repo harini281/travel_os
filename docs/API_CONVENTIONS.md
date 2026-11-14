@@ -342,3 +342,20 @@ The source amount, source currency and historical rate date are read from the re
 Each snapshot is immutable and stores the original amount/currency, converted amount/currency, decimal exchange rate, effective rate date, provider name, requesting user and creation time. The expense ID is intentionally not a foreign key so a later expense deletion does not erase the conversion history. Trip deletion cascades to the snapshots.
 
 Converted amounts are rounded to four decimal places for storage and display. They are reference estimates only. They are not used for expense splits, repayments, settlement balances or automatic budget reconciliation. Same-currency conversions use an identity rate of 1 without an external request.
+
+
+## Multi-currency budget intelligence
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/budget-intelligence?reportingCurrencyCode=LKR` | Current trip member |
+
+The report uses only recorded data. Expenses already denominated in the reporting currency are included at a 1:1 rate. Other expenses are included only when a saved conversion snapshot matches the current source amount, currency and expense date. The latest matching snapshot is used for each expense and target currency.
+
+If no matching snapshot exists, the expense is returned in `unconvertedExpenses` and grouped in `unconvertedByCurrency`. It is not included in `convertedActualTotal`. This is intentionally a partial total when any expense remains unconverted.
+
+The budget cap is comparable only when its currency equals the selected reporting currency. Budget category items are compared only when their currency equals the reporting currency. No exchange rate is guessed for budgets or planned items.
+
+The report returns converted expense details, actual totals by category, planned category amounts in the reporting currency, unconverted source totals, a remaining budget value when comparable, and a pace-based projected total. Projections are estimates based on elapsed trip days and recorded converted spending, not financial advice.
+
+Migration `011_conversion_source_expense_date.sql` adds the source expense date to conversion snapshots. Existing snapshots are backfilled from their matching expense row where available. This protects against reusing a historical conversion after an expense amount, currency or date has changed.

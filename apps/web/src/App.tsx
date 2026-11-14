@@ -59,6 +59,19 @@ type ExpenseIntelligence = {
   duplicateExpenseCandidates:{expenseDate:string;amount:number;currencyCode:string;expenses:{expenseId:string;title:string;category:string}[];explanation:string}[];
 };
 
+type BudgetIntelligence = {
+  tripId:string; generatedAt:string; reportingCurrencyCode:string;
+  budgetCurrencyCode:string|null; budgetAmount:number|null; budgetComparable:boolean;
+  convertedActualTotal:number; remainingBudget:number|null;
+  averageDailySpend:number|null; projectedTotal:number|null; status:string; explanation:string;
+  convertedExpenses:{expenseId:string;title:string;category:string;originalAmount:number;originalCurrencyCode:string;convertedAmount:number;reportingCurrencyCode:string;exchangeRate:number;rateDate:string;provider:string;isConverted:boolean}[];
+  unconvertedExpenses:{expenseId:string;title:string;category:string;originalAmount:number;currencyCode:string;expenseDate:string;reason:string}[];
+  unconvertedByCurrency:{currencyCode:string;originalAmount:number;expenseCount:number}[];
+  categoryTotals:{category:string;actualAmount:number;expenseCount:number;plannedAmount:number}[];
+  plannedBudgetCategories:{category:string;plannedAmount:number}[];
+  expenseCount:number; convertedExpenseCount:number; unconvertedExpenseCount:number;
+  elapsedDays:number; remainingDays:number;
+};
 type CurrencyOption = { isoCode:string; name:string; symbol:string|null };
 type CurrencyConversion = { id:string; expenseId:string; originalAmount:number; originalCurrencyCode:string; convertedAmount:number; convertedCurrencyCode:string; exchangeRate:number; rateDate:string; provider:string; createdAt:string };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
@@ -126,6 +139,9 @@ export default function App() {
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
   const [budget, setBudget] = useState<Budget | null>(null);
+  const [budgetReportingCurrency, setBudgetReportingCurrency] = useState("USD");
+  const [budgetIntelligence, setBudgetIntelligence] = useState<BudgetIntelligence | null>(null);
+  const [loadingBudgetIntelligence, setLoadingBudgetIntelligence] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetCurrency, setBudgetCurrency] = useState("USD");
   const [budgetCategory, setBudgetCategory] = useState("");
@@ -234,9 +250,26 @@ export default function App() {
       setBudget(result ?? null);
       setBudgetAmount(result ? String(result.amount) : "");
       setBudgetCurrency(result?.currencyCode ?? trip.currencyCode);
+      const reportingCode = result?.currencyCode ?? trip.currencyCode;
+      setBudgetReportingCurrency(reportingCode);
+      await loadBudgetIntelligence(trip, reportingCode, accessToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load trip budget.");
     }
+  }
+
+  async function loadBudgetIntelligence(trip: Trip, reportingCurrency = budgetReportingCurrency, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingBudgetIntelligence(true);
+    try {
+      const data = await api<BudgetIntelligence>(
+        `/api/v1/trips/${trip.id}/budget-intelligence?reportingCurrencyCode=${encodeURIComponent(reportingCurrency)}`,
+        accessToken
+      );
+      setBudgetIntelligence(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load multi-currency budget intelligence.");
+    } finally { setLoadingBudgetIntelligence(false); }
   }
 
   async function loadGroupMembers(trip: Trip, accessToken = token) {
@@ -667,8 +700,8 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
     await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
@@ -1304,6 +1337,41 @@ export default function App() {
                   <div className="intelligence-footer"><small>Insights are deterministic checks, not financial advice. Review flagged entries yourself; TravelOS never edits or deletes expenses automatically.</small><button type="button" className="expense-edit" disabled={loadingExpenseIntelligence} onClick={() => loadExpenseIntelligence(selectedTrip)}>Refresh insights</button></div>
                 </> : <p className="budget-empty">{loadingExpenseIntelligence ? "Calculating trip spending…" : "No insights are available yet."}</p>}
               </div>
+              <section className="multi-currency-budget-panel">
+                <div className="section-heading"><div><p className="eyebrow">STAGE 21 · GLOBAL FINANCE</p><h3>Multi-currency budget intelligence</h3></div><label className="reporting-currency-field">Reporting currency
+                  <select value={budgetReportingCurrency} onChange={event => {
+                    const next = event.target.value;
+                    setBudgetReportingCurrency(next);
+                    if (selectedTrip) loadBudgetIntelligence(selectedTrip, next);
+                  }}>
+                    {(currencyOptions.length ? currencyOptions : [{isoCode:selectedTrip.currencyCode,name:selectedTrip.currencyCode,symbol:null}]).map(item => <option key={item.isoCode} value={item.isoCode}>{item.isoCode} — {item.name}</option>)}
+                  </select>
+                </label></div>
+                {budgetIntelligence ? <>
+                  <div className="multi-currency-summary">
+                    <div><span>CONVERTED ACTUAL SPEND</span><strong>{budgetIntelligence.convertedActualTotal.toLocaleString()} {budgetIntelligence.reportingCurrencyCode}</strong><small>{budgetIntelligence.convertedExpenseCount} of {budgetIntelligence.expenseCount} expenses included</small></div>
+                    <div><span>BUDGET CAP</span><strong>{budgetIntelligence.budgetAmount === null ? "Not comparable" : budgetIntelligence.budgetAmount.toLocaleString() + " " + budgetIntelligence.reportingCurrencyCode}</strong><small>{budgetIntelligence.budgetCurrencyCode ? "Budget currency: " + budgetIntelligence.budgetCurrencyCode : "No budget configured"}</small></div>
+                    <div><span>REMAINING BUDGET</span><strong>{budgetIntelligence.remainingBudget === null ? "—" : budgetIntelligence.remainingBudget.toLocaleString() + " " + budgetIntelligence.reportingCurrencyCode}</strong><small>{budgetIntelligence.remainingBudget === null ? "Requires matching budget currency" : "Based on converted expenses"}</small></div>
+                    <div><span>PROJECTED TOTAL</span><strong>{budgetIntelligence.projectedTotal === null ? "—" : budgetIntelligence.projectedTotal.toLocaleString() + " " + budgetIntelligence.reportingCurrencyCode}</strong><small>{budgetIntelligence.averageDailySpend === null ? "Not enough trip activity" : budgetIntelligence.averageDailySpend.toLocaleString() + " per day"}</small></div>
+                  </div>
+                  <div className="multi-currency-status"><strong>{budgetIntelligence.status.replaceAll("_"," ")}</strong><p>{budgetIntelligence.explanation}</p></div>
+                  {budgetIntelligence.categoryTotals.length > 0 && <div className="intelligence-subsection">
+                    <div className="subheading"><strong>Spending by category</strong><span>{budgetIntelligence.reportingCurrencyCode}</span></div>
+                    {budgetIntelligence.categoryTotals.map(item => <div className="category-comparison" key={item.category}>
+                      <div><strong>{item.category}</strong><small>{item.expenseCount} expenses</small></div>
+                      <span>Actual <b>{item.actualAmount.toLocaleString()}</b></span><span>Planned <b>{item.plannedAmount.toLocaleString()}</b></span>
+                      {item.actualAmount > item.plannedAmount && item.plannedAmount > 0 && <em>Over plan</em>}
+                    </div>)}
+                  </div>}
+                  {budgetIntelligence.unconvertedByCurrency.length > 0 && <div className="multi-currency-warning">
+                    <strong>Expenses not included in the converted total</strong>
+                    {budgetIntelligence.unconvertedByCurrency.map(item => <div key={item.currencyCode}><span>{item.expenseCount} expenses · {item.currencyCode}</span><b>{item.originalAmount.toLocaleString()} {item.currencyCode}</b></div>)}
+                    <small>Create or refresh the missing expense conversion snapshots to include these expenses. TravelOS does not estimate missing rates.</small>
+                    {budgetIntelligence.unconvertedExpenses.slice(0,5).map(item => <small key={item.expenseId}>{item.title}: {item.reason}</small>)}
+                  </div>}
+                  <div className="intelligence-footer"><small>Converted values use saved historical reference-rate snapshots. Original expenses and settlements remain unchanged.</small><button type="button" className="expense-edit" disabled={loadingBudgetIntelligence} onClick={() => loadBudgetIntelligence(selectedTrip,budgetReportingCurrency)}>{loadingBudgetIntelligence ? "Refreshing…" : "Refresh budget intelligence"}</button></div>
+                </> : <p className="budget-empty">{loadingBudgetIntelligence ? "Calculating multi-currency spending…" : "No multi-currency budget report is available yet."}</p>}
+              </section>
               {selectedTrip.currentUserRole === "owner" && <form className="budget-cap-form" onSubmit={saveBudget}>
                 <label>Trip budget cap<input type="number" min="0" step="0.01" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Set your total budget" required /></label>
                 <label>Budget currency<select value={budgetCurrency} onChange={e => setBudgetCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
