@@ -94,6 +94,12 @@ public static class CurrencyEndpoints
                 title: "Currency provider unavailable",
                 detail: "TravelOS could not reach the reference-rate provider.");
         }
+        catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status504GatewayTimeout,
+                title: "Currency provider timed out",
+                detail: "The currency catalogue request timed out. Please try again.");
+        }
     }
 
     private static async Task<IResult> ListAsync(
@@ -169,6 +175,12 @@ public static class CurrencyEndpoints
                     title: "Invalid exchange rate response",
                     detail: "The reference-rate provider returned data TravelOS could not read.");
             }
+            catch (TaskCanceledException) when (!ct.IsCancellationRequested)
+            {
+                return Results.Problem(statusCode: StatusCodes.Status504GatewayTimeout,
+                    title: "Exchange rate request timed out",
+                    detail: "The reference-rate provider did not respond in time. Your expense has not been changed.");
+            }
         }
 
         var converted = decimal.Round(expense.Amount * quote.Rate, 4, MidpointRounding.AwayFromZero);
@@ -188,7 +200,7 @@ public static class CurrencyEndpoints
         db.TripExpenseConversions.Add(snapshot);
         await db.SaveChangesAsync(ct);
 
-        return Results.Created($"/api/v1/trips/{tripId}/currency-conversions/{snapshot.Id}",
+        return Results.Created($"/api/v1/trips/{tripId}/currency-conversions",
             new CurrencyConversionResponse(
                 snapshot.Id, snapshot.ExpenseId, snapshot.OriginalAmount,
                 snapshot.OriginalCurrencyCode, snapshot.ConvertedAmount,
