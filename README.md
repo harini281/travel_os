@@ -236,3 +236,17 @@ TravelOS uses the Frankfurter v2 reference-rate API through the platform backend
 A conversion uses the historical reference rate for the expense date. The provider's effective publication date is stored, which may be earlier than the expense date on weekends or holidays. Original expense values and settlement balances are never changed. Conversion snapshots preserve the original amount/currency, converted amount/currency, rate, effective date and provider attribution.
 
 The API is called from the backend, not the browser. If the provider is unavailable or cannot supply the requested currency pair/date, the conversion fails safely and the expense remains unchanged.
+
+
+## Stage 21 — Multi-currency budget intelligence
+
+The traveller budget dashboard can report spending in a selected ISO 4217 currency. The platform API combines expenses already recorded in that currency with matching, saved historical conversion snapshots for other currencies.
+
+- API: `GET /api/v1/trips/{tripId}/budget-intelligence?reportingCurrencyCode=LKR`
+- Original expense values, expense shares, repayments and settlement balances are never modified.
+- A snapshot is accepted only when its source amount, source currency and source expense date still match the current expense.
+- If no matching snapshot exists, the expense remains in the unconverted list and is excluded from the converted total.
+- The budget cap is compared only when its currency matches the selected reporting currency. TravelOS does not silently convert budget caps or planned category amounts.
+- The response includes converted category totals, matching planned category amounts, unconverted amounts grouped by source currency and a pace-based projection.
+
+Apply `011_conversion_source_expense_date.sql` after `010_currency_conversions.sql`. It records the original expense date on conversion snapshots so a snapshot cannot be reused after the source expense date changes.
