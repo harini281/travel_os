@@ -407,3 +407,23 @@
 .expense-conversion-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding-top:9px}
 .expense-conversion-actions small{font-size:8px;color:#829083}
 @media(max-width:640px){.currency-convert-toolbar{grid-template-columns:1fr}.currency-intelligence-panel{padding:13px}}
+
+
+/* Stage 21 — multi-currency budget intelligence */
+.multi-currency-budget-panel{display:grid;gap:15px;margin:16px 0;padding:18px;border:1px solid #e4eae2;border-radius:11px;background:#fff}
+.reporting-currency-field{display:grid;gap:6px;min-width:190px;font-size:9px;font-weight:700;color:#6b786d}
+.reporting-currency-field select{min-height:38px;padding:8px 10px;border:1px solid #e1e8df;border-radius:7px;background:#fbfcfa;color:#46564a;font-size:10px}
+.multi-currency-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.multi-currency-summary>div{display:grid;gap:6px;min-width:0;padding:12px;border:1px solid #edf0ea;border-radius:8px;background:#fbfcfa}
+.multi-currency-summary span{font-size:8px;letter-spacing:.06em;color:#829083;font-weight:700}
+.multi-currency-summary strong{font-size:16px;line-height:1.3;color:#354b3a;overflow-wrap:anywhere}
+.multi-currency-summary small{font-size:8px;line-height:1.5;color:#8b968d}
+.multi-currency-status{padding:12px 13px;border-radius:8px;background:#f5f8f3;border:1px solid #e7ede4}
+.multi-currency-status strong{text-transform:capitalize;font-size:10px;color:#536c55}
+.multi-currency-status p{margin:5px 0 0;font-size:9px;line-height:1.6;color:#768277}
+.multi-currency-warning{display:grid;gap:8px;padding:12px;border:1px solid #eadfca;border-radius:8px;background:#fffaf1}
+.multi-currency-warning>strong{font-size:10px;color:#765b32}
+.multi-currency-warning>div{display:flex;justify-content:space-between;gap:12px;font-size:9px;color:#75664d}
+.multi-currency-warning>small{font-size:8px;line-height:1.5;color:#8c7b60}
+@media(max-width:760px){.multi-currency-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.multi-currency-budget-panel .section-heading{align-items:flex-start;flex-direction:column}.reporting-currency-field{width:100%}}
+@media(max-width:420px){.multi-currency-summary{grid-template-columns:1fr 1fr}.multi-currency-summary strong{font-size:13px}}
