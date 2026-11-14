@@ -26,6 +26,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripRepayment> TripRepayments => Set<TripRepayment>();
     public DbSet<TripExpenseAudit> TripExpenseAudits => Set<TripExpenseAudit>();
     public DbSet<TripReceipt> TripReceipts => Set<TripReceipt>();
+    public DbSet<TripExpenseConversion> TripExpenseConversions => Set<TripExpenseConversion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -204,6 +205,23 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Restrict);
             entity.HasIndex(x => new { x.TripId, x.Sha256 });
             entity.HasIndex(x => new { x.TripId, x.ExpenseId, x.UploadedAt });
+        });
+
+        modelBuilder.Entity<TripExpenseConversion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.OriginalAmount).HasPrecision(19, 4);
+            entity.Property(x => x.ConvertedAmount).HasPrecision(19, 4);
+            entity.Property(x => x.ExchangeRate).HasPrecision(28, 12);
+            entity.Property(x => x.OriginalCurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.ConvertedCurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.Provider).HasMaxLength(120).IsRequired();
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.RequestedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            // ExpenseId intentionally has no FK so the conversion audit survives expense deletion.
+            entity.HasIndex(x => new { x.TripId, x.ExpenseId, x.CreatedAt });
         });
 
         modelBuilder.Entity<GroupPoll>(entity =>
