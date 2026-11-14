@@ -307,7 +307,7 @@ export default function App() {
         throw new Error(payload.message ?? payload.title ?? `Upload failed (${response.status})`);
       }
       setReceiptFile(null); setReceiptExpenseId("");
-      await loadTripReceipts(selectedTrip);
+      await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Receipt uploaded. Review the extracted details before confirming.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to upload receipt."); }
     finally { setBusy(false); }
@@ -329,7 +329,7 @@ export default function App() {
           expenseId: draft.expenseId || null
         })
       });
-      await loadTripReceipts(selectedTrip);
+      await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Receipt details confirmed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to confirm receipt."); }
     finally { setBusy(false); }
@@ -339,7 +339,7 @@ export default function App() {
     if (!token || !selectedTrip || !window.confirm(`Delete receipt "${receipt.originalFileName}"?`)) return;
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/receipts/${receipt.id}`, token, { method: "DELETE" });
-      await loadTripReceipts(selectedTrip);
+      await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Receipt deleted.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to delete receipt."); }
   }
@@ -483,7 +483,7 @@ export default function App() {
     setError("");
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}`, token, { method: "DELETE" });
-      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip)]);
+      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Expense removed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove expense."); }
   }
@@ -634,7 +634,7 @@ export default function App() {
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
