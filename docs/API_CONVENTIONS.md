@@ -297,3 +297,22 @@ Set `Receipts:StoragePath` to a private persistent directory. The default is `pr
 AI service endpoint: `POST /api/v1/receipts/extract`. The platform validates and stores the receipt independently of the AI result, so extraction failure does not lose the upload.
 
 Apply `database/migrations/009_trip_receipts.sql` after migration 008.
+
+
+## Expense intelligence
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/expense-intelligence` | Current trip member |
+
+The endpoint returns deterministic summaries from the trip's recorded expenses, budget items and receipt metadata:
+
+- Actual spending grouped by ISO currency code and expense category.
+- Budget forecast in the trip budget's currency only. No exchange rate is assumed and other currencies are shown separately.
+- Planned versus actual totals matched by normalized category and currency.
+- Receipt amount/currency differences against linked expenses. Unconfirmed OCR suggestions are explicitly labelled as unconfirmed; confirmed receipt mismatches are separately identified.
+- Possible duplicate expense groups where normalized title, date, amount and currency all match.
+
+Forecasts use the elapsed calendar days in the trip window and the average recorded spend in the budget currency. For trips that have not started or have no recorded spend, the projected total is unavailable rather than fabricated. This is a simple pace-based estimate, not a prediction model.
+
+Duplicate and mismatch results are review flags, not fraud findings. Multiple legitimate purchases can have identical details. The endpoint never updates, deletes or reconciles financial records. No currency conversion or live bank data is used.

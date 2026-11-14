@@ -194,7 +194,7 @@ The trip owner can set a budget cap and manage planned category items. Trip memb
 | PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
 | DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
 
-Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion is future work. Receipt uploads, duplicate-image detection and reviewable AI extraction are available in Stage 18. Repayment records are user-entered and recipient-confirmed; TravelOS does not initiate or verify bank transfers.
+Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion is future work. Receipt uploads, duplicate-image detection and reviewable AI extraction are available in Stage 18. Stage 19 adds currency-aware spending analytics, planned-versus-actual category comparisons, pace-based budget forecasts, receipt/expense mismatch flags and possible duplicate-expense review. Repayment records are user-entered and recipient-confirmed; TravelOS does not initiate or verify bank transfers.
 
 ## Database notes
 

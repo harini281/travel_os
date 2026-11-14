@@ -348,3 +348,45 @@
 .receipt-card-actions a{color:#64836a;text-decoration:none;font-size:9px;font-weight:700}
 .receipt-card-actions button{font-size:9px}
 @media(max-width:640px){.receipt-upload-form{grid-template-columns:1fr}.receipt-upload-form>small{grid-column:auto}.receipt-card-top{flex-direction:column}.receipt-fields-grid{grid-template-columns:1fr}}
+
+
+/* Stage 19 — smart expense intelligence */
+.expense-intelligence-panel{display:grid;gap:18px;margin:18px 0;padding:17px;border:1px solid #e4eae2;border-radius:10px;background:#fff}
+.intelligence-stat-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.intelligence-stat-grid>div{display:grid;gap:6px;padding:12px;border-radius:8px;background:#f7f9f5}
+.intelligence-stat-grid span{font-size:8px;font-weight:700;letter-spacing:.05em;color:#879187}
+.intelligence-stat-grid strong{font-size:19px;color:#425448}
+.intelligence-subsection{display:grid;gap:10px}
+.intelligence-currency-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.intelligence-currency-list article{padding:12px;border:1px solid #edf0ea;border-radius:8px}
+.intelligence-currency-heading{display:flex;justify-content:space-between;gap:10px;align-items:center}
+.intelligence-currency-heading strong{font-size:11px;color:#4d6652}
+.intelligence-currency-heading b{font-size:12px;color:#35483a}
+.intelligence-currency-list article>small{display:block;margin:4px 0 10px;font-size:8px;color:#929c94}
+.intelligence-category-row{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid #f0f2ed;font-size:9px;color:#657168}
+.intelligence-category-row b{color:#45564a}
+.forecast-card{display:grid;gap:12px;padding:14px;border:1px solid #e7ece5;border-radius:8px;background:#fafbf8}
+.forecast-status-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.forecast-status-row strong{font-size:11px;color:#4b6650}
+.forecast-status-row span{font-size:9px;color:#818d83}
+.forecast-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.forecast-metrics>div{display:grid;gap:4px}
+.forecast-metrics small{font-size:8px;color:#929c94}
+.forecast-metrics b{font-size:11px;color:#45564a;overflow-wrap:anywhere}
+.forecast-track{height:7px;overflow:hidden;border-radius:10px;background:#e9eee6}
+.forecast-track span{display:block;height:100%;border-radius:10px;background:#88a98b}
+.forecast-card p{margin:0;font-size:9px;color:#68756b;line-height:1.5}
+.forecast-card>small{font-size:8px;color:#929c94}
+.category-comparison-list{display:grid;gap:8px}
+.category-comparison{display:grid;grid-template-columns:minmax(90px,1fr) repeat(2,minmax(80px,auto)) auto;align-items:center;gap:10px;padding:9px 10px;border:1px solid #edf0ea;border-radius:7px}
+.category-comparison>div{display:grid;gap:3px}
+.category-comparison>div strong{font-size:9px;color:#4d5b51;text-transform:capitalize}
+.category-comparison>div small,.category-comparison>span{font-size:8px;color:#929c94}
+.category-comparison>span b{display:block;margin-top:3px;font-size:10px;color:#46574b}
+.category-comparison em{font-size:8px;font-style:normal;color:#a2763e}
+.intelligence-alert{display:grid;gap:5px;padding:10px 12px;border:1px solid #f0e8d7;border-radius:7px;background:#fffaf0}
+.intelligence-alert strong{font-size:9px;color:#6f5a35}
+.intelligence-alert p,.intelligence-alert small{margin:0;font-size:8px;line-height:1.5;color:#877858}
+.intelligence-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:9px;border-top:1px solid #eef0eb}
+.intelligence-footer small{max-width:70%;font-size:8px;color:#929c94;line-height:1.5}
+@media(max-width:640px){.intelligence-stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.forecast-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.category-comparison{grid-template-columns:1fr 1fr}.category-comparison>div{grid-column:1/-1}.intelligence-footer{align-items:flex-start;flex-direction:column}.intelligence-footer small{max-width:none}}

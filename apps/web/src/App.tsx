@@ -49,6 +49,16 @@ type TripRepayment = { id: string; tripId: string; fromUserId: string; fromName:
 type TripExpenseAudit = { id: string; expenseId: string; action: "created" | "updated" | "deleted"; changedByUserId: string; changedByName: string; changedAt: string; beforeJson: string; afterJson: string };
 type TripReceipt = { id:string; tripId:string; expenseId:string|null; uploadedByUserId:string; originalFileName:string; contentType:string; fileSizeBytes:number; sha256:string; extractionStatus:"pending_review"|"needs_review"|"confirmed"; merchantName:string|null; receiptDate:string|null; totalAmount:number|null; currencyCode:string|null; confidence:number|null; extractionWarning:string|null; uploadedAt:string; confirmedAt:string|null; confirmedByUserId:string|null; isDuplicate:boolean };
 type ReceiptDraft = { merchantName:string; receiptDate:string; totalAmount:string; currencyCode:string; expenseId:string };
+type ExpenseIntelligence = {
+  tripId:string; generatedAt:string; expenseCount:number; receiptCount:number;
+  actualsByCurrency:{currencyCode:string;totalAmount:number;expenseCount:number;categories:{category:string;totalAmount:number;expenseCount:number}[]}[];
+  forecast:{budgetAmount:number|null;currencyCode:string|null;actualAmount:number|null;remainingAmount:number|null;averageDailySpend:number|null;projectedTotal:number|null;projectedVariance:number|null;status:string;explanation:string;elapsedDays:number;remainingDays:number};
+  plannedCategoryTotals:{currencyCode:string;category:string;plannedAmount:number}[];
+  categoryComparisons:{currencyCode:string;category:string;plannedAmount:number;actualAmount:number}[];
+  receiptMismatches:{receiptId:string;expenseId:string;fileName:string;receiptAmount:number;receiptCurrency:string|null;expenseAmount:number;expenseCurrency:string;status:string;explanation:string}[];
+  duplicateExpenseCandidates:{expenseDate:string;amount:number;currencyCode:string;expenses:{expenseId:string;title:string;category:string}[];explanation:string}[];
+};
+
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
@@ -161,6 +171,8 @@ export default function App() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptExpenseId, setReceiptExpenseId] = useState("");
   const [receiptDrafts, setReceiptDrafts] = useState<Record<string,ReceiptDraft>>({});
+  const [expenseIntelligence, setExpenseIntelligence] = useState<ExpenseIntelligence | null>(null);
+  const [loadingExpenseIntelligence, setLoadingExpenseIntelligence] = useState(false);
 
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
@@ -252,6 +264,18 @@ export default function App() {
 
 
 
+
+  async function loadExpenseIntelligence(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingExpenseIntelligence(true);
+    try {
+      const data = await api<ExpenseIntelligence>(`/api/v1/trips/${trip.id}/expense-intelligence`, accessToken);
+      setExpenseIntelligence(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load expense intelligence.");
+    } finally { setLoadingExpenseIntelligence(false); }
+  }
+
   async function loadTripReceipts(trip: Trip, accessToken = token) {
     if (!accessToken) return;
     try {
@@ -283,7 +307,7 @@ export default function App() {
         throw new Error(payload.message ?? payload.title ?? `Upload failed (${response.status})`);
       }
       setReceiptFile(null); setReceiptExpenseId("");
-      await loadTripReceipts(selectedTrip);
+      await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Receipt uploaded. Review the extracted details before confirming.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to upload receipt."); }
     finally { setBusy(false); }
@@ -305,7 +329,7 @@ export default function App() {
           expenseId: draft.expenseId || null
         })
       });
-      await loadTripReceipts(selectedTrip);
+      await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Receipt details confirmed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to confirm receipt."); }
     finally { setBusy(false); }
@@ -315,7 +339,7 @@ export default function App() {
     if (!token || !selectedTrip || !window.confirm(`Delete receipt "${receipt.originalFileName}"?`)) return;
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/receipts/${receipt.id}`, token, { method: "DELETE" });
-      await loadTripReceipts(selectedTrip);
+      await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Receipt deleted.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to delete receipt."); }
   }
@@ -406,7 +430,7 @@ export default function App() {
       });
       setExpenseTitle(""); setExpenseAmount(""); setExpenseNotes("");
       setExpenseSplitType("equal"); setExpenseCustomShares({});
-      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip)]);
+      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice(`Shared expense added with ${expenseSplitType} splitting.`);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add shared expense."); }
     finally { setBusy(false); }
@@ -438,7 +462,7 @@ export default function App() {
         })
       });
       setEditingExpenseId(null);
-      await Promise.all([loadTripExpenses(selectedTrip),loadTripSettlement(selectedTrip)]);
+      await Promise.all([loadTripExpenses(selectedTrip),loadTripSettlement(selectedTrip),loadExpenseIntelligence(selectedTrip)]);
       setNotice("Expense updated. Settlement balances have been recalculated and the change was recorded.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to update expense."); }
     finally { setBusy(false); }
@@ -459,7 +483,7 @@ export default function App() {
     setError("");
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}`, token, { method: "DELETE" });
-      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip)]);
+      await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
       setNotice("Expense removed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove expense."); }
   }
@@ -602,15 +626,15 @@ export default function App() {
 
   async function openTrip(trip: Trip) {
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setRepaymentTarget(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip)]);
   }
 
   function closeTrip() {
     setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
-    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null);
+    setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
 
@@ -1161,6 +1185,57 @@ export default function App() {
 
             <section className="budget-workspace">
               <div className="section-heading"><div><p className="eyebrow">TRIP FINANCES</p><h2>Budget overview</h2></div>{budget && <span className="count-label">{budget.items.length} PLANNED ITEMS</span>}</div>
+              <div className="expense-intelligence-panel">
+                <div className="subheading"><strong>Smart spending insights</strong><span>{loadingExpenseIntelligence ? "Refreshing…" : "Based on recorded trip data"}</span></div>
+                {expenseIntelligence ? <>
+                  <div className="intelligence-stat-grid">
+                    <div><span>RECORDED EXPENSES</span><strong>{expenseIntelligence.expenseCount}</strong></div>
+                    <div><span>RECEIPTS</span><strong>{expenseIntelligence.receiptCount}</strong></div>
+                    <div><span>RECEIPT FLAGS</span><strong>{expenseIntelligence.receiptMismatches.length}</strong></div>
+                    <div><span>POSSIBLE DUPLICATES</span><strong>{expenseIntelligence.duplicateExpenseCandidates.length}</strong></div>
+                  </div>
+                  <div className="intelligence-subsection">
+                    <div className="subheading"><strong>Actual spending by currency</strong><span>No cross-currency conversion</span></div>
+                    {expenseIntelligence.actualsByCurrency.length ? <div className="intelligence-currency-list">{expenseIntelligence.actualsByCurrency.map(actual => <article key={actual.currencyCode}>
+                      <div className="intelligence-currency-heading"><strong>{actual.currencyCode}</strong><b>{actual.totalAmount.toLocaleString()} {actual.currencyCode}</b></div>
+                      <small>{actual.expenseCount} recorded expenses</small>
+                      {actual.categories.map(category => <div className="intelligence-category-row" key={category.category}><span>{category.category}</span><b>{category.totalAmount.toLocaleString()} {actual.currencyCode}</b></div>)}
+                    </article>)}</div> : <p className="budget-empty">Add expenses to see spending insights.</p>}
+                  </div>
+                  <div className="intelligence-subsection">
+                    <div className="subheading"><strong>Budget forecast</strong><span>{expenseIntelligence.forecast.currencyCode ?? "Not configured"}</span></div>
+                    {expenseIntelligence.forecast.budgetAmount !== null ? <div className="forecast-card">
+                      <div className="forecast-status-row"><strong>{expenseIntelligence.forecast.status === "over_budget" ? "Budget exceeded" : expenseIntelligence.forecast.status === "projected_over_budget" ? "Possible overspend" : "Current projection"}</strong><span>{expenseIntelligence.forecast.currencyCode}</span></div>
+                      <div className="forecast-metrics">
+                        <div><small>Budget</small><b>{expenseIntelligence.forecast.budgetAmount.toLocaleString()}</b></div>
+                        <div><small>Actual</small><b>{(expenseIntelligence.forecast.actualAmount ?? 0).toLocaleString()}</b></div>
+                        <div><small>Remaining</small><b>{(expenseIntelligence.forecast.remainingAmount ?? 0).toLocaleString()}</b></div>
+                        <div><small>Projected total</small><b>{expenseIntelligence.forecast.projectedTotal === null ? "—" : expenseIntelligence.forecast.projectedTotal.toLocaleString()}</b></div>
+                      </div>
+                      <div className="forecast-track"><span style={{width:`${Math.min(100,Math.max(0,((expenseIntelligence.forecast.actualAmount ?? 0)/Math.max(1,expenseIntelligence.forecast.budgetAmount))*100))}%`}} /></div>
+                      <p>{expenseIntelligence.forecast.explanation}</p>
+                      <small>Average daily spend: {expenseIntelligence.forecast.averageDailySpend === null ? "Not enough trip activity yet" : `${expenseIntelligence.forecast.averageDailySpend.toLocaleString()} ${expenseIntelligence.forecast.currencyCode}/day`} · {expenseIntelligence.forecast.elapsedDays} elapsed days · {expenseIntelligence.forecast.remainingDays} remaining days</small>
+                    </div> : <p className="budget-empty">Set a trip budget cap to enable forecasting.</p>}
+                  </div>
+                  <div className="intelligence-subsection">
+                    <div className="subheading"><strong>Planned vs actual by category</strong><span>Matched by currency and category</span></div>
+                    {expenseIntelligence.categoryComparisons.length ? <div className="category-comparison-list">{expenseIntelligence.categoryComparisons.map((item,index) => <div className="category-comparison" key={item.currencyCode+item.category+index}>
+                      <div><strong>{item.category}</strong><small>{item.currencyCode}</small></div>
+                      <span>Planned <b>{item.plannedAmount.toLocaleString()}</b></span><span>Actual <b>{item.actualAmount.toLocaleString()}</b></span>
+                      {item.actualAmount > item.plannedAmount && <em>Over plan</em>}
+                    </div>)}</div> : <p className="budget-empty">Add planned category amounts and expenses to compare them.</p>}
+                  </div>
+                  {expenseIntelligence.receiptMismatches.length > 0 && <div className="intelligence-subsection">
+                    <div className="subheading"><strong>Receipt and expense differences</strong><span>{expenseIntelligence.receiptMismatches.length} flags</span></div>
+                    {expenseIntelligence.receiptMismatches.map(item => <article className="intelligence-alert" key={item.receiptId}><strong>{item.fileName}</strong><p>Receipt: {item.receiptAmount.toLocaleString()} {item.receiptCurrency ?? ""} · Expense: {item.expenseAmount.toLocaleString()} {item.expenseCurrency}</p><small>{item.explanation}</small></article>)}
+                  </div>}
+                  {expenseIntelligence.duplicateExpenseCandidates.length > 0 && <div className="intelligence-subsection">
+                    <div className="subheading"><strong>Possible duplicate expenses</strong><span>{expenseIntelligence.duplicateExpenseCandidates.length} groups</span></div>
+                    {expenseIntelligence.duplicateExpenseCandidates.map((group,index) => <article className="intelligence-alert" key={group.expenseDate+group.currencyCode+index}><strong>{group.amount.toLocaleString()} {group.currencyCode} · {formatDate(group.expenseDate)}</strong>{group.expenses.map(item => <small key={item.expenseId}>{item.title} · {item.category}</small>)}<p>{group.explanation}</p></article>)}
+                  </div>}
+                  <div className="intelligence-footer"><small>Insights are deterministic checks, not financial advice. Review flagged entries yourself; TravelOS never edits or deletes expenses automatically.</small><button type="button" className="expense-edit" disabled={loadingExpenseIntelligence} onClick={() => loadExpenseIntelligence(selectedTrip)}>Refresh insights</button></div>
+                </> : <p className="budget-empty">{loadingExpenseIntelligence ? "Calculating trip spending…" : "No insights are available yet."}</p>}
+              </div>
               {selectedTrip.currentUserRole === "owner" && <form className="budget-cap-form" onSubmit={saveBudget}>
                 <label>Trip budget cap<input type="number" min="0" step="0.01" value={budgetAmount} onChange={e => setBudgetAmount(e.target.value)} placeholder="Set your total budget" required /></label>
                 <label>Budget currency<select value={budgetCurrency} onChange={e => setBudgetCurrency(e.target.value)}><option value="USD">USD</option><option value="LKR">LKR</option><option value="EUR">EUR</option><option value="GBP">GBP</option><option value="JPY">JPY</option><option value="AUD">AUD</option><option value="INR">INR</option><option value="SGD">SGD</option></select></label>
