@@ -285,12 +285,14 @@ export default function App() {
   async function loadCurrencyIntelligence(trip: Trip, accessToken = token) {
     if (!accessToken) return;
     try {
-      const [currencies, snapshots] = await Promise.all([
-        api<CurrencyOption[]>(`/api/v1/trips/${trip.id}/currency-conversions/currencies`, accessToken),
-        api<CurrencyConversion[]>(`/api/v1/trips/${trip.id}/currency-conversions`, accessToken)
-      ]);
-      setCurrencyOptions(currencies);
+      const snapshots = await api<CurrencyConversion[]>("/api/v1/trips/" + trip.id + "/currency-conversions", accessToken);
       setCurrencyConversions(snapshots);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load saved conversion history.");
+    }
+    try {
+      const currencies = await api<CurrencyOption[]>("/api/v1/trips/" + trip.id + "/currency-conversions/currencies", accessToken);
+      setCurrencyOptions(currencies);
       setConversionTargetCurrency(current =>
         currencies.some(item => item.isoCode === current) ? current : trip.currencyCode);
     } catch (err) {
