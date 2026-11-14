@@ -97,13 +97,13 @@ public static class ExpenseIntelligenceEndpoints
                 "These entries share a date, amount, currency and normalized title. They may be legitimate separate purchases; review before taking action."))
             .ToArray();
 
-        var actualInBudgetCurrency = budget is null
+        decimal? actualInBudgetCurrency = budget is null
             ? null
             : expenses.Where(x => x.CurrencyCode == budget.CurrencyCode).Sum(x => x.Amount);
         var elapsedDays = Math.Max(0, Math.Min(
-            (DateOnly.FromDateTime(DateTime.UtcNow) - trip.StartDate).Days + 1,
-            (trip.EndDate - trip.StartDate).Days + 1));
-        var totalDays = Math.Max(1, (trip.EndDate - trip.StartDate).Days + 1);
+            DateOnly.FromDateTime(DateTime.UtcNow).DayNumber - trip.StartDate.DayNumber + 1,
+            trip.EndDate.DayNumber - trip.StartDate.DayNumber + 1));
+        var totalDays = Math.Max(1, trip.EndDate.DayNumber - trip.StartDate.DayNumber + 1);
         var remainingDays = Math.Max(0, totalDays - elapsedDays);
         decimal? dailyBurn = elapsedDays > 0 && actualInBudgetCurrency.HasValue
             ? actualInBudgetCurrency.Value / elapsedDays : null;
