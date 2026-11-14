@@ -128,17 +128,27 @@ public static class ExpenseIntelligenceEndpoints
                         : "Based only on recorded expenses in the budget currency. Other currencies are not converted.",
                 projectedVariance, elapsedDays, remainingDays);
 
-        var plannedByCurrency = budget?.Items
-            .GroupBy(x => x.CurrencyCode)
-            .OrderBy(x => x.Key)
-            .Select(group => new PlannedCategoryTotal(group.Key,
-                group.Sum(x => x.Amount),
-                group.Select(x => x.Category).Distinct().OrderBy(x => x).ToArray()))
+        var plannedCategories = budget?.Items
+            .GroupBy(x => new { x.CurrencyCode, Category = x.Category.Trim().ToLowerInvariant() })
+            .OrderBy(group => group.Key.CurrencyCode).ThenBy(group => group.Key.Category)
+            .Select(group => new PlannedCategoryTotal(
+                group.Key.CurrencyCode, group.Key.Category, group.Sum(x => x.Amount)))
             .ToArray() ?? [];
+
+        var categoryKeys = expenses.Select(x => (x.CurrencyCode, Category: x.Category.Trim().ToLowerInvariant()))
+            .Concat(plannedCategories.Select(x => (x.CurrencyCode, x.Category)))
+            .Distinct().ToArray();
+        var categoryComparisons = categoryKeys.Select(key =>
+            new CategoryComparison(key.CurrencyCode, key.Category,
+                plannedCategories.FirstOrDefault(x => x.CurrencyCode == key.CurrencyCode && x.Category == key.Category)?.PlannedAmount ?? 0,
+                expenses.Where(x => x.CurrencyCode == key.CurrencyCode &&
+                    x.Category.Trim().ToLowerInvariant() == key.Category).Sum(x => x.Amount)))
+            .OrderBy(x => x.CurrencyCode).ThenByDescending(x => x.ActualAmount)
+            .ToArray();
 
         return Results.Ok(new ExpenseIntelligenceResponse(
             tripId, DateTimeOffset.UtcNow, currencies, forecast,
-            plannedByCurrency, receiptMismatches, duplicateCandidates,
+            plannedCategories, categoryComparisons, receiptMismatches, duplicateCandidates,
             expenses.Count, receipts.Count));
     }
 
@@ -156,13 +166,14 @@ public static class ExpenseIntelligenceEndpoints
 public sealed record ExpenseIntelligenceResponse(
     Guid TripId, DateTimeOffset GeneratedAt, CurrencyActuals[] ActualsByCurrency,
     BudgetForecast Forecast, PlannedCategoryTotal[] PlannedCategoryTotals,
-    ReceiptMismatch[] ReceiptMismatches,
+    CategoryComparison[] CategoryComparisons, ReceiptMismatch[] ReceiptMismatches,
     DuplicateExpenseCandidate[] DuplicateExpenseCandidates,
     int ExpenseCount, int ReceiptCount);
 public sealed record CurrencyActuals(string CurrencyCode, decimal TotalAmount,
     int ExpenseCount, CategoryActual[] Categories);
 public sealed record CategoryActual(string Category, decimal TotalAmount, int ExpenseCount);
-public sealed record PlannedCategoryTotal(string CurrencyCode, decimal TotalAmount, string[] Categories);
+public sealed record PlannedCategoryTotal(string CurrencyCode, string Category, decimal PlannedAmount);
+public sealed record CategoryComparison(string CurrencyCode, string Category, decimal PlannedAmount, decimal ActualAmount);
 public sealed record BudgetForecast(decimal? BudgetAmount, string? CurrencyCode,
     decimal? ActualAmount, decimal? RemainingAmount, decimal? AverageDailySpend,
     decimal? ProjectedTotal, string Status, string Explanation,
