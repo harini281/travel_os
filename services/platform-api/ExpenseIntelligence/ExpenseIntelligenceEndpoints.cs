@@ -97,7 +97,6 @@ public static class ExpenseIntelligenceEndpoints
                 "These entries share a date, amount, currency and normalized title. They may be legitimate separate purchases; review before taking action."))
             .ToArray();
 
-        var budgetCurrency = budget?.CurrencyCode;
         var actualInBudgetCurrency = budget is null
             ? null
             : expenses.Where(x => x.CurrencyCode == budget.CurrencyCode).Sum(x => x.Amount);
