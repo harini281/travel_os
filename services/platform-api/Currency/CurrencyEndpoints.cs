@@ -9,6 +9,20 @@ namespace TravelOS.PlatformApi.Currency;
 
 public sealed class FrankfurterExchangeRateProvider(HttpClient client)
 {
+    public async Task<IReadOnlyList<CurrencyOption>> GetCurrenciesAsync(CancellationToken ct)
+    {
+        using var response = await client.GetAsync("/v2/currencies", ct);
+        if (!response.IsSuccessStatusCode)
+            throw new ExchangeRateUnavailableException("The currency catalogue is temporarily unavailable.");
+        var data = await response.Content.ReadFromJsonAsync<List<FrankfurterCurrencyResponse>>(cancellationToken: ct)
+            ?? throw new ExchangeRateUnavailableException("The currency provider returned an empty catalogue.");
+        return data.Where(x => !string.IsNullOrWhiteSpace(x.IsoNumeric) &&
+                System.Text.RegularExpressions.Regex.IsMatch(x.IsoCode, "^[A-Z]{3}$"))
+            .OrderBy(x => x.IsoCode)
+            .Select(x => new CurrencyOption(x.IsoCode, x.Name, x.Symbol))
+            .ToArray();
+    }
+
     public async Task<ExchangeRateQuote> GetRateAsync(
         string baseCurrency, string quoteCurrency, DateOnly? date, CancellationToken ct)
     {
@@ -27,6 +41,10 @@ public sealed class FrankfurterExchangeRateProvider(HttpClient client)
     }
 
     private sealed record FrankfurterRateResponse(DateOnly Date, string Base, string Quote, decimal Rate);
+    private sealed record FrankfurterCurrencyResponse(
+        [property: System.Text.Json.Serialization.JsonPropertyName("iso_code")] string IsoCode,
+        [property: System.Text.Json.Serialization.JsonPropertyName("iso_numeric")] string? IsoNumeric,
+        string Name, string? Symbol);
 }
 
 public sealed record ExchangeRateQuote(
@@ -42,6 +60,7 @@ public static class CurrencyEndpoints
         var group = endpoints.MapGroup("/api/v1/trips/{tripId:guid}/currency-conversions")
             .WithTags("Currency intelligence").RequireAuthorization();
         group.MapGet("/", ListAsync);
+        group.MapGet("/currencies", ListCurrenciesAsync);
         group.MapPost("/", ConvertExpenseAsync);
         return endpoints;
     }
@@ -51,6 +70,30 @@ public static class CurrencyEndpoints
         var value = principal.FindFirstValue("sub")
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(value, out userId);
+    }
+
+    private static async Task<IResult> ListCurrenciesAsync(
+        Guid tripId, ClaimsPrincipal principal, TravelOsDbContext db,
+        FrankfurterExchangeRateProvider provider, CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var member = await db.TripMembers.AnyAsync(x => x.TripId == tripId && x.UserId == userId, ct);
+        if (!member) return Results.NotFound();
+        try
+        {
+            return Results.Ok(await provider.GetCurrenciesAsync(ct));
+        }
+        catch (ExchangeRateUnavailableException ex)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status502BadGateway,
+                title: "Currency catalogue unavailable", detail: ex.Message);
+        }
+        catch (HttpRequestException)
+        {
+            return Results.Problem(statusCode: StatusCodes.Status502BadGateway,
+                title: "Currency provider unavailable",
+                detail: "TravelOS could not reach the reference-rate provider.");
+        }
     }
 
     private static async Task<IResult> ListAsync(
@@ -154,6 +197,7 @@ public static class CurrencyEndpoints
     }
 }
 
+public sealed record CurrencyOption(string IsoCode, string Name, string? Symbol);
 public sealed record CreateCurrencyConversionRequest(string ExpenseId, string TargetCurrencyCode);
 public sealed record CurrencyConversionResponse(
     Guid Id, Guid ExpenseId, decimal OriginalAmount, string OriginalCurrencyCode,
