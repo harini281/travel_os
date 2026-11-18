@@ -10,6 +10,7 @@ using TravelOS.PlatformApi.Budgets;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
 using TravelOS.PlatformApi.Itineraries;
+using TravelOS.PlatformApi.Flights;
 using TravelOS.PlatformApi.Groups;
 using TravelOS.PlatformApi.Preferences;
 using TravelOS.PlatformApi.Voting;
@@ -113,6 +114,17 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("flight-refresh", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirst("sub")?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 4,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("weather-scan", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.User.FindFirst("sub")?.Value
@@ -143,6 +155,18 @@ builder.Services.AddHttpClient<FrankfurterExchangeRateProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 builder.Services.AddHttpClient("ai-receipts", client => { client.Timeout = TimeSpan.FromSeconds(45); });
+builder.Services.AddHttpClient<FlightAwareAeroApiProvider>(client =>
+{
+    client.BaseAddress = new Uri("https://aeroapi.flightaware.com/aeroapi/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+});
+builder.Services.AddScoped<IFlightStatusProvider>(services =>
+{
+    var configured = services.GetRequiredService<IConfiguration>()["FLIGHTAWARE_API_KEY"];
+    return string.IsNullOrWhiteSpace(configured)
+        ? new UnconfiguredFlightStatusProvider()
+        : services.GetRequiredService<FlightAwareAeroApiProvider>();
+});
 builder.Services.AddHttpClient("weather-forecast", client =>
 {
     client.BaseAddress = new Uri("https://api.open-meteo.com/v1/");
@@ -177,6 +201,7 @@ app.MapCurrencyEndpoints();
 app.MapBudgetIntelligenceEndpoints();
 app.MapBudgetAlertEndpoints();
 app.MapWeatherDisruptionEndpoints();
+app.MapFlightEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
