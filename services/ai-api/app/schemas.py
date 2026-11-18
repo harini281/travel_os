@@ -90,6 +90,7 @@ class RecommendationRequest(BaseModel):
     travelPace: Literal["relaxed", "balanced", "fast"] = "balanced"
     dailyBudgetRemaining: Decimal | None = Field(default=None, ge=0)
     question: str = Field(default="Recommend suitable activities for this day.", min_length=2, max_length=500)
+    focus: Literal["all", "weather", "budget", "group", "schedule"] = "all"
     existingActivities: list[str] = Field(default_factory=list, max_length=12)
     weatherContext: list[str] = Field(default_factory=list, max_length=8)
     planningContext: list[str] = Field(default_factory=list, max_length=12)
