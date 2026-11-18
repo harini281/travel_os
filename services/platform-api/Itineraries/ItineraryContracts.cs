@@ -15,7 +15,9 @@ public sealed record ActivityRequest(
     int? DurationMinutes,
     decimal? EstimatedCost,
     string? CurrencyCode,
-    int SortOrder = 0);
+    int SortOrder = 0,
+    TimeOnly? StartTime = null,
+    TimeOnly? EndTime = null);
 
 public sealed record ActivityResponse(
     Guid Id,
@@ -27,7 +29,9 @@ public sealed record ActivityResponse(
     int? DurationMinutes,
     decimal? EstimatedCost,
     string? CurrencyCode,
-    int SortOrder);
+    int SortOrder,
+    TimeOnly? StartTime,
+    TimeOnly? EndTime);
 
 public sealed record ItineraryDayResponse(
     Guid Id,
