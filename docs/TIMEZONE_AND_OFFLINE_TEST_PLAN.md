@@ -6,6 +6,9 @@
 3. Flight status checked-at timestamps use the selected timezone.
 4. Changing the selected timezone updates flight timestamps without changing stored UTC values.
 5. Each trip retains its own display timezone on this browser.
+6. The selected trip timezone is applied to both UTC flight timestamps and local activity clock values when building the combined journey timeline.
+7. Flight/arrival date matching uses the selected trip timezone, not the device timezone.
+8. The trip timezone is a browser-side setting and is not synchronized to other devices or written to the API.
 6. Invalid IANA timezone input is visibly rejected and is not persisted.
 7. Activity start/end values remain unchanged local clock times; no timezone conversion is attempted because the API currently stores TimeOnly values without a timezone identifier.
 8. The UI explains the difference between UTC flight timestamps and local activity clock times.
