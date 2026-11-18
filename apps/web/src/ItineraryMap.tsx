@@ -70,14 +70,31 @@ export default function ItineraryMap({ days }: Props) {
     if (!map || !layer) return;
     layer.clearLayers();
 
+    const byDay = new Map<string, typeof visibleActivities>();
     visibleActivities.forEach(activity => {
+      const existing = byDay.get(activity.dayId) ?? [];
+      existing.push(activity);
+      byDay.set(activity.dayId, existing);
+    });
+
+    byDay.forEach((activities, dayId) => {
+      if (activities.length < 2) return;
+      const color = DAY_COLORS[(activities[0].dayNumber - 1) % DAY_COLORS.length];
+      L.polyline(activities.map(item => [item.latitude!, item.longitude!] as [number, number]), {
+        color, weight: 2, opacity: 0.65, dashArray: "5 7"
+      }).addTo(layer).bindTooltip("Stop sequence only · not a road route");
+    });
+
+    visibleActivities.forEach((activity, index) => {
       const color = DAY_COLORS[(activity.dayNumber - 1) % DAY_COLORS.length];
-      const marker = L.circleMarker([activity.latitude!, activity.longitude!], {
-        radius: 9,
-        color: "#ffffff",
-        weight: 2,
-        fillColor: color,
-        fillOpacity: 0.95
+      const daySequence = (byDay.get(activity.dayId) ?? []).findIndex(item => item.id === activity.id) + 1;
+      const marker = L.marker([activity.latitude!, activity.longitude!], {
+        icon: L.divIcon({
+          className: "itinerary-map-marker",
+          html: String(daySequence),
+          iconSize: [28, 28],
+          iconAnchor: [14, 14]
+        })
       });
       const popup = L.DomUtil.create("div", "itinerary-map-popup");
       const heading = L.DomUtil.create("strong", "", popup);
