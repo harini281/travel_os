@@ -268,7 +268,8 @@ export default function App() {
     try {
       const data = await api<WeatherAssessment[]>(`/api/v1/trips/${trip.id}/weather-disruptions`, accessToken);
       setWeatherAssessments(data);
-      setWeatherScannedAt(data[0]?.forecastFetchedAt ?? null);
+      setWeatherScannedAt(data.reduce<string | null>((latest, item) =>
+        !latest || item.forecastFetchedAt > latest ? item.forecastFetchedAt : latest, null));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load weather assessments.");
     }
@@ -1189,7 +1190,7 @@ export default function App() {
                 </button>
               </div>
               <p className="weather-disruption-intro">Uses Open-Meteo daily forecasts for activities with saved coordinates. Short-range forecasts are not official weather warnings and cannot guarantee conditions on the day.</p>
-              {weatherScannedAt && <div className="weather-scan-meta"><span>Last scan: {new Date(weatherScannedAt).toLocaleString()}</span><span>{weatherAssessments.length} activities assessed</span></div>}
+              {weatherScannedAt && <div className="weather-scan-meta"><span>Last scan: {new Date(weatherScannedAt).toLocaleString()}</span><span>{weatherAssessments.length} activities assessed · {weatherScanStatus || "saved forecast results"}</span></div>}
               {weatherAssessments.length > 0 && <>
                 <div className="weather-summary-stats">
                   <div><strong>{weatherAssessments.length}</strong><span>ASSESSED</span></div>
@@ -1210,7 +1211,7 @@ export default function App() {
                       {item.temperatureMaxC !== null && <span>Max temp <b>{item.temperatureMaxC}°C</b></span>}
                     </div>
                     <p className="weather-recommendation">{item.recommendation}</p>
-                    <small className="weather-source">Forecast source: {item.source} · Retrieved {new Date(item.forecastFetchedAt).toLocaleString()}</small>
+                    <small className="weather-source">Forecast source: <a href="https://open-meteo.com/" target="_blank" rel="noreferrer">{item.source}</a> · Retrieved {new Date(item.forecastFetchedAt).toLocaleString()}</small>
                   </article>)}
                 </div>
               </>}
