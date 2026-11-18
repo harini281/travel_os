@@ -98,7 +98,7 @@ jobs:
             013_trip_weather_assessments.sql \
             014_trip_flights.sql \
             015_flight_journey_groups.sql \
-            016_activity_schedule_times.sql \\
+            016_activity_schedule_times.sql \
             017_trip_notifications.sql
           do
             echo "Applying $migration"
