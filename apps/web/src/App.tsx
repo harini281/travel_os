@@ -55,6 +55,9 @@ type GroundTransferEstimate = {
   distanceKm:number; roadDurationMinutes:number; pickupBufferMinutes:number; totalPlanningMinutes:number;
   arrivalUtc:string|null; recommendedDepartureUtc:string|null; provider:string; estimatedAt:string; disclaimer:string;
 };
+type ActivityRouteLeg = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; distanceKm:number|null; roadDurationMinutes:number|null; requiredMinutes:number|null; status:"feasible"|"tight"|"schedule_conflict"|"unavailable"; explanation:string; };
+type RouteDayAnalysis = { dayId:string; dayNumber:number; date:string; legs:ActivityRouteLeg[]; message:string|null; };
+type RouteAnalysis = { tripId:string; travelMode:string; bufferMinutes:number; days:RouteDayAnalysis[]; disclaimer:string; };
 type JourneyTimelineItem = { id:string; kind:"flight"|"activity"; sortAt:number; dateKey:string; title:string; subtitle:string; timeLabel:string; status:string; };
 type ScheduleTransition = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; status:"overlap"|"short_gap"|"buffer_met"; recommendation:string; };
 type ScheduleSuggestion = { activityId:string; activityTitle:string; originalStartTime:string; originalEndTime:string; suggestedStartTime:string|null; suggestedEndTime:string|null; shiftMinutes:number|null; status:"suggested"|"cannot_fit"; reason:string; };
@@ -184,6 +187,9 @@ export default function App() {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [scheduleAnalysis, setScheduleAnalysis] = useState<ScheduleAnalysis | null>(null);
+  const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
+  const [routeBuffer, setRouteBuffer] = useState("15");
+  const [loadingRouteAnalysis, setLoadingRouteAnalysis] = useState(false);
   const [scheduleBuffer, setScheduleBuffer] = useState("30");
   const [loadingScheduleAnalysis, setLoadingScheduleAnalysis] = useState(false);
   const [applyingScheduleSuggestionId, setApplyingScheduleSuggestionId] = useState<string | null>(null);
@@ -449,6 +455,19 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to refresh flight status.");
     } finally { setRefreshingFlightId(null); }
+  }
+
+  async function analyzeItineraryRoutes() {
+    if (!token || !selectedTrip) return;
+    setLoadingRouteAnalysis(true); setError(""); setRouteAnalysis(null);
+    try {
+      const result = await api<RouteAnalysis>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/route-analysis?bufferMinutes=${routeBuffer}`, token
+      );
+      setRouteAnalysis(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to analyse itinerary road routes.");
+    } finally { setLoadingRouteAnalysis(false); }
   }
 
   async function estimateGroundTransfer(event: FormEvent<HTMLFormElement>) {
