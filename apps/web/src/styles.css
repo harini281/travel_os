@@ -608,3 +608,6 @@
 .schedule-suggestion>div small{font-size:10px;color:#849187}
 .schedule-suggestion>p{grid-column:1/-1;margin:0;font-size:10px;line-height:1.5;color:#68766a}
 @media(max-width:680px){.schedule-suggestion{grid-template-columns:1fr}.schedule-suggestion>.schedule-transition-status{justify-self:start}}
+
+.schedule-apply-button{justify-self:start;margin-top:4px;min-height:32px;padding:6px 10px;font-size:10px}
+.schedule-apply-button:disabled{opacity:.6;cursor:wait}
