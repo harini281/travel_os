@@ -1530,7 +1530,7 @@ export default function App() {
           <span className="breadcrumb">Workspace <b>/</b> {selectedTrip ? selectedTrip.name : "My trips"}</span>
           <span className="preview-tag">TRAVELOS PREVIEW</span>
         </header>
-        <div className="content-wrap">
+        <div className={isOfflineSnapshot ? "content-wrap offline-snapshot" : "content-wrap"}>
           {notice && <div className="alert success">{notice}<button onClick={() => setNotice("")}>×</button></div>}
           {error && <div className="alert error">{error}<button onClick={() => setError("")}>×</button></div>}
 
@@ -1604,6 +1604,7 @@ export default function App() {
               </div>
               {!isValidTimeZone(displayTimeZone) && <p className="travel-context-warning">Enter a valid IANA timezone, such as Asia/Colombo or Europe/London.</p>}
               <p className="travel-context-note">Flight timestamps are stored in UTC and displayed in the selected timezone. Activity start/end times are local clock values and are not converted because the itinerary currently has no per-day timezone field.</p>
+              <p className="travel-context-note">Offline copies are stored in this browser on this device, without application-level encryption. Avoid saving sensitive trip details on shared devices and remove the copy when finished.</p>
               {offlineCachedAt && <p className="travel-context-note">{isOfflineSnapshot?"Viewing cached snapshot":"Offline copy saved"} · {new Date(offlineCachedAt).toLocaleString()}</p>}
               {isOfflineSnapshot && <p className="travel-context-warning">Read-only offline snapshot. Reconnect to refresh live data or make changes.</p>}
             </section>
