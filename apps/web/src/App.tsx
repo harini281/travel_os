@@ -403,10 +403,15 @@ export default function App() {
         await saveOfflineItinerary(trip.id, result ?? null, trip.name, trip.destination);
         setOfflineCachedAt(new Date().toISOString());
       } catch { /* Offline saving is optional if browser storage is unavailable. */ }
-      const analysis = await api<ScheduleAnalysis>(
-        `/api/v1/trips/${trip.id}/itinerary/schedule-analysis?minimumGapMinutes=${scheduleBuffer}`, accessToken,
-      );
-      setScheduleAnalysis(analysis);
+      try {
+        const analysis = await api<ScheduleAnalysis>(
+          `/api/v1/trips/${trip.id}/itinerary/schedule-analysis?minimumGapMinutes=${scheduleBuffer}`, accessToken,
+        );
+        setScheduleAnalysis(analysis);
+      } catch {
+        setScheduleAnalysis(null);
+        setError("Your itinerary loaded, but live schedule analysis is temporarily unavailable.");
+      }
     } catch (err) {
       try {
         const cached = await readOfflineItinerary(trip.id);
