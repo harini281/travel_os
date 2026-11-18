@@ -294,7 +294,7 @@ export default function App() {
     } finally { setLoadingFlights(false); }
   }
 
-  async function addTripFlight(event: React.FormEvent<HTMLFormElement>) {
+  async function addTripFlight(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token || !selectedTrip) return;
     setBusy(true); setError("");
