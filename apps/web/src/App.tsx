@@ -397,6 +397,57 @@ export default function App() {
     });
   }, [token, loadProfile]);
 
+
+  const loadNotifications = useCallback(async (accessToken = token) => {
+    if (!accessToken || !navigator.onLine) return;
+    setLoadingNotifications(true);
+    try {
+      const result = await api<NotificationInbox>("/api/v1/notifications?limit=50", accessToken);
+      setNotifications(result.items);
+      setNotificationUnreadCount(result.unreadCount);
+    } catch {
+      // Notification inbox is an optional enhancement; keep the rest of the workspace usable.
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (token) void loadNotifications(token);
+    else {
+      setNotifications([]);
+      setNotificationUnreadCount(0);
+    }
+  }, [token, loadNotifications]);
+
+  async function markNotificationRead(notificationId: string) {
+    if (!token) return;
+    try {
+      const updated = await api<TripNotification>(`/api/v1/notifications/${notificationId}/read`, token, { method: "POST" });
+      setNotifications(current => current.map(item => item.id === notificationId ? updated : item));
+      setNotificationUnreadCount(count => Math.max(0, count - (updated.readAt ? 1 : 0)));
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not update notification."); }
+  }
+
+  async function dismissNotification(notificationId: string) {
+    if (!token) return;
+    const wasUnread = notifications.some(item => item.id === notificationId && !item.readAt);
+    try {
+      await api<void>(`/api/v1/notifications/${notificationId}`, token, { method: "DELETE" });
+      setNotifications(current => current.filter(item => item.id !== notificationId));
+      if (wasUnread) setNotificationUnreadCount(count => Math.max(0, count - 1));
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not dismiss notification."); }
+  }
+
+  async function markAllNotificationsRead() {
+    if (!token) return;
+    try {
+      await api<{ updatedCount:number }>("/api/v1/notifications/read-all", token, { method: "POST" });
+      setNotifications(current => current.map(item => ({ ...item, readAt: item.readAt ?? new Date().toISOString() })));
+      setNotificationUnreadCount(0);
+    } catch (err) { setError(err instanceof Error ? err.message : "Could not mark notifications as read."); }
+  }
+
   async function loadItinerary(trip: Trip, accessToken = token) {
     if (!accessToken) return;
     setLoadingItinerary(true); setError(""); setIsOfflineSnapshot(false); setOfflineCachedAt(null);
@@ -1558,8 +1609,9 @@ export default function App() {
       <section className="main-panel">
         <header className="topbar">
           <span className="breadcrumb">Workspace <b>/</b> {selectedTrip ? selectedTrip.name : "My trips"}</span>
-          <span className="preview-tag">TRAVELOS PREVIEW</span>
+          <div className="topbar-actions"><button className="notification-trigger" onClick={() => setShowNotificationInbox(value => !value)} aria-label="Open notifications" aria-expanded={showNotificationInbox}>♧ Notifications{notificationUnreadCount > 0 && <span className="notification-count">{notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}</span>}</button><span className="preview-tag">TRAVELOS PREVIEW</span></div>
         </header>
+        {showNotificationInbox && <section className="notification-inbox" aria-label="Notification inbox"><div className="notification-inbox-heading"><div><p className="eyebrow">TRAVEL UPDATES</p><h2>Notifications</h2><small>{notificationUnreadCount} unread</small></div><div className="notification-inbox-actions"><button className="btn btn-secondary" onClick={markAllNotificationsRead} disabled={notificationUnreadCount === 0}>Mark all read</button><button className="notification-close" onClick={() => setShowNotificationInbox(false)} aria-label="Close notifications">×</button></div></div>{loadingNotifications ? <p className="muted">Loading notifications…</p> : notifications.length === 0 ? <p className="notification-empty">You’re all caught up. Trip updates and reminders will appear here.</p> : <div className="notification-list">{notifications.map(item => <article className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id}><div className="notification-item-copy"><div className="notification-item-meta"><span>{item.type}</span><time>{new Date(item.createdAt).toLocaleString()}</time></div><h3>{item.title}</h3><p>{item.message}</p></div><div className="notification-item-actions">{!item.readAt && <button onClick={() => markNotificationRead(item.id)}>Mark read</button>}<button onClick={() => dismissNotification(item.id)}>Dismiss</button></div></article>)}</div>}</section>}
         <div className={isOfflineSnapshot ? "content-wrap offline-snapshot" : "content-wrap"}>
           {notice && <div className="alert success">{notice}<button onClick={() => setNotice("")}>×</button></div>}
           {error && <div className="alert error">{error}<button onClick={() => setError("")}>×</button></div>}
