@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TravelOS.PlatformApi.Data;
 
@@ -192,6 +193,11 @@ public static class ItineraryRecommendationEndpoints
         {
             return Results.Problem("The AI recommendation request timed out. Please try again.",
                 statusCode: StatusCodes.Status504GatewayTimeout);
+        }
+        catch (JsonException)
+        {
+            return Results.Problem("The AI service returned an unreadable recommendation response.",
+                statusCode: StatusCodes.Status502BadGateway);
         }
     }
 
