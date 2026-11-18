@@ -149,7 +149,7 @@ public static class RouteAnalysisEndpoints
                     distanceKm, roadMinutes, requiredMinutes, status, explanation));
             }
 
-            dayResults.Add(new RouteDayAnalysis(day.Id, day.DayNumber, day.Date.ToString("yyyy-MM-dd"), legs, null));
+            dayResults.Add(new RouteDayAnalysis(day.Id, day.DayNumber, day.Date.ToString("yyyy-MM-dd"), legs.ToArray(), null));
         }
 
         return Results.Ok(new RouteAnalysisResponse(
