@@ -1922,6 +1922,8 @@ export default function App() {
                           <label>Activity name<input value={activityTitle} onChange={e => setActivityTitle(e.target.value)} placeholder="e.g. Explore the old town" maxLength={180} required /></label>
                           <label>Place<input value={activityPlace} onChange={e => setActivityPlace(e.target.value)} placeholder="Place or attraction" maxLength={200} /></label>
                           <label className="wide-field">Notes<textarea value={activityDescription} onChange={e => setActivityDescription(e.target.value)} placeholder="A little detail about this stop…" maxLength={2000} rows={2} /></label>
+                          <label>Start time<input type="time" value={activityStartTime} onChange={e => setActivityStartTime(e.target.value)} /></label>
+                          <label>End time<input type="time" value={activityEndTime} onChange={e => setActivityEndTime(e.target.value)} /></label>
                           <label>Duration (minutes)<input type="number" min="1" value={activityDuration} onChange={e => setActivityDuration(e.target.value)} placeholder="90" /></label>
                           <label>Estimated cost ({selectedTrip.currencyCode})<input type="number" min="0" step="0.01" value={activityCost} onChange={e => setActivityCost(e.target.value)} placeholder="0.00" /></label>
                           <div className="form-actions wide-field"><button type="button" className="btn btn-quiet" onClick={() => setActiveDayId(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy ? "Adding…" : "Save activity"}</button></div>
