@@ -27,6 +27,8 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripExpenseAudit> TripExpenseAudits => Set<TripExpenseAudit>();
     public DbSet<TripReceipt> TripReceipts => Set<TripReceipt>();
     public DbSet<TripExpenseConversion> TripExpenseConversions => Set<TripExpenseConversion>();
+    public DbSet<TripBudgetAlert> TripBudgetAlerts => Set<TripBudgetAlert>();
+    public DbSet<TripBudgetAlertRead> TripBudgetAlertReads => Set<TripBudgetAlertRead>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -291,6 +293,32 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.Amount).HasPrecision(19, 4);
             entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
             entity.HasOne<Budget>().WithMany(x => x.Items).HasForeignKey(x => x.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TripBudgetAlert>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.AlertType).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.CurrencyCode).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.BudgetAmountSnapshot).HasPrecision(19, 4);
+            entity.Property(x => x.ActualAmountSnapshot).HasPrecision(19, 4);
+            entity.Property(x => x.ProjectedAmountSnapshot).HasPrecision(19, 4);
+            entity.Property(x => x.Message).HasMaxLength(500).IsRequired();
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Budget>().WithMany().HasForeignKey(x => x.BudgetId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.TripId, x.BudgetId, x.AlertType, x.ThresholdPercent, x.BudgetAmountSnapshot, x.CurrencyCode }).IsUnique();
+            entity.HasIndex(x => new { x.TripId, x.TriggeredAt });
+        });
+
+        modelBuilder.Entity<TripBudgetAlertRead>(entity =>
+        {
+            entity.HasKey(x => new { x.AlertId, x.UserId });
+            entity.HasOne<TripBudgetAlert>().WithMany().HasForeignKey(x => x.AlertId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

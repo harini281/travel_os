@@ -252,3 +252,27 @@ public sealed class TripExpenseConversion
     public string Provider { get; set; } = "Frankfurter blended reference rate";
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+
+/// <summary>Shared, immutable budget threshold event for a trip.</summary>
+public sealed class TripBudgetAlert
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid BudgetId { get; set; }
+    public string AlertType { get; set; } = "threshold";
+    public int ThresholdPercent { get; set; }
+    public decimal BudgetAmountSnapshot { get; set; }
+    public string CurrencyCode { get; set; } = "USD";
+    public decimal ActualAmountSnapshot { get; set; }
+    public decimal? ProjectedAmountSnapshot { get; set; }
+    public string Message { get; set; } = "";
+    public DateTimeOffset TriggeredAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
+public sealed class TripBudgetAlertRead
+{
+    public Guid AlertId { get; set; }
+    public Guid UserId { get; set; }
+    public DateTimeOffset ReadAt { get; set; } = DateTimeOffset.UtcNow;
+}
