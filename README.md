@@ -340,3 +340,14 @@ The trip dashboard can request a point-to-point road/cycling estimate from an ai
 - Nominatim may resolve ambiguous airport codes; verify the returned airport name before relying on an estimate.
 - Public Nominatim/OSRM endpoints have usage limits and no production SLA. For commercial scale, use a contracted provider or self-hosted services and a verified airport dataset.
 - The API is authenticated and rate-limited to five estimates per user per minute.
+
+
+## Stage 27 — Smart journey timeline
+
+The authenticated endpoint `GET /api/v1/trips/{tripId}/journey-timeline` combines saved flight legs with itinerary activities into one chronological view.
+
+- Flight timeline times use provider actual values, then provider estimates, then scheduled values.
+- Itinerary activities are date/order-only: the current activity model does not store a start time. The UI therefore does not invent precise activity times.
+- Advisories flag overlapping effective flight times and prompt travellers to review activities on flight days. Same-day prompts are not confirmed conflicts.
+- Timeline date grouping currently uses UTC. Local airport/time-zone-aware presentation remains a future enhancement.
+- The timeline is read-only and does not change bookings or itinerary records.
