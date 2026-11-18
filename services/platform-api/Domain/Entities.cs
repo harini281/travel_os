@@ -326,3 +326,21 @@ public sealed class TripFlight
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+
+/// <summary>Persistent in-app notification or scheduled reminder for one trip member.</summary>
+public sealed class TripNotification
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid UserId { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public string Type { get; set; } = "reminder";
+    public string Title { get; set; } = "";
+    public string Message { get; set; } = "";
+    public DateTimeOffset? ScheduledForUtc { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ReadAt { get; set; }
+    public DateTimeOffset? DismissedAt { get; set; }
+    public string? DedupeKey { get; set; }
+}
