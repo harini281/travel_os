@@ -170,25 +170,29 @@ function formatFlightTime(value: string, timeZone: string) {
   catch { return new Date(value).toLocaleString(); }
 }
 function dateKeyInTimeZone(value: Date, timeZone: string) {
-  const parts = new Intl.DateTimeFormat("en", { timeZone, year:"numeric", month:"2-digit", day:"2-digit" }).formatToParts(value);
-  const part = (type:string) => parts.find(item=>item.type===type)?.value ?? "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
+  try {
+    const parts = new Intl.DateTimeFormat("en", { timeZone, year:"numeric", month:"2-digit", day:"2-digit" }).formatToParts(value);
+    const part = (type:string) => parts.find(item=>item.type===type)?.value ?? "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
+  } catch { return value.toLocaleDateString(); }
 }
 function zonedLocalDateTimeToUtc(date:string, time:string, timeZone:string) {
-  const [year,month,day] = date.split("-").map(Number);
-  const [hour,minute,second=0] = time.split(":").map(Number);
-  const target = Date.UTC(year,month-1,day,hour,minute,second);
-  let guess = target;
-  const formatter = new Intl.DateTimeFormat("en", { timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" });
-  for (let attempt=0; attempt<4; attempt++) {
-    const parts = formatter.formatToParts(new Date(guess));
-    const part = (type:string) => Number(parts.find(item=>item.type===type)?.value ?? 0);
-    const represented = Date.UTC(part("year"),part("month")-1,part("day"),part("hour"),part("minute"),part("second"));
-    const adjustment = target-represented;
-    if (adjustment===0) break;
-    guess += adjustment;
-  }
-  return guess;
+  try {
+    const [year,month,day] = date.split("-").map(Number);
+    const [hour,minute,second=0] = time.split(":").map(Number);
+    const target = Date.UTC(year,month-1,day,hour,minute,second);
+    let guess = target;
+    const formatter = new Intl.DateTimeFormat("en", { timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" });
+    for (let attempt=0; attempt<4; attempt++) {
+      const parts = formatter.formatToParts(new Date(guess));
+      const part = (type:string) => Number(parts.find(item=>item.type===type)?.value ?? 0);
+      const represented = Date.UTC(part("year"),part("month")-1,part("day"),part("hour"),part("minute"),part("second"));
+      const adjustment = target-represented;
+      if (adjustment===0) break;
+      guess += adjustment;
+    }
+    return guess;
+  } catch { return new Date(`${date}T${time}`).getTime(); }
 }
 function isValidTimeZone(value: string) {
   try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
