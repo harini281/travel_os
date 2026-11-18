@@ -117,10 +117,10 @@ builder.Services.AddRateLimiter(options =>
             }));
     options.AddPolicy("ground-transfer", context =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            partitionKey: "nominatim-upstream",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
+                PermitLimit = 1, Window = TimeSpan.FromSeconds(2), QueueLimit = 0, AutoReplenishment = true
             }));
     options.AddPolicy("flight-refresh", context =>
         RateLimitPartition.GetFixedWindowLimiter(
