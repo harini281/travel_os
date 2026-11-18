@@ -233,7 +233,7 @@ public static class TripAssistantEndpoints
                     var timed = day.Activities.Where(x => x.StartTime.HasValue && x.EndTime.HasValue).OrderBy(x => x.StartTime).ToList();
                     unscheduled += day.Activities.Count - timed.Count;
                     for (var i = 1; i < timed.Count; i++)
-                        if (timed[i].StartTime < timed[i - 1].EndTime)
+                        if (timed[i].StartTime!.Value < timed[i - 1].EndTime!.Value)
                             overlaps.Add($"Day {day.DayNumber}: {timed[i - 1].Title} overlaps {timed[i].Title}.");
                 }
                 facts.Add($"{context.Itinerary.Days.Sum(x => x.Activities.Count)} saved activities across {context.Itinerary.Days.Count} itinerary day(s).");
