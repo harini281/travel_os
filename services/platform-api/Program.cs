@@ -240,6 +240,7 @@ app.MapAuthEndpoints();
 app.MapTripEndpoints();
 app.MapGroundTransferEndpoints();
 app.MapItineraryEndpoints();
+app.MapItineraryRecommendationEndpoints();
 app.MapRouteAnalysisEndpoints();
 app.MapOpeningHoursEndpoints();
 app.MapBudgetEndpoints();
