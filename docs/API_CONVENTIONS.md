@@ -395,3 +395,24 @@ Each assessment stores the activity title and date snapshot, WMO weather code, p
 
 Weather provider requests are limited to four scans per user per minute. The weather service endpoint uses Open-Meteo and attribution must be retained when redistributing weather data.
 Migration `013_trip_weather_assessments.sql` creates the historical assessment table.
+
+
+## Flight and journey disruption intelligence
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/flights` | Trip member |
+| POST | `/api/v1/trips/{tripId}/flights` | Trip member |
+| POST | `/api/v1/trips/{tripId}/flights/{flightId}/refresh` | Trip member; rate limited |
+
+Flight creation validates the identifier, distinct three-letter IATA airport codes and a positive schedule duration (maximum 36 hours). Timestamps are stored as UTC instants. Flight details are shared with trip members.
+
+The FlightAware AeroAPI v4 adapter requests `GET /flights/{ident}` using a server-side `x-apikey` header and a bounded time window. It matches the returned flight to the saved scheduled departure. Only a provider response is used to update status. If `FLIGHTAWARE_API_KEY` is absent, refresh returns `flight_provider_not_configured` and the saved flight remains unchanged. Provider failures do not overwrite status.
+
+Normalized status values: `scheduled`, `delayed`, `active`, `landed`, `cancelled`, `diverted`, `unknown`, and `not_checked`. Departure delay is calculated from the provider's actual or estimated departure relative to scheduled departure. A delay of at least 15 minutes may be labelled delayed when the provider still reports scheduled.
+
+For delayed, cancelled or diverted flights, the response counts itinerary activities on the UTC departure and arrival dates. This is a same-day review hint only: the platform does not yet know activity times, transfer durations, airport terminal changes, connection protection or local airport time zones. It must not be interpreted as a confirmed collision.
+
+Refresh is rate-limited to four requests per user per minute. FlightAware AeroAPI usage is metered; administrators should review the provider's current pricing and account usage before enabling it. No booking, ticket change or itinerary mutation is performed.
+
+Migration `014_trip_flights.sql` creates the flight records.
