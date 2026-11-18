@@ -674,8 +674,6 @@ public static class ItineraryEndpoints
                     Latitude = draftActivity.Latitude,
                     Longitude = draftActivity.Longitude,
                     DurationMinutes = draftActivity.DurationMinutes,
-                    StartTime = draftActivity.StartTime,
-                    EndTime = draftActivity.EndTime,
                     EstimatedCost = draftActivity.EstimatedCost,
                     CurrencyCode = draftActivity.CurrencyCode?.ToUpperInvariant() ?? trip.CurrencyCode,
                     SortOrder = draftActivity.SortOrder
