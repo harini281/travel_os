@@ -48,6 +48,15 @@ type FlightConnection = {
   sameAirport:boolean; riskLevel:string; heuristicBufferMinutes:number|null;
   timeSource:string; explanation:string;
 };
+type JourneyTimelineItem = {
+  id:string; type:"flight"|"activity"; title:string; startUtc:string|null; dateUtc:string;
+  location:string|null; status:string; detail:string; group:string; endUtc:string|null;
+};
+type JourneyTimelineAdvisory = {code:string;severity:string;message:string;relatedItemIds:string[]};
+type JourneyTimelineResponse = {
+  tripId:string; generatedAt:string; items:JourneyTimelineItem[];
+  advisories:JourneyTimelineAdvisory[]; disclaimer:string;
+};
 type GroundTransferEstimate = {
   airportIataCode:string; airportName:string; airportLatitude:number; airportLongitude:number;
   destination:string; destinationLatitude:number; destinationLongitude:number; travelMode:string;
@@ -184,6 +193,8 @@ export default function App() {
   const [weatherScannedAt, setWeatherScannedAt] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [tripFlights, setTripFlights] = useState<TripFlight[]>([]);
+  const [journeyTimeline, setJourneyTimeline] = useState<JourneyTimelineResponse | null>(null);
+  const [loadingJourneyTimeline, setLoadingJourneyTimeline] = useState(false);
   const [transferAirport, setTransferAirport] = useState("CMB");
   const [transferDestination, setTransferDestination] = useState("");
   const [transferMode, setTransferMode] = useState("driving");
@@ -319,9 +330,21 @@ export default function App() {
     try {
       const data = await api<TripFlight[]>(`/api/v1/trips/${trip.id}/flights`, accessToken);
       setTripFlights(data);
+      await loadJourneyTimeline(trip, accessToken);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load saved flights.");
     } finally { setLoadingFlights(false); }
+  }
+
+  async function loadJourneyTimeline(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingJourneyTimeline(true);
+    try {
+      const data = await api<JourneyTimelineResponse>(`/api/v1/trips/${trip.id}/journey-timeline`, accessToken);
+      setJourneyTimeline(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load the journey timeline.");
+    } finally { setLoadingJourneyTimeline(false); }
   }
 
   async function loadFlightConnections(trip: Trip, accessToken = token) {
@@ -1352,6 +1375,37 @@ export default function App() {
                     </div>
                   </article>)}</div>}
               <p className="flight-operations-footnote">Same-day itinerary review is only a coarse signal; activity timing and live transfer feasibility are not modelled. No flight is booked or changed by TravelOS.</p>
+            </section>
+            <section className="journey-timeline-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 27 · SMART JOURNEY TIMELINE</p><h2>Your journey, in one timeline</h2><small>Flights and itinerary activities in chronological order</small></div>
+                <button type="button" className="btn btn-secondary" onClick={() => selectedTrip && loadJourneyTimeline(selectedTrip)} disabled={loadingJourneyTimeline}>{loadingJourneyTimeline ? "Refreshing…" : "Refresh timeline"}</button>
+              </div>
+              {loadingJourneyTimeline && !journeyTimeline ? <p className="budget-empty">Building your journey timeline…</p>
+                : !journeyTimeline || journeyTimeline.items.length === 0
+                  ? <p className="budget-empty">Add flights or itinerary activities to see your journey timeline here.</p>
+                  : <>
+                    {journeyTimeline.advisories.length > 0 && <div className="journey-advisories">
+                      {journeyTimeline.advisories.map((advisory, index) => <article className={`journey-advisory journey-advisory-${advisory.severity}`} key={advisory.code + index}>
+                        <strong>{advisory.code === "flight_overlap" ? "Flight time overlap" : "Same-day itinerary review"}</strong><p>{advisory.message}</p>
+                      </article>)}
+                    </div>}
+                    <div className="journey-timeline-list">
+                      {journeyTimeline.items.map(item => <article className="journey-timeline-item" key={item.type + item.id}>
+                        <span className={`journey-timeline-marker journey-marker-${item.type}`}>{item.type === "flight" ? "✈" : "●"}</span>
+                        <div className="journey-timeline-content">
+                          <div className="journey-timeline-top"><span className="connection-group">{item.type === "flight" ? "FLIGHT" : "ITINERARY ACTIVITY"}</span><small>{new Date(item.dateUtc).toLocaleDateString()}</small></div>
+                          <strong>{item.title}</strong>
+                          {item.location && <span>{item.location}</span>}
+                          {item.startUtc && <span>{new Date(item.startUtc).toLocaleString()} {item.endUtc ? "– " + new Date(item.endUtc).toLocaleString() : ""}</span>}
+                          <small>{item.detail}</small>
+                          {item.type === "flight" && <span className={`flight-status flight-status-${item.status}`}>{item.status.replaceAll("_"," ")}</span>}
+                        </div>
+                      </article>)}
+                    </div>
+                    <p className="journey-timeline-disclaimer">{journeyTimeline.disclaimer}</p>
+                    <small className="connection-source">Generated {new Date(journeyTimeline.generatedAt).toLocaleString()}</small>
+                  </>}
             </section>
             <section className="ground-transfer-panel">
               <div className="section-heading">
