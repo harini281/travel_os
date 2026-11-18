@@ -298,3 +298,28 @@ public sealed class TripWeatherAssessment
     public string Source { get; set; } = "Open-Meteo";
     public DateTimeOffset ForecastFetchedAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+/// <summary>Traveller-entered flight details plus the latest provider-confirmed status snapshot.</summary>
+public sealed class TripFlight
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid CreatedByUserId { get; set; }
+    public string FlightIdentifier { get; set; } = "";
+    public string OriginAirportCode { get; set; } = "";
+    public string DestinationAirportCode { get; set; } = "";
+    public DateTimeOffset ScheduledDepartureUtc { get; set; }
+    public DateTimeOffset ScheduledArrivalUtc { get; set; }
+    public string Status { get; set; } = "not_checked";
+    public string Provider { get; set; } = "none";
+    public string? ProviderFlightId { get; set; }
+    public string? ProviderStatus { get; set; }
+    public DateTimeOffset? EstimatedDepartureUtc { get; set; }
+    public DateTimeOffset? ActualDepartureUtc { get; set; }
+    public DateTimeOffset? EstimatedArrivalUtc { get; set; }
+    public DateTimeOffset? ActualArrivalUtc { get; set; }
+    public int? DepartureDelayMinutes { get; set; }
+    public DateTimeOffset? LastCheckedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
