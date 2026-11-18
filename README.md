@@ -364,3 +364,9 @@ The analysis remains a local clock-time heuristic. It does not calculate route d
 Daily schedule review now proposes same-day time adjustments for overlaps and breaks shorter than the selected planning buffer. Suggestions preserve each activity's duration, move activities forward in chronological order, and flag activities that cannot fit before the day ends. Suggestions are returned alongside the analysis and displayed as proposals only; the saved itinerary is not changed. Travellers retain control of edits and approval.
 
 The optimizer uses local wall-clock times and a simple earliest-safe-slot heuristic. It does not calculate routes, traffic, venue opening hours, transit schedules or actual transfer durations. A proposed slot is not a guarantee of feasibility. See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md).
+
+## Stage 32 — Traveller-approved schedule adjustments
+
+Trip owners can now apply an individual proposed time adjustment from the schedule review panel. The action updates only the selected activity's start and end times, preserving its other saved fields, and then reloads the itinerary and schedule analysis. Suggestions are checked against the original saved times before applying so stale recommendations are rejected. Approved itineraries remain read-only, and suggestions are never applied automatically.
+
+See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md) for permission, stale-suggestion, field-preservation and refresh scenarios.

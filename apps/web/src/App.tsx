@@ -186,6 +186,7 @@ export default function App() {
   const [scheduleAnalysis, setScheduleAnalysis] = useState<ScheduleAnalysis | null>(null);
   const [scheduleBuffer, setScheduleBuffer] = useState("30");
   const [loadingScheduleAnalysis, setLoadingScheduleAnalysis] = useState(false);
+  const [applyingScheduleSuggestionId, setApplyingScheduleSuggestionId] = useState<string | null>(null);
   const [loadingItinerary, setLoadingItinerary] = useState(false);
   const [weatherAssessments, setWeatherAssessments] = useState<WeatherAssessment[]>([]);
   const [weatherSkipped, setWeatherSkipped] = useState<WeatherSkippedActivity[]>([]);
@@ -326,6 +327,50 @@ export default function App() {
       setError(err instanceof Error ? err.message : "Unable to load itinerary.");
     } finally {
       setLoadingItinerary(false);
+    }
+  }
+
+  async function applyScheduleSuggestion(suggestion: ScheduleSuggestion) {
+    if (!token || !selectedTrip || !itinerary) return;
+    if (selectedTrip.currentUserRole !== "owner" || itinerary.isApproved) {
+      setError("Only the trip owner can adjust an unapproved itinerary.");
+      return;
+    }
+    const activity = itinerary.days.flatMap(day => day.activities)
+      .find(item => item.id === suggestion.activityId);
+    if (!activity || suggestion.status !== "suggested" ||
+        !suggestion.suggestedStartTime || !suggestion.suggestedEndTime) {
+      setError("This schedule suggestion is no longer available. Recheck the schedule.");
+      return;
+    }
+    if (activity.startTime?.slice(0,5) !== suggestion.originalStartTime ||
+        activity.endTime?.slice(0,5) !== suggestion.originalEndTime) {
+      setError("This activity has changed since the suggestion was generated. Recheck the schedule before applying it.");
+      await refreshScheduleAnalysis();
+      return;
+    }
+
+    setApplyingScheduleSuggestionId(suggestion.activityId);
+    setError("");
+    try {
+      await api<Activity>(`/api/v1/trips/${selectedTrip.id}/itinerary/activities/${activity.id}`, token, {
+        method:"PUT",
+        body:JSON.stringify({
+          title:activity.title, description:activity.description,
+          placeName:activity.placeName, latitude:activity.latitude, longitude:activity.longitude,
+          durationMinutes:activity.durationMinutes,
+          startTime:suggestion.suggestedStartTime + ":00",
+          endTime:suggestion.suggestedEndTime + ":00",
+          estimatedCost:activity.estimatedCost, currencyCode:activity.currencyCode,
+          sortOrder:activity.sortOrder
+        })
+      });
+      await loadItinerary(selectedTrip);
+      setNotice(`Applied the suggested time for ${activity.title}. Review the updated schedule.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to apply this schedule suggestion.");
+    } finally {
+      setApplyingScheduleSuggestionId(null);
     }
   }
 
@@ -1443,6 +1488,7 @@ export default function App() {
                         <div><strong>{item.activityTitle}</strong><small>{item.originalStartTime}–{item.originalEndTime}</small></div>
                         {item.status==="suggested" ? <span className="schedule-transition-status buffer_met">{item.suggestedStartTime}–{item.suggestedEndTime} · +{item.shiftMinutes} min</span> : <span className="schedule-transition-status overlap">Needs manual review</span>}
                         <p>{item.reason}</p>
+                        {item.status==="suggested" && canEditItinerary && <button type="button" className="btn btn-quiet schedule-apply-button" onClick={()=>applyScheduleSuggestion(item)} disabled={applyingScheduleSuggestionId!==null}>{applyingScheduleSuggestionId===item.activityId?"Applying…":"Apply this time"}</button>}
                       </div>)}
                     </div>}
                     {day.timedActivityCount<2 && <p className="schedule-analysis-note">Add times to at least two activities to analyse the break between them.</p>}
