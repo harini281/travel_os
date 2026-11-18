@@ -51,10 +51,10 @@ public static class TripNotificationEndpoints
                 && (x.ScheduledForUtc == null || x.ScheduledForUtc <= now));
         if (unreadOnly) query = query.Where(x => x.ReadAt == null);
 
-        var items = await query.OrderByDescending(x => x.CreatedAt)
+        var rows = await query.OrderByDescending(x => x.CreatedAt)
             .Take(limit)
-            .Select(x => ToResponse(x))
             .ToListAsync(ct);
+        var items = rows.Select(ToResponse).ToArray();
         var unreadCount = await db.TripNotifications.CountAsync(x =>
             x.UserId == userId && x.ReadAt == null && x.DismissedAt == null
             && (x.ScheduledForUtc == null || x.ScheduledForUtc <= now), ct);
