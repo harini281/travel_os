@@ -1351,7 +1351,7 @@ export default function App() {
                       <button type="button" className="expense-edit" disabled={refreshingFlightId === flight.id} onClick={() => refreshFlightStatus(flight)}>{refreshingFlightId === flight.id ? "Checking…" : "Refresh status"}</button>
                     </div>
                   </article>)}</div>}
-              <p className="flight-operations-footnote">Same-day itinerary review is only a coarse signal; activity times, airport transfers and connection feasibility are not yet modelled. No flight is booked or changed by TravelOS.</p>
+              <p className="flight-operations-footnote">Same-day itinerary review is only a coarse signal; activity timing and live transfer feasibility are not modelled. No flight is booked or changed by TravelOS.</p>
             </section>
             <section className="ground-transfer-panel">
               <div className="section-heading">
