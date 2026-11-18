@@ -382,3 +382,9 @@ This analysis is read-only. It does not move activities, book transport or guara
 The itinerary dashboard can check scheduled activities against nearby OpenStreetMap place records and their published `opening_hours` tags. The checker matches the saved place name and coordinates, evaluates a deliberately limited subset of weekly opening-hours expressions, and reports open-during-activity, outside-opening-hours, closed, no-data, unavailable, missing-location, missing-schedule or manual-review outcomes.
 
 Only simple weekly schedules are interpreted. Public holidays, school holidays, seasonal exceptions, overnight hours and unsupported expressions are not guessed. Results are read-only and do not move activities or guarantee admission. OpenStreetMap community data can be incomplete or outdated; verify important visits with the venue. See [the opening-hours verification plan](docs/OPENING_HOURS_TEST_PLAN.md).
+
+## Stage 35 — Interactive itinerary map
+
+The itinerary workspace now includes a Leaflet map that plots saved activity coordinates as numbered, day-coloured markers. Travellers can filter by itinerary day, inspect activity details in marker popups and open the saved location in OpenStreetMap. Dotted connectors visualise the saved stop sequence within each day; they are explicitly not road routes. Activities without valid coordinates are excluded and counted rather than assigned guessed locations.
+
+The map uses OpenStreetMap tiles and attribution. Public tile infrastructure is suitable for development, not a guaranteed production service; select an appropriate hosted or self-managed tile provider before launch. See [the interactive map verification plan](docs/INTERACTIVE_ITINERARY_MAP_TEST_PLAN.md).
