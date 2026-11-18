@@ -1,3 +1,4 @@
+using Xunit;
 using TravelOS.PlatformApi.Recommendations;
 
 namespace TravelOS.PlatformApi.Tests;
