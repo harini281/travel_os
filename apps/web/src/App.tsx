@@ -1481,7 +1481,7 @@ export default function App() {
       if(timed[left].endTime!>timed[right].startTime!) { scheduleConflicts.add(timed[left].id); scheduleConflicts.add(timed[right].id); }
   });
 
-  const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved;
+  const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved && !isOfflineSnapshot;
 
   return (
     <main className="dashboard">
@@ -1553,6 +1553,31 @@ export default function App() {
 
 
 
+            <section className="travel-context-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 36 · TIME & OFFLINE</p><h2>Travel time settings</h2><small>Choose the timezone used to display UTC flight timestamps</small></div>
+                <span className={isOnline?"travel-connectivity online":"travel-connectivity offline"}>{isOnline?"● Online":"● Offline"}</span>
+              </div>
+              <div className="travel-context-grid">
+                <label>Flight display time zone
+                  <input list="travelos-timezones" value={displayTimeZone} onChange={event=>setDisplayTimeZone(event.target.value)} aria-invalid={!isValidTimeZone(displayTimeZone)} />
+                  <datalist id="travelos-timezones">
+                    <option value="Asia/Colombo"/><option value="Asia/Kolkata"/><option value="Asia/Dubai"/>
+                    <option value="Europe/London"/><option value="Europe/Paris"/><option value="America/New_York"/>
+                    <option value="America/Los_Angeles"/><option value="Asia/Singapore"/><option value="Asia/Tokyo"/>
+                    <option value="Australia/Sydney"/><option value="UTC"/>
+                  </datalist>
+                </label>
+                <div className="travel-context-actions">
+                  <button type="button" className="btn btn-quiet" onClick={cacheCurrentItinerary} disabled={!itinerary || offlineBusy || !isOnline}>{offlineBusy?"Saving…":"Save offline copy"}</button>
+                  {offlineCachedAt && <button type="button" className="btn btn-quiet" onClick={clearOfflineItinerary} disabled={offlineBusy}>Remove offline copy</button>}
+                </div>
+              </div>
+              {!isValidTimeZone(displayTimeZone) && <p className="travel-context-warning">Enter a valid IANA timezone, such as Asia/Colombo or Europe/London.</p>}
+              <p className="travel-context-note">Flight timestamps are stored in UTC and displayed in the selected timezone. Activity start/end times are local clock values and are not converted because the itinerary currently has no per-day timezone field.</p>
+              {offlineCachedAt && <p className="travel-context-note">{isOfflineSnapshot?"Viewing cached snapshot":"Offline copy saved"} · {new Date(offlineCachedAt).toLocaleString()}</p>}
+              {isOfflineSnapshot && <p className="travel-context-warning">Read-only offline snapshot. Reconnect to refresh live data or make changes.</p>}
+            </section>
             {scheduleAnalysis && <section className="schedule-analysis-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGES 29–31 · SCHEDULE INTELLIGENCE</p><h2>Daily schedule review & optimization</h2><small>Detect every conflicting activity pair, including nested overlaps, and review short breaks</small></div>
