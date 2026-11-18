@@ -308,6 +308,17 @@ export default function App() {
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to mark alert as read."); }
   }
 
+  async function refreshBudgetAlerts(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      await api<BudgetAlertEvaluation>(`/api/v1/trips/${trip.id}/budget-alerts/evaluate`, accessToken, { method:"POST" });
+      await loadBudgetAlerts(trip, accessToken);
+    } catch {
+      // A trip without a configured budget has no thresholds to evaluate.
+      // The explicit Check budget action surfaces evaluation errors to the user.
+    }
+  }
+
   async function loadBudgetIntelligence(trip: Trip, reportingCurrency = budgetReportingCurrency, accessToken = token) {
     if (!accessToken) return;
     setLoadingBudgetIntelligence(true);
@@ -395,6 +406,7 @@ export default function App() {
         }) }
       );
       setCurrencyConversions(current => [snapshot, ...current]);
+      await refreshBudgetAlerts(selectedTrip);
       setNotice(`Reference conversion saved: ${snapshot.originalAmount.toLocaleString()} ${snapshot.originalCurrencyCode} = ${snapshot.convertedAmount.toLocaleString()} ${snapshot.convertedCurrencyCode}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to convert this expense.");
@@ -556,6 +568,7 @@ export default function App() {
       setExpenseTitle(""); setExpenseAmount(""); setExpenseNotes("");
       setExpenseSplitType("equal"); setExpenseCustomShares({});
       await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
+      await refreshBudgetAlerts(selectedTrip);
       setNotice(`Shared expense added with ${expenseSplitType} splitting.`);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add shared expense."); }
     finally { setBusy(false); }
@@ -588,6 +601,7 @@ export default function App() {
       });
       setEditingExpenseId(null);
       await Promise.all([loadTripExpenses(selectedTrip),loadTripSettlement(selectedTrip),loadExpenseIntelligence(selectedTrip)]);
+      await refreshBudgetAlerts(selectedTrip);
       setNotice("Expense updated. Settlement balances have been recalculated and the change was recorded.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to update expense."); }
     finally { setBusy(false); }
@@ -609,6 +623,7 @@ export default function App() {
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/expenses/${expense.id}`, token, { method: "DELETE" });
       await Promise.all([loadTripExpenses(selectedTrip), loadTripSettlement(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
+      await refreshBudgetAlerts(selectedTrip);
       setNotice("Expense removed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove expense."); }
   }
@@ -941,7 +956,7 @@ export default function App() {
         method: "PUT",
         body: JSON.stringify({ amount: Number(budgetAmount), currencyCode: budgetCurrency }),
       });
-      setBudget(result); setNotice("Trip budget saved.");
+      setBudget(result); await refreshBudgetAlerts(selectedTrip); setNotice("Trip budget saved.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to save budget."); }
     finally { setBusy(false); }
   }
