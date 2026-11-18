@@ -14,3 +14,9 @@
 12. Verify the dashboard renders each returned conflict pair and its overlap duration, while keeping short-break records distinct.
 13. Verify schedule analysis is read-only and does not reorder or modify activities.
 14. Confirm the disclaimer makes clear that clock-time gaps are not route, traffic, opening-hours or transfer-duration estimates.
+15. Verify schedule suggestions preserve each activity's original duration.
+16. Verify a nested conflict proposes later times for the conflicting activities in chronological order.
+17. Verify a cascading conflict proposes a sequence with the selected buffer between activities.
+18. Verify an activity that cannot fit before midnight is marked cannot_fit with a manual-review reason.
+19. Verify suggestions are returned as proposals only and do not update saved activity times.
+20. Verify activities without times remain unscheduled and are never assigned invented times.
