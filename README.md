@@ -309,6 +309,14 @@ Each suggestion includes a reason, category, indicative duration/cost, who it ma
 
 Verification checklist: [docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
 
+### Stage 40 — Traveller-approved AI recommendations
+
+Trip owners can now explicitly add an AI-generated recommendation to the selected itinerary day. The action uses the existing owner-authorized activity creation API, preserves the suggestion's title, rationale, verification note, indicative duration and estimated cost/currency, and reloads the saved itinerary. Duplicate titles on the selected day are blocked in the workspace. Approved itineraries remain read-only.
+
+Newly added suggestions intentionally have no invented place name, coordinates or start/end times. The owner should verify the venue and complete those details before relying on schedule, map or route analysis. This action does not book a venue or approve the itinerary.
+
+See the Stage 40 scenarios in [the AI activity recommendations test plan](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
+
 ## 8. What is still left?
 
 TravelOS has a substantial feature set, but a successful CI run is not a production launch. The main remaining work is:

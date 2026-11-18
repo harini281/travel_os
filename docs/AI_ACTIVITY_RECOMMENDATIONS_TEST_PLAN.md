@@ -49,3 +49,18 @@
 ## Limitations
 
 Recommendations are advisory, not verified venue listings. Weather assessments can become stale. Venue accessibility, opening hours, availability, route durations and prices are not independently verified. Verify details with authoritative providers before changing travel plans.
+
+## Stage 40 — Traveller-approved recommendation saving
+
+1. Generate recommendations as the trip owner for a day in an unapproved itinerary.
+2. Select **Add to itinerary** on a recommendation and confirm a new activity is created on the selected day.
+3. Confirm the saved activity retains the suggested title, reason/verification note, duration and estimated cost/currency where supplied.
+4. Confirm no coordinates, place name or time are invented; the owner must complete those details.
+5. Confirm the card changes to **Added to itinerary** after the itinerary reloads.
+6. Try adding the same title again (including case differences); confirm the duplicate is not added.
+7. Confirm the save action is unavailable when the itinerary is approved.
+8. Confirm the API still enforces owner-only itinerary writes; a trip member cannot bypass the UI and add an activity.
+9. Switch trips or selected days and confirm the saved state is based on the refreshed itinerary, not stale recommendation state.
+10. Simulate a failed API request and confirm an error is shown and the recommendation remains available for retry.
+
+The action is an explicit owner choice. It does not book a venue, verify provider data, assign coordinates or times, or approve the itinerary.
