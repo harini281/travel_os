@@ -31,6 +31,17 @@ type WeatherScanResponse = {
   skippedActivities:WeatherSkippedActivity[]; highSeverityCount:number;
   moderateSeverityCount:number; message:string;
 };
+type TripFlight = {
+  id:string; tripId:string; flightIdentifier:string; originAirportCode:string; destinationAirportCode:string;
+  scheduledDepartureUtc:string; scheduledArrivalUtc:string; status:string; provider:string;
+  providerFlightId:string|null; providerStatus:string|null; estimatedDepartureUtc:string|null;
+  actualDepartureUtc:string|null; estimatedArrivalUtc:string|null; actualArrivalUtc:string|null;
+  departureDelayMinutes:number|null; lastCheckedAt:string|null; createdAt:string; updatedAt:string;
+};
+type FlightRefreshResponse = {
+  flight:TripFlight; hasDisruptionSignal:boolean; departureDateActivityCount:number;
+  arrivalDateActivityCount:number; itineraryImpactSummary:string;
+};
 type SuggestedActivity = Omit<Activity, "id">;
 type AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
 type AiDraft = {
@@ -153,6 +164,15 @@ export default function App() {
   const [weatherScanStatus, setWeatherScanStatus] = useState("");
   const [weatherScannedAt, setWeatherScannedAt] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
+  const [tripFlights, setTripFlights] = useState<TripFlight[]>([]);
+  const [loadingFlights, setLoadingFlights] = useState(false);
+  const [refreshingFlightId, setRefreshingFlightId] = useState<string | null>(null);
+  const [showAddFlight, setShowAddFlight] = useState(false);
+  const [flightIdentifier, setFlightIdentifier] = useState("");
+  const [flightOrigin, setFlightOrigin] = useState("");
+  const [flightDestination, setFlightDestination] = useState("");
+  const [flightDeparture, setFlightDeparture] = useState("");
+  const [flightArrival, setFlightArrival] = useState("");
   const [showAddDay, setShowAddDay] = useState(false);
   const [newDayDate, setNewDayDate] = useState("");
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
@@ -261,6 +281,52 @@ export default function App() {
     } finally {
       setLoadingItinerary(false);
     }
+  }
+
+  async function loadTripFlights(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingFlights(true);
+    try {
+      const data = await api<TripFlight[]>(`/api/v1/trips/${trip.id}/flights`, accessToken);
+      setTripFlights(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load saved flights.");
+    } finally { setLoadingFlights(false); }
+  }
+
+  async function addTripFlight(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      const created = await api<TripFlight>(`/api/v1/trips/${selectedTrip.id}/flights`, token, {
+        method:"POST",
+        body:JSON.stringify({
+          flightIdentifier, originAirportCode:flightOrigin, destinationAirportCode:flightDestination,
+          scheduledDepartureUtc:new Date(flightDeparture).toISOString(),
+          scheduledArrivalUtc:new Date(flightArrival).toISOString()
+        })
+      });
+      setTripFlights(items => [...items, created].sort((a,b) => a.scheduledDepartureUtc.localeCompare(b.scheduledDepartureUtc)));
+      setFlightIdentifier(""); setFlightOrigin(""); setFlightDestination(""); setFlightDeparture(""); setFlightArrival("");
+      setShowAddFlight(false); setNotice("Flight saved. Live status is not yet confirmed.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to save flight details.");
+    } finally { setBusy(false); }
+  }
+
+  async function refreshFlightStatus(flight: TripFlight) {
+    if (!token || !selectedTrip) return;
+    setRefreshingFlightId(flight.id); setError("");
+    try {
+      const result = await api<FlightRefreshResponse>(
+        `/api/v1/trips/${selectedTrip.id}/flights/${flight.id}/refresh`, token, {method:"POST"}
+      );
+      setTripFlights(items => items.map(item => item.id === flight.id ? result.flight : item));
+      setNotice(result.itineraryImpactSummary);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to refresh flight status.");
+    } finally { setRefreshingFlightId(null); }
   }
 
   async function loadWeatherAssessments(trip: Trip, accessToken = token) {
@@ -811,11 +877,11 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadTripFlights(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
   }
 
   function closeTrip() {
@@ -1182,6 +1248,41 @@ export default function App() {
 
 
 
+            <section className="flight-operations-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 24 · JOURNEY OPERATIONS</p><h2>Flight tracking</h2><small>Keep flight details alongside your trip itinerary</small></div>
+                <button type="button" className="btn btn-primary" onClick={() => setShowAddFlight(value => !value)}>{showAddFlight ? "Close form" : "＋ Add flight"}</button>
+              </div>
+              <p className="flight-operations-intro">Save the flight number, airports and scheduled times in your local time zone. Live status refresh requires a server-side FlightAware AeroAPI key. Until connected, flights remain marked as not checked.</p>
+              {showAddFlight && <form className="flight-add-form" onSubmit={addTripFlight}>
+                <label>Flight number<input value={flightIdentifier} onChange={e => setFlightIdentifier(e.target.value.toUpperCase())} placeholder="UL 503" maxLength={24} required /></label>
+                <label>From · IATA code<input value={flightOrigin} onChange={e => setFlightOrigin(e.target.value.toUpperCase())} placeholder="CMB" maxLength={3} minLength={3} required /></label>
+                <label>To · IATA code<input value={flightDestination} onChange={e => setFlightDestination(e.target.value.toUpperCase())} placeholder="LHR" maxLength={3} minLength={3} required /></label>
+                <label>Scheduled departure<input type="datetime-local" value={flightDeparture} onChange={e => setFlightDeparture(e.target.value)} required /></label>
+                <label>Scheduled arrival<input type="datetime-local" value={flightArrival} onChange={e => setFlightArrival(e.target.value)} required /></label>
+                <button className="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save flight"}</button>
+              </form>}
+              {loadingFlights ? <p className="budget-empty">Loading saved flights…</p> : tripFlights.length === 0
+                ? <p className="budget-empty">No flights saved yet. Add your flight details to start building a trip timeline.</p>
+                : <div className="flight-list">{tripFlights.map(flight => <article className="flight-card" key={flight.id}>
+                    <div className="flight-card-top">
+                      <div><strong>{flight.flightIdentifier}</strong><small>{flight.provider === "none" ? "Traveller-entered schedule" : flight.provider}</small></div>
+                      <span className={`flight-status flight-status-${flight.status}`}>{flight.status.replaceAll("_"," ")}</span>
+                    </div>
+                    <div className="flight-route">
+                      <div><strong>{flight.originAirportCode}</strong><small>{new Date(flight.scheduledDepartureUtc).toLocaleString()}</small></div>
+                      <span>→</span>
+                      <div><strong>{flight.destinationAirportCode}</strong><small>{new Date(flight.scheduledArrivalUtc).toLocaleString()}</small></div>
+                    </div>
+                    {flight.departureDelayMinutes !== null && <p className="flight-provider-detail">Departure delay: {flight.departureDelayMinutes} minutes</p>}
+                    {flight.providerStatus && <p className="flight-provider-detail">Provider status: {flight.providerStatus}</p>}
+                    <div className="flight-card-footer">
+                      <small>{flight.lastCheckedAt ? `Last checked ${new Date(flight.lastCheckedAt).toLocaleString()}` : "Live status not checked"}</small>
+                      <button type="button" className="expense-edit" disabled={refreshingFlightId === flight.id} onClick={() => refreshFlightStatus(flight)}>{refreshingFlightId === flight.id ? "Checking…" : "Refresh status"}</button>
+                    </div>
+                  </article>)}</div>}
+              <p className="flight-operations-footnote">Same-day itinerary review is only a coarse signal; activity times, airport transfers and connection feasibility are not yet modelled. No flight is booked or changed by TravelOS.</p>
+            </section>
             <section className="weather-disruption-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 23 · TRAVEL OPERATIONS</p><h2>Weather disruption watch</h2><small>Forecast evidence for your scheduled activities</small></div>
