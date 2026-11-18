@@ -47,19 +47,25 @@ public static class ItineraryRecommendationEndpoints
         if (request.DayNumber is < 1 or > 31)
             return Results.ValidationProblem(new Dictionary<string, string[]>
             { ["dayNumber"] = ["Choose a valid itinerary day number."] });
+        if (request.TravellerCount is < 1 or > 30)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            { ["travellerCount"] = ["Traveller count must be between 1 and 30."] });
+        if (request.Focus is not ("all" or "weather" or "budget" or "group" or "schedule"))
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            { ["focus"] = ["Choose all, weather, budget, group or schedule."] });
         if (request.Question?.Trim().Length > 500)
             return Results.ValidationProblem(new Dictionary<string, string[]>
             { ["question"] = ["Question must be 500 characters or fewer."] });
 
-        var itinerary = await db.Itineraries.AsNoTracking()
+        var itineraryId = await db.Itineraries.AsNoTracking()
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.Version)
-            .Select(x => new { x.Id, x.Days })
+            .Select(x => (Guid?)x.Id)
             .FirstOrDefaultAsync(ct);
-        if (itinerary is null) return Results.Conflict(new { message = "Create an itinerary before requesting activity recommendations." });
+        if (!itineraryId.HasValue) return Results.Conflict(new { message = "Create an itinerary before requesting activity recommendations." });
 
         var day = await db.ItineraryDays.AsNoTracking()
-            .Where(x => x.ItineraryId == itinerary.Id && x.DayNumber == request.DayNumber)
+            .Where(x => x.ItineraryId == itineraryId.Value && x.DayNumber == request.DayNumber)
             .Select(x => new { x.Date, Activities = x.Activities.OrderBy(a => a.SortOrder)
                 .Select(a => a.Title).ToList() })
             .FirstOrDefaultAsync(ct);
