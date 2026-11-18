@@ -482,3 +482,33 @@
 .weather-skipped-list b{font-size:9px;color:#5b695d}
 .weather-skipped-list span{font-size:8px;line-height:1.5;color:#89938a}
 @media(max-width:680px){.weather-assessment-list{grid-template-columns:1fr}.weather-disruption-panel .section-heading{align-items:flex-start;flex-direction:column}.weather-scan-meta{flex-direction:column}}
+
+
+/* Stage 24 — flight operations */
+.flight-operations-panel{display:grid;gap:13px;margin:18px 0;padding:20px;border:1px solid #dfe8e1;border-radius:14px;background:linear-gradient(145deg,#fbfdfb,#f6faf8)}
+.flight-operations-panel .section-heading{align-items:center;gap:14px}
+.flight-operations-panel .section-heading h2{margin:3px 0;font-size:19px;color:#334a3b}
+.flight-operations-panel .section-heading small{font-size:9px;color:#839084}
+.flight-operations-intro,.flight-operations-footnote{margin:0;color:#7d897f;font-size:9px;line-height:1.65}
+.flight-add-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding:13px;border:1px solid #e3eae3;border-radius:10px;background:#fff}
+.flight-add-form label{display:grid;gap:5px;color:#68766a;font-size:9px}
+.flight-add-form input{width:100%;min-width:0;padding:9px 10px;border:1px solid #e0e7e0;border-radius:7px;background:#fff;color:#435345;font:inherit;font-size:10px}
+.flight-add-form input:focus{outline:2px solid #d5e5d7;border-color:#93b296}
+.flight-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.flight-card{display:grid;gap:11px;padding:14px;border:1px solid #e4eae5;border-radius:10px;background:#fff}
+.flight-card-top,.flight-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.flight-card-top>div{display:grid;gap:3px}
+.flight-card-top strong{font-size:12px;color:#405344}
+.flight-card-top small,.flight-card-footer small,.flight-provider-detail{font-size:8px;color:#89948b}
+.flight-status{padding:4px 8px;border-radius:20px;background:#edf2ed;color:#637565;font-size:8px;font-weight:700;text-transform:uppercase}
+.flight-status-delayed,.flight-status-diverted{background:#fff4df;color:#906d32}
+.flight-status-cancelled{background:#fff0ed;color:#a24e43}
+.flight-status-active,.flight-status-landed{background:#eaf4ee;color:#467353}
+.flight-route{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px}
+.flight-route>div{display:grid;gap:4px}
+.flight-route>div:last-child{text-align:right}
+.flight-route strong{font-size:20px;letter-spacing:.04em;color:#3d5544}
+.flight-route small{font-size:8px;line-height:1.45;color:#849087}
+.flight-route>span{color:#9aa69b}
+.flight-provider-detail{margin:0}
+@media(max-width:680px){.flight-list{grid-template-columns:1fr}.flight-add-form{grid-template-columns:1fr}.flight-operations-panel .section-heading{align-items:flex-start;flex-direction:column}}

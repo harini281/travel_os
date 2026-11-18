@@ -292,3 +292,24 @@ API:
 Weather data is provided by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0). Include attribution when redistributing weather data or screenshots.
 
 Apply `013_trip_weather_assessments.sql` after migration 012.
+
+
+## Stage 24 — Flight and journey disruption intelligence (initial release)
+
+Travellers can save flight numbers, IATA airport codes and scheduled departure/arrival timestamps to a trip. Saved details are available to all trip members. The initial release includes a server-side FlightAware AeroAPI v4 provider adapter and a manual refresh action.
+
+- Configure `FLIGHTAWARE_API_KEY` only in the platform API's server environment to enable live refresh. Never expose this key to the browser or commit it.
+- Without the key, flight details can still be saved and displayed; status remains `not_checked` and refresh explains that provider access is not configured.
+- Provider responses are normalized to scheduled, delayed, active, landed, cancelled, diverted or unknown.
+- A delayed/cancelled/diverted status returns a coarse same-day itinerary review signal for departure and arrival dates. Activity times and airport transfer durations are not yet modelled.
+- Refresh is user-triggered and rate-limited to four requests per user per minute. AeroAPI calls may incur usage charges; check your FlightAware plan and usage before enabling.
+- No tickets are purchased, no airline reservations are changed, and no itinerary activities are automatically moved or cancelled.
+
+API:
+- `GET /api/v1/trips/{tripId}/flights`
+- `POST /api/v1/trips/{tripId}/flights`
+- `POST /api/v1/trips/{tripId}/flights/{flightId}/refresh`
+
+Provider: [FlightAware AeroAPI](https://www.flightaware.com/commercial/aeroapi/). See its [API usage and pricing](https://www.flightaware.com/commercial/aeroapi/) before connecting a key.
+
+Apply `014_trip_flights.sql` after migration 013.
