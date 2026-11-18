@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -12,14 +11,13 @@ public static class WeatherDisruptionEndpoints
 {
     private const int MaximumActivitiesPerScan = 40;
     private const int MaximumUniqueLocationsPerScan = 12;
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public static IEndpointRouteBuilder MapWeatherDisruptionEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/trips/{tripId:guid}/weather-disruptions")
             .WithTags("Weather disruption intelligence")
             .RequireAuthorization();
-        group.MapPost("/scan", ScanAsync).WithName("ScanTripWeatherDisruptions");
+        group.MapPost("/scan", ScanAsync).RequireRateLimiting("weather-scan").WithName("ScanTripWeatherDisruptions");
         group.MapGet("/", ListAsync).WithName("ListTripWeatherAssessments");
         return endpoints;
     }
@@ -103,8 +101,6 @@ public static class WeatherDisruptionEndpoints
         var client = clients.CreateClient("weather-forecast");
         var fetchedAt = DateTimeOffset.UtcNow;
         var assessments = new List<TripWeatherAssessment>();
-        var assessedActivities = new HashSet<Guid>();
-        var forecastDaysAvailable = 0;
 
         foreach (var group in locationGroups)
         {
@@ -145,7 +141,6 @@ public static class WeatherDisruptionEndpoints
                 continue;
             }
 
-            forecastDaysAvailable = Math.Max(forecastDaysAvailable, forecast.Days.Count);
             var byDate = forecast.Days.GroupBy(x => x.Date).ToDictionary(x => x.Key, x => x.First());
             foreach (var activity in group)
             {
@@ -158,7 +153,6 @@ public static class WeatherDisruptionEndpoints
 
                 var assessment = Assess(tripId, activity, day, fetchedAt);
                 assessments.Add(assessment);
-                assessedActivities.Add(activity.Id);
             }
         }
 
@@ -206,9 +200,11 @@ public static class WeatherDisruptionEndpoints
             var dateText = dates[i].GetString();
             if (!DateOnly.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
                 continue;
+            var weatherCode = ReadInt(daily, "weather_code", i);
+            if (!weatherCode.HasValue) continue;
             days.Add(new ForecastDay(
                 date,
-                ReadInt(daily, "weather_code", i) ?? 0,
+                weatherCode.Value,
                 ReadDecimal(daily, "precipitation_probability_max", i),
                 ReadDecimal(daily, "precipitation_sum", i),
                 ReadDecimal(daily, "wind_speed_10m_max", i),
