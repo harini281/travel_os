@@ -55,6 +55,17 @@ jobs:
       - name: Build
         run: dotnet build services/platform-api/TravelOS.PlatformApi.csproj --no-restore --configuration Release
 
+  platform-api-tests:
+    name: Platform API unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Run platform API tests
+        run: dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
+
   database-migrations:
     name: PostgreSQL migration validation
     runs-on: ubuntu-latest
