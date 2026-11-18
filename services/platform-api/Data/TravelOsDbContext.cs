@@ -31,6 +31,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripBudgetAlertRead> TripBudgetAlertReads => Set<TripBudgetAlertRead>();
     public DbSet<TripWeatherAssessment> TripWeatherAssessments => Set<TripWeatherAssessment>();
     public DbSet<TripFlight> TripFlights => Set<TripFlight>();
+    public DbSet<TripNotification> TripNotifications => Set<TripNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
