@@ -12,6 +12,7 @@ type Trip = {
 type Activity = {
   id: string; title: string; description: string | null; placeName: string | null;
   latitude: number | null; longitude: number | null; durationMinutes: number | null;
+  startTime: string | null; endTime: string | null;
   estimatedCost: number | null; currencyCode: string | null; sortOrder: number;
 };
 type ItineraryDay = { id: string; dayNumber: number; date: string; activities: Activity[] };
@@ -1215,6 +1216,18 @@ export default function App() {
     );
   }
 
+  const scheduleConflicts = new Set<string>();
+  itinerary?.days.forEach(day => {
+    const timed = day.activities.filter(activity => activity.startTime && activity.endTime)
+      .slice().sort((left,right) => left.startTime!.localeCompare(right.startTime!));
+    for (let index=1; index<timed.length; index++) {
+      const previous=timed[index-1], current=timed[index];
+      if (previous.endTime! > current.startTime!) {
+        scheduleConflicts.add(previous.id); scheduleConflicts.add(current.id);
+      }
+    }
+  });
+
   const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved;
 
   return (
@@ -1760,9 +1773,10 @@ export default function App() {
                   <section className="day-list">{itinerary.days.map(day => <article className="day-card" key={day.id}>
                     <div className="day-date"><span>DAY {day.dayNumber.toString().padStart(2, "0")}</span><strong>{formatDate(day.date)}</strong></div>
                     <div className="day-content">
+                      {day.activities.some(activity => scheduleConflicts.has(activity.id)) && <p className="activity-schedule-warning">⚠ Scheduled activities overlap. Review their start and end times.</p>}
                       {day.activities.length === 0 ? <p className="no-activities">Nothing planned yet. Add your first activity.</p> :
                         <div className="activity-list">{day.activities.map(activity => <div className="activity-row" key={activity.id}>
-                          <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)}</span>}{activity.description && <p>{activity.description}</p>}</div>
+                          <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{scheduleConflicts.has(activity.id) && <span className="activity-overlap-tag">Time overlap</span>}{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)}</span>}{activity.description && <p>{activity.description}</p>}</div>
                           <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
                           {canEditItinerary && <button className="delete-link" onClick={() => deleteActivity(activity.id)}>Remove</button>}
                         </div>)}</div>}
