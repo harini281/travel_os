@@ -38,6 +38,19 @@ type TripFlight = {
   actualDepartureUtc:string|null; estimatedArrivalUtc:string|null; actualArrivalUtc:string|null;
   departureDelayMinutes:number|null; lastCheckedAt:string|null; createdAt:string; updatedAt:string;
 };
+type FlightConnection = {
+  inboundFlightId:string; journeyGroup:string; inboundFlightIdentifier:string;
+  inboundOriginAirportCode:string; inboundDestinationAirportCode:string;
+  inboundScheduledArrivalUtc:string; inboundEffectiveArrivalUtc:string; inboundStatus:string;
+  outboundFlightId:string; outboundFlightIdentifier:string; outboundOriginAirportCode:string;
+  outboundDestinationAirportCode:string; outboundScheduledDepartureUtc:string;
+  outboundEffectiveDepartureUtc:string; outboundStatus:string; gapMinutes:number;
+  sameAirport:boolean; riskLevel:string; heuristicBufferMinutes:number|null;
+  timeSource:string; explanation:string;
+};
+type FlightConnectionsResponse = {
+  tripId:string; assessedAt:string; connections:FlightConnection[]; disclaimer:string;
+};
 type FlightRefreshResponse = {
   flight:TripFlight; hasDisruptionSignal:boolean; departureDateActivityCount:number;
   arrivalDateActivityCount:number; itineraryImpactSummary:string;
@@ -165,6 +178,10 @@ export default function App() {
   const [weatherScannedAt, setWeatherScannedAt] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [tripFlights, setTripFlights] = useState<TripFlight[]>([]);
+  const [flightConnections, setFlightConnections] = useState<FlightConnection[]>([]);
+  const [connectionDisclaimer, setConnectionDisclaimer] = useState("");
+  const [loadingConnections, setLoadingConnections] = useState(false);
+  const [journeyGroup, setJourneyGroup] = useState("Outbound");
   const [loadingFlights, setLoadingFlights] = useState(false);
   const [refreshingFlightId, setRefreshingFlightId] = useState<string | null>(null);
   const [showAddFlight, setShowAddFlight] = useState(false);
@@ -294,6 +311,23 @@ export default function App() {
     } finally { setLoadingFlights(false); }
   }
 
+  async function loadFlightConnections(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingConnections(true);
+    try {
+      const data = await api<FlightConnectionsResponse>(`/api/v1/trips/${trip.id}/flights/connections`, accessToken);
+      setFlightConnections(data.connections);
+      setConnectionDisclaimer(data.disclaimer);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to assess flight connections.");
+    } finally { setLoadingConnections(false); }
+  }
+
+  async function refreshFlightConnections() {
+    if (!token || !selectedTrip) return;
+    await loadFlightConnections(selectedTrip);
+  }
+
   async function addTripFlight(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token || !selectedTrip) return;
@@ -303,12 +337,13 @@ export default function App() {
         method:"POST",
         body:JSON.stringify({
           flightIdentifier, originAirportCode:flightOrigin, destinationAirportCode:flightDestination,
-          scheduledDepartureUtc:new Date(flightDeparture).toISOString(),
+          journeyGroup, scheduledDepartureUtc:new Date(flightDeparture).toISOString(),
           scheduledArrivalUtc:new Date(flightArrival).toISOString()
         })
       });
       setTripFlights(items => [...items, created].sort((a,b) => a.scheduledDepartureUtc.localeCompare(b.scheduledDepartureUtc)));
       setFlightIdentifier(""); setFlightOrigin(""); setFlightDestination(""); setFlightDeparture(""); setFlightArrival("");
+      await loadFlightConnections(selectedTrip);
       setShowAddFlight(false); setNotice("Flight saved. Live status is not yet confirmed.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to save flight details.");
@@ -323,6 +358,7 @@ export default function App() {
         `/api/v1/trips/${selectedTrip.id}/flights/${flight.id}/refresh`, token, {method:"POST"}
       );
       setTripFlights(items => items.map(item => item.id === flight.id ? result.flight : item));
+      await loadFlightConnections(selectedTrip);
       setNotice(result.itineraryImpactSummary);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to refresh flight status.");
@@ -877,11 +913,11 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadTripFlights(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadTripFlights(trip), loadFlightConnections(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
   }
 
   function closeTrip() {
@@ -1255,6 +1291,7 @@ export default function App() {
               </div>
               <p className="flight-operations-intro">Save the flight number, airports and scheduled times in your local time zone. Live status refresh requires a server-side FlightAware AeroAPI key. Until connected, flights remain marked as not checked.</p>
               {showAddFlight && <form className="flight-add-form" onSubmit={addTripFlight}>
+                <label>Journey group<input value={journeyGroup} onChange={e => setJourneyGroup(e.target.value)} placeholder="Outbound / Return" maxLength={80} required /></label>
                 <label>Flight number<input value={flightIdentifier} onChange={e => setFlightIdentifier(e.target.value.toUpperCase())} placeholder="UL 503" maxLength={24} required /></label>
                 <label>From · IATA code<input value={flightOrigin} onChange={e => setFlightOrigin(e.target.value.toUpperCase())} placeholder="CMB" maxLength={3} minLength={3} required /></label>
                 <label>To · IATA code<input value={flightDestination} onChange={e => setFlightDestination(e.target.value.toUpperCase())} placeholder="LHR" maxLength={3} minLength={3} required /></label>
@@ -1282,6 +1319,29 @@ export default function App() {
                     </div>
                   </article>)}</div>}
               <p className="flight-operations-footnote">Same-day itinerary review is only a coarse signal; activity times, airport transfers and connection feasibility are not yet modelled. No flight is booked or changed by TravelOS.</p>
+            </section>
+            <section className="connection-intelligence-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 25 · CONNECTION INTELLIGENCE</p><h2>Airport & connection watch</h2><small>Schedule-based assessment of consecutive flight legs</small></div>
+                <button type="button" className="btn btn-secondary" onClick={refreshFlightConnections} disabled={loadingConnections || tripFlights.length < 2}>{loadingConnections ? "Assessing…" : "Reassess connections"}</button>
+              </div>
+              <p className="connection-intro">Flights are paired only when they share the same traveller-defined journey group. Separate Outbound and Return groups are not connected to each other.</p>
+              {loadingConnections ? <p className="budget-empty">Assessing saved flight legs…</p> : flightConnections.length === 0
+                ? <p className="budget-empty">No consecutive flight legs found in the same journey group. Add at least two flights to a group such as Outbound to assess a connection.</p>
+                : <div className="connection-list">{flightConnections.map(connection => <article className="connection-card" key={connection.inboundFlightId + connection.outboundFlightId}>
+                    <div className="connection-card-top">
+                      <div><span className="connection-group">{connection.journeyGroup}</span><strong>{connection.inboundFlightIdentifier} → {connection.outboundFlightIdentifier}</strong></div>
+                      <span className={`connection-risk risk-${connection.riskLevel}`}>{connection.riskLevel.replaceAll("_"," ")}</span>
+                    </div>
+                    <div className="connection-airports">
+                      <div><strong>{connection.inboundDestinationAirportCode}</strong><small>Arrive · {new Date(connection.inboundEffectiveArrivalUtc).toLocaleString()}</small></div>
+                      <div className="connection-gap"><strong>{connection.gapMinutes < 0 ? "Overlap" : `${Math.floor(connection.gapMinutes/60)}h ${connection.gapMinutes%60}m`}</strong><small>Connection gap</small></div>
+                      <div><strong>{connection.outboundOriginAirportCode}</strong><small>Depart · {new Date(connection.outboundEffectiveDepartureUtc).toLocaleString()}</small></div>
+                    </div>
+                    <p>{connection.explanation}</p>
+                    <small className="connection-source">{connection.sameAirport ? "Same airport code" : "Airport change"} · {connection.timeSource === "scheduled_only" ? "Scheduled times only" : "Includes provider estimate/actual time"}</small>
+                  </article>)}</div>}
+              <p className="connection-disclaimer">{connectionDisclaimer || "Heuristic estimates only. Check airline minimum connection times and airport rules."}</p>
             </section>
             <section className="weather-disruption-panel">
               <div className="section-heading">
