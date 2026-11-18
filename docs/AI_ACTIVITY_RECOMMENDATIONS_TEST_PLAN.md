@@ -92,3 +92,22 @@ The action is an explicit owner choice. It does not book a venue, verify provide
 10. Confirm existing Stage 39 recommendation generation and Stage 40 save behaviour still work.
 
 Slots use saved activity times plus the owner-entered planning window and buffer. They do not verify travel duration, traffic, venue opening hours, provider availability or live conditions. No changes are persisted by the suggestion endpoint.
+
+
+## Stage 42 — automated recommendation scheduling tests
+
+Run from the repository root:
+
+```bash
+dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
+```
+
+The xUnit suite validates:
+1. Candidate slots before, between and after existing timed activities.
+2. A planning window that cannot fit the requested duration.
+3. Existing overlaps, exact overlap minutes and conflict warnings.
+4. Missing activity times and their warning.
+5. Sorting unsorted activities before gap calculation.
+6. Invalid planning windows, durations below 15 or above 720 minutes, and buffers below 0 or above 240 minutes.
+
+The planner is a pure calculation component; this suite does not test HTTP authentication, database ownership checks, EF Core persistence or browser interaction. Those remain integration/manual verification tasks.
