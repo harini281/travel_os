@@ -665,3 +665,20 @@
 .itinerary-map-marker span{display:grid;place-items:center;width:28px;height:28px;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 8px #20322c55;color:#fff;font-size:11px;font-weight:800}
 .leaflet-popup-content-wrapper{border-radius:10px}
 .leaflet-popup-content{margin:12px 14px}
+
+/* Stage 36 — timezone and offline travel context */
+.travel-context-panel{display:grid;gap:12px;margin:18px 0 22px;padding:19px;border:1px solid #e3e9e3;border-radius:13px;background:#fff}
+.travel-context-panel .section-heading h2{margin:3px 0;font-size:18px;color:#354a3b}
+.travel-context-panel .section-heading small{font-size:9px;color:#839084}
+.travel-connectivity{padding:6px 9px;border-radius:20px;font-size:9px;font-weight:700;white-space:nowrap}
+.travel-connectivity.online{background:#eaf4ee;color:#467353}
+.travel-connectivity.offline{background:#fff0ed;color:#a24e43}
+.travel-context-grid{display:grid;grid-template-columns:minmax(220px,1fr) auto;align-items:end;gap:12px}
+.travel-context-grid label{display:grid;gap:6px;font-size:10px;font-weight:700;color:#647169}
+.travel-context-grid input{width:100%;min-height:38px;padding:8px 10px;border:1px solid #dce4dc;border-radius:8px;background:#fff;color:#405344;font:inherit}
+.travel-context-grid input[aria-invalid="true"]{border-color:#c66c5e;background:#fff8f6}
+.travel-context-actions{display:flex;gap:8px;flex-wrap:wrap}
+.travel-context-actions .btn{font-size:10px;padding:10px 12px}
+.travel-context-note,.travel-context-warning{margin:0;font-size:9px;line-height:1.6;color:#849187}
+.travel-context-warning{padding:9px 11px;border-radius:8px;background:#fff4df;color:#906d32}
+@media(max-width:680px){.travel-context-panel{padding:15px}.travel-context-panel .section-heading{align-items:flex-start}.travel-context-grid{grid-template-columns:1fr}.travel-context-actions{width:100%}.travel-context-actions .btn{flex:1}}
