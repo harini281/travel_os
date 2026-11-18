@@ -169,6 +169,27 @@ function formatFlightTime(value: string, timeZone: string) {
   try { return new Intl.DateTimeFormat(undefined, { timeZone, dateStyle: "medium", timeStyle: "short", timeZoneName: "short" }).format(new Date(value)); }
   catch { return new Date(value).toLocaleString(); }
 }
+function dateKeyInTimeZone(value: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en", { timeZone, year:"numeric", month:"2-digit", day:"2-digit" }).formatToParts(value);
+  const part = (type:string) => parts.find(item=>item.type===type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+function zonedLocalDateTimeToUtc(date:string, time:string, timeZone:string) {
+  const [year,month,day] = date.split("-").map(Number);
+  const [hour,minute,second=0] = time.split(":").map(Number);
+  const target = Date.UTC(year,month-1,day,hour,minute,second);
+  let guess = target;
+  const formatter = new Intl.DateTimeFormat("en", { timeZone, year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hourCycle:"h23" });
+  for (let attempt=0; attempt<4; attempt++) {
+    const parts = formatter.formatToParts(new Date(guess));
+    const part = (type:string) => Number(parts.find(item=>item.type===type)?.value ?? 0);
+    const represented = Date.UTC(part("year"),part("month")-1,part("day"),part("hour"),part("minute"),part("second"));
+    const adjustment = target-represented;
+    if (adjustment===0) break;
+    guess += adjustment;
+  }
+  return guess;
+}
 function isValidTimeZone(value: string) {
   try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
 }
@@ -1483,17 +1504,17 @@ export default function App() {
       const departure = flight.actualDepartureUtc ?? flight.estimatedDepartureUtc ?? flight.scheduledDepartureUtc;
       const arrival = flight.actualArrivalUtc ?? flight.estimatedArrivalUtc ?? flight.scheduledArrivalUtc;
       const dep = new Date(departure), arr = new Date(arrival);
-      return { id:flight.id, kind:"flight" as const, sortAt:dep.getTime(), dateKey:dep.toLocaleDateString(),
+      return { id:flight.id, kind:"flight" as const, sortAt:dep.getTime(), dateKey:dateKeyInTimeZone(dep, displayTimeZone),
         title:`${flight.flightIdentifier} · ${flight.originAirportCode} → ${flight.destinationAirportCode}`,
-        subtitle:`${flight.journeyGroup} · Arrives ${arr.toLocaleString()}`,
-        timeLabel:`Departs ${dep.toLocaleString()}`, status:flight.status.replaceAll("_"," ") };
+        subtitle:`${flight.journeyGroup} · Arrives ${formatFlightTime(arrival, displayTimeZone)}`,
+        timeLabel:`Departs ${formatFlightTime(departure, displayTimeZone)}`, status:flight.status.replaceAll("_"," ") };
     }),
     ...(itinerary?.days.flatMap(day => day.activities.map(activity => ({
       id:activity.id, kind:"activity" as const,
-      sortAt:new Date(day.date + "T" + (activity.startTime ?? "12:00:00")).getTime(),
-      dateKey:new Date(day.date + "T12:00:00").toLocaleDateString(),
+      sortAt:zonedLocalDateTimeToUtc(day.date, activity.startTime ?? "12:00:00", displayTimeZone),
+      dateKey:day.date,
       title:activity.title, subtitle:activity.placeName ?? "Location not specified",
-      timeLabel:activity.startTime && activity.endTime ? `${formatDate(day.date)} · ${activity.startTime.slice(0,5)}–${activity.endTime.slice(0,5)}` : `Day ${day.dayNumber} · ${formatDate(day.date)} · Time not specified`,
+      timeLabel:activity.startTime && activity.endTime ? `${formatDate(day.date)} · ${activity.startTime.slice(0,5)}–${activity.endTime.slice(0,5)} (${displayTimeZone})` : `Day ${day.dayNumber} · ${formatDate(day.date)} · Time not specified`,
       status:"planned"
     }))) ?? [])
   ].sort((left,right)=>left.sortAt-right.sortAt);
@@ -1603,7 +1624,7 @@ export default function App() {
                 </div>
               </div>
               {!isValidTimeZone(displayTimeZone) && <p className="travel-context-warning">Enter a valid IANA timezone, such as Asia/Colombo or Europe/London.</p>}
-              <p className="travel-context-note">Flight timestamps are stored in UTC and displayed in the selected timezone. Activity start/end times are local clock values and are not converted because the itinerary currently has no per-day timezone field.</p>
+              <p className="travel-context-note">Flight timestamps are stored in UTC and displayed in the selected timezone. Activity start/end values are interpreted in the selected trip timezone for the combined timeline; the selected timezone is a browser-side trip setting and is not written to the server.</p>
               <p className="travel-context-note">Offline copies are stored in this browser on this device, without application-level encryption. Avoid saving sensitive trip details on shared devices and remove the copy when finished.</p>
               {offlineCachedAt && <p className="travel-context-note">{isOfflineSnapshot?"Viewing cached snapshot":"Offline copy saved"} · {new Date(offlineCachedAt).toLocaleString()}</p>}
               {isOfflineSnapshot && <p className="travel-context-warning">Read-only offline snapshot. Reconnect to refresh live data or make changes.</p>}
@@ -1769,8 +1790,8 @@ export default function App() {
                   <div><strong>{transferEstimate.pickupBufferMinutes} min</strong><small>Added buffer</small></div>
                   <div><strong>{transferEstimate.totalPlanningMinutes} min</strong><small>Planning allowance</small></div>
                 </div>
-                {transferEstimate.recommendedDepartureUtc && <p>Planning departure: <strong>{new Date(transferEstimate.recommendedDepartureUtc).toLocaleString()}</strong> (based on the supplied flight arrival and buffer)</p>}
-                <small className="connection-source">Route provider: {transferEstimate.provider} · Estimated {new Date(transferEstimate.estimatedAt).toLocaleString()}</small>
+                {transferEstimate.recommendedDepartureUtc && <p>Planning departure: <strong>{formatFlightTime(transferEstimate.recommendedDepartureUtc, displayTimeZone)}</strong> (based on the supplied flight arrival and buffer)</p>}
+                <small className="connection-source">Route provider: {transferEstimate.provider} · Estimated {formatFlightTime(transferEstimate.estimatedAt, displayTimeZone)}</small>
                 <p className="ground-transfer-disclaimer">{transferEstimate.disclaimer}</p>
               </article>}
             </section>
@@ -1788,9 +1809,9 @@ export default function App() {
                       <span className={`connection-risk risk-${connection.riskLevel}`}>{connection.riskLevel.replaceAll("_"," ")}</span>
                     </div>
                     <div className="connection-airports">
-                      <div><strong>{connection.inboundDestinationAirportCode}</strong><small>Arrive · {new Date(connection.inboundEffectiveArrivalUtc).toLocaleString()}</small></div>
+                      <div><strong>{connection.inboundDestinationAirportCode}</strong><small>Arrive · {formatFlightTime(connection.inboundEffectiveArrivalUtc, displayTimeZone)}</small></div>
                       <div className="connection-gap"><strong>{connection.gapMinutes < 0 ? "Overlap" : `${Math.floor(connection.gapMinutes/60)}h ${connection.gapMinutes%60}m`}</strong><small>Connection gap</small></div>
-                      <div><strong>{connection.outboundOriginAirportCode}</strong><small>Depart · {new Date(connection.outboundEffectiveDepartureUtc).toLocaleString()}</small></div>
+                      <div><strong>{connection.outboundOriginAirportCode}</strong><small>Depart · {formatFlightTime(connection.outboundEffectiveDepartureUtc, displayTimeZone)}</small></div>
                     </div>
                     <p>{connection.explanation}</p>
                     <small className="connection-source">{connection.sameAirport ? "Same airport code" : "Airport change"} · {connection.timeSource === "scheduled_only" ? "Scheduled times only" : "Includes provider estimate/actual time"}</small>
