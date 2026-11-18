@@ -216,6 +216,14 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [notifications, setNotifications] = useState<TripNotification[]>([]);
+  const [notificationUnreadCount, setNotificationUnreadCount] = useState(0);
+  const [showNotificationInbox, setShowNotificationInbox] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [reminderTitle, setReminderTitle] = useState("");
+  const [reminderMessage, setReminderMessage] = useState("");
+  const [reminderAt, setReminderAt] = useState("");
+  const [savingReminder, setSavingReminder] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
@@ -1771,7 +1779,7 @@ export default function App() {
               </div>
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
-            <ItineraryMap days={itinerary.days} />
+            {itinerary && <ItineraryMap days={itinerary.days} />}
             <section className="opening-hours-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 34 · ATTRACTION INTELLIGENCE</p><h2>Check attraction opening hours</h2><small>Compare scheduled visits with published weekly opening times</small></div>
