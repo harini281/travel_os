@@ -660,3 +660,8 @@
 .itinerary-map-popup-link{font-size:10px;color:#39745d;text-decoration:none;font-weight:700}
 .itinerary-map-popup-link:hover{text-decoration:underline}
 @media(max-width:680px){.itinerary-map-panel{padding:16px}.itinerary-map-panel .section-heading{align-items:flex-start;flex-direction:column}.itinerary-map-canvas{height:340px}}
+
+.itinerary-map-marker{display:grid;place-items:center;background:transparent;border:0}
+.itinerary-map-marker span{display:grid;place-items:center;width:28px;height:28px;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 8px #20322c55;color:#fff;font-size:11px;font-weight:800}
+.leaflet-popup-content-wrapper{border-radius:10px}
+.leaflet-popup-content{margin:12px 14px}
