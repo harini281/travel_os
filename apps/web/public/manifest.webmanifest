@@ -1,0 +1,11 @@
+{
+  "name": "TravelOS — Intelligent Travel Planner",
+  "short_name": "TravelOS",
+  "description": "Plan and explore your trips with TravelOS.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f3",
+  "theme_color": "#20322c",
+  "icons": []
+}
