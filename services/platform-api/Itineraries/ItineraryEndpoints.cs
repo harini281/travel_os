@@ -76,7 +76,7 @@ public static class ItineraryEndpoints
             var overlapCount = 0;
             for (var left = 0; left < timed.Length; left++)
                 for (var right = left + 1; right < timed.Length; right++)
-                    if (timed[left].EndTime > timed[right].StartTime) overlapCount++;
+                    if (timed[left].EndTime!.Value > timed[right].StartTime!.Value) overlapCount++;
             return new {
                 dayId = day.Id, dayNumber = day.DayNumber, date = day.Date,
                 activityCount = activities.Length, timedActivityCount = timed.Length,
