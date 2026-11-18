@@ -57,7 +57,8 @@ type GroundTransferEstimate = {
 };
 type JourneyTimelineItem = { id:string; kind:"flight"|"activity"; sortAt:number; dateKey:string; title:string; subtitle:string; timeLabel:string; status:string; };
 type ScheduleTransition = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; status:"overlap"|"short_gap"|"buffer_met"; recommendation:string; };
-type ScheduleDayAnalysis = { dayId:string; dayNumber:number; date:string; activityCount:number; timedActivityCount:number; unscheduledActivityCount:number; overlapCount:number; shortGapCount:number; transitions:ScheduleTransition[]; };
+type ScheduleSuggestion = { activityId:string; activityTitle:string; originalStartTime:string; originalEndTime:string; suggestedStartTime:string|null; suggestedEndTime:string|null; shiftMinutes:number|null; status:"suggested"|"cannot_fit"; reason:string; };
+type ScheduleDayAnalysis = { dayId:string; dayNumber:number; date:string; activityCount:number; timedActivityCount:number; unscheduledActivityCount:number; overlapCount:number; shortGapCount:number; transitions:ScheduleTransition[]; suggestions:ScheduleSuggestion[]; };
 type ScheduleAnalysis = { tripId:string; minimumGapMinutes:number; days:ScheduleDayAnalysis[]; disclaimer:string; };
 type FlightConnectionsResponse = {
   tripId:string; assessedAt:string; connections:FlightConnection[]; disclaimer:string;
@@ -1435,6 +1436,15 @@ export default function App() {
                       <span className={"schedule-transition-status "+item.status}>{item.status.replace("_"," ")}</span>
                       <p>{item.recommendation}</p>
                     </div>)}
+                    {day.suggestions.length>0 && <div className="schedule-suggestions">
+                      <strong>Suggested time adjustments</strong>
+                      <p className="schedule-analysis-note">Proposals only — your saved itinerary has not been changed.</p>
+                      {day.suggestions.map(item=><div className="schedule-suggestion" key={item.activityId}>
+                        <div><strong>{item.activityTitle}</strong><small>{item.originalStartTime}–{item.originalEndTime}</small></div>
+                        {item.status==="suggested" ? <span className="schedule-transition-status buffer_met">{item.suggestedStartTime}–{item.suggestedEndTime} · +{item.shiftMinutes} min</span> : <span className="schedule-transition-status overlap">Needs manual review</span>}
+                        <p>{item.reason}</p>
+                      </div>)}
+                    </div>}
                     {day.timedActivityCount<2 && <p className="schedule-analysis-note">Add times to at least two activities to analyse the break between them.</p>}
                   </article>)}
               </div>
