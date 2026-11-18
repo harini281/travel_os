@@ -48,6 +48,12 @@ type FlightConnection = {
   sameAirport:boolean; riskLevel:string; heuristicBufferMinutes:number|null;
   timeSource:string; explanation:string;
 };
+type GroundTransferEstimate = {
+  airportIataCode:string; airportName:string; airportLatitude:number; airportLongitude:number;
+  destination:string; destinationLatitude:number; destinationLongitude:number; travelMode:string;
+  distanceKm:number; roadDurationMinutes:number; pickupBufferMinutes:number; totalPlanningMinutes:number;
+  arrivalUtc:string|null; recommendedDepartureUtc:string|null; provider:string; estimatedAt:string; disclaimer:string;
+};
 type FlightConnectionsResponse = {
   tripId:string; assessedAt:string; connections:FlightConnection[]; disclaimer:string;
 };
@@ -178,6 +184,13 @@ export default function App() {
   const [weatherScannedAt, setWeatherScannedAt] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [tripFlights, setTripFlights] = useState<TripFlight[]>([]);
+  const [transferAirport, setTransferAirport] = useState("CMB");
+  const [transferDestination, setTransferDestination] = useState("");
+  const [transferMode, setTransferMode] = useState("driving");
+  const [transferBuffer, setTransferBuffer] = useState("30");
+  const [transferArrival, setTransferArrival] = useState("");
+  const [transferEstimate, setTransferEstimate] = useState<GroundTransferEstimate | null>(null);
+  const [estimatingTransfer, setEstimatingTransfer] = useState(false);
   const [flightConnections, setFlightConnections] = useState<FlightConnection[]>([]);
   const [connectionDisclaimer, setConnectionDisclaimer] = useState("");
   const [loadingConnections, setLoadingConnections] = useState(false);
@@ -363,6 +376,26 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to refresh flight status.");
     } finally { setRefreshingFlightId(null); }
+  }
+
+  async function estimateGroundTransfer(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setEstimatingTransfer(true); setError(""); setTransferEstimate(null);
+    try {
+      const result = await api<GroundTransferEstimate>(
+        `/api/v1/trips/${selectedTrip.id}/ground-transfers/estimate`, token, {
+          method:"POST", body:JSON.stringify({
+            airportIataCode:transferAirport, destination:transferDestination, travelMode:transferMode,
+            pickupBufferMinutes:Number(transferBuffer), arrivalUtc:transferArrival ? new Date(transferArrival).toISOString() : null
+          })
+        }
+      );
+      setTransferEstimate(result);
+      setNotice("Route estimate ready. No transfer has been booked.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to estimate the airport transfer.");
+    } finally { setEstimatingTransfer(false); }
   }
 
   async function loadWeatherAssessments(trip: Trip, accessToken = token) {
@@ -1319,6 +1352,32 @@ export default function App() {
                     </div>
                   </article>)}</div>}
               <p className="flight-operations-footnote">Same-day itinerary review is only a coarse signal; activity times, airport transfers and connection feasibility are not yet modelled. No flight is booked or changed by TravelOS.</p>
+            </section>
+            <section className="ground-transfer-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 26 · AIRPORT GROUND TRANSFERS</p><h2>Plan the airport journey</h2><small>Estimate the road leg from an airport to your destination</small></div>
+              </div>
+              <p className="flight-operations-intro">Enter an airport IATA code and destination. TravelOS resolves both places and requests a route estimate; check the returned airport name before relying on it.</p>
+              <form className="ground-transfer-form" onSubmit={estimateGroundTransfer}>
+                <label>Airport IATA code<input value={transferAirport} onChange={e => setTransferAirport(e.target.value.toUpperCase())} maxLength={3} minLength={3} placeholder="CMB" required /></label>
+                <label>Destination address or place<input value={transferDestination} onChange={e => setTransferDestination(e.target.value)} minLength={4} maxLength={240} placeholder="Galle Face, Colombo" required /></label>
+                <label>Travel mode<select value={transferMode} onChange={e => setTransferMode(e.target.value)}><option value="driving">Driving</option><option value="cycling">Cycling</option></select></label>
+                <label>Extra pickup buffer · minutes<input type="number" min="0" max="240" value={transferBuffer} onChange={e => setTransferBuffer(e.target.value)} required /></label>
+                <label>Flight arrival · optional<input type="datetime-local" value={transferArrival} onChange={e => setTransferArrival(e.target.value)} /></label>
+                <button className="btn btn-primary" disabled={estimatingTransfer || !transferDestination.trim()}>{estimatingTransfer ? "Estimating route…" : "Estimate ground transfer"}</button>
+              </form>
+              {transferEstimate && <article className="ground-transfer-result">
+                <div className="ground-transfer-result-head"><div><span className="connection-group">ROUTE ESTIMATE</span><h3>{transferEstimate.airportIataCode} · {transferEstimate.airportName.split(",")[0]}</h3></div><strong>{transferEstimate.distanceKm.toFixed(1)} km</strong></div>
+                <p>To <strong>{transferEstimate.destination}</strong></p>
+                <div className="ground-transfer-metrics">
+                  <div><strong>{transferEstimate.roadDurationMinutes} min</strong><small>Estimated road time</small></div>
+                  <div><strong>{transferEstimate.pickupBufferMinutes} min</strong><small>Added buffer</small></div>
+                  <div><strong>{transferEstimate.totalPlanningMinutes} min</strong><small>Planning allowance</small></div>
+                </div>
+                {transferEstimate.recommendedDepartureUtc && <p>Planning departure: <strong>{new Date(transferEstimate.recommendedDepartureUtc).toLocaleString()}</strong> (based on the supplied flight arrival and buffer)</p>}
+                <small className="connection-source">Route provider: {transferEstimate.provider} · Estimated {new Date(transferEstimate.estimatedAt).toLocaleString()}</small>
+                <p className="ground-transfer-disclaimer">{transferEstimate.disclaimer}</p>
+              </article>}
             </section>
             <section className="connection-intelligence-panel">
               <div className="section-heading">
