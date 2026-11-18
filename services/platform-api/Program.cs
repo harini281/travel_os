@@ -20,6 +20,7 @@ using TravelOS.PlatformApi.Receipts;
 using TravelOS.PlatformApi.ExpenseIntelligence;
 using TravelOS.PlatformApi.Currency;
 using TravelOS.PlatformApi.BudgetIntelligence;
+using TravelOS.PlatformApi.BudgetAlerts;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -156,6 +157,7 @@ app.MapReceiptEndpoints();
 app.MapExpenseIntelligenceEndpoints();
 app.MapCurrencyEndpoints();
 app.MapBudgetIntelligenceEndpoints();
+app.MapBudgetAlertEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
