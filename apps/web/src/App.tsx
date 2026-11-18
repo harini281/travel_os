@@ -1237,7 +1237,11 @@ export default function App() {
       timeLabel:`Day ${day.dayNumber} · ${formatDate(day.date)} · Time not specified`, status:"planned"
     }))) ?? [])
   ].sort((left,right) => left.sortAt - right.sortAt);
-  const flightActivityDateKeys = new Set(journeyTimeline.filter(item => item.kind === "flight").map(item => item.dateKey));
+  const flightActivityDateKeys = new Set(tripFlights.flatMap(flight => {
+    const departure = new Date(flight.actualDepartureUtc ?? flight.estimatedDepartureUtc ?? flight.scheduledDepartureUtc);
+    const arrival = new Date(flight.actualArrivalUtc ?? flight.estimatedArrivalUtc ?? flight.scheduledArrivalUtc);
+    return [departure.toLocaleDateString(), arrival.toLocaleDateString()];
+  }));
   const sameDayActivityCount = journeyTimeline.filter(item => item.kind === "activity" && flightActivityDateKeys.has(item.dateKey)).length;
 
   const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved;
