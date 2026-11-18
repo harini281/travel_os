@@ -349,6 +349,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
         {
             entity.HasKey(x => x.Id);
             entity.Property(x => x.FlightIdentifier).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.JourneyGroup).HasMaxLength(80).IsRequired();
             entity.Property(x => x.OriginAirportCode).HasMaxLength(3).IsRequired();
             entity.Property(x => x.DestinationAirportCode).HasMaxLength(3).IsRequired();
             entity.Property(x => x.Status).HasMaxLength(24).IsRequired();
