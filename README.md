@@ -327,3 +327,8 @@ Flights can be assigned to a traveller-defined journey group such as `Outbound` 
 - Terminal, immigration, baggage reclaim, visa, boarding cutoff, ground transport, separate tickets and protected-connection status are not known by this assessment.
 - No airline minimum connection time, guarantee or live operational alert is implied.
 - Migration `015_flight_journey_groups.sql` adds the journey grouping field.
+
+
+## Stage 28 — Smart activity scheduling
+
+Itinerary activities can now carry optional local start and end times. Existing activities remain unscheduled and retain their dates. The API validates that both times are supplied together and that the end is later than the start on the same local day. The activity editor captures and displays these times. The stored times are local itinerary wall-clock times; no timezone conversion or automatic travel-time estimate is implied.
