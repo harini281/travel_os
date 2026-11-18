@@ -12,6 +12,7 @@ type Trip = {
 type Activity = {
   id: string; title: string; description: string | null; placeName: string | null;
   latitude: number | null; longitude: number | null; durationMinutes: number | null;
+  startTime: string | null; endTime: string | null;
   estimatedCost: number | null; currencyCode: string | null; sortOrder: number;
 };
 type ItineraryDay = { id: string; dayNumber: number; date: string; activities: Activity[] };
@@ -54,6 +55,7 @@ type GroundTransferEstimate = {
   distanceKm:number; roadDurationMinutes:number; pickupBufferMinutes:number; totalPlanningMinutes:number;
   arrivalUtc:string|null; recommendedDepartureUtc:string|null; provider:string; estimatedAt:string; disclaimer:string;
 };
+type JourneyTimelineItem = { id:string; kind:"flight"|"activity"; sortAt:number; dateKey:string; title:string; subtitle:string; timeLabel:string; status:string; };
 type FlightConnectionsResponse = {
   tripId:string; assessedAt:string; connections:FlightConnection[]; disclaimer:string;
 };
@@ -206,10 +208,13 @@ export default function App() {
   const [showAddDay, setShowAddDay] = useState(false);
   const [newDayDate, setNewDayDate] = useState("");
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [activityTitle, setActivityTitle] = useState("");
   const [activityPlace, setActivityPlace] = useState("");
   const [activityDescription, setActivityDescription] = useState("");
   const [activityDuration, setActivityDuration] = useState("");
+  const [activityStartTime, setActivityStartTime] = useState("");
+  const [activityEndTime, setActivityEndTime] = useState("");
   const [activityCost, setActivityCost] = useState("");
   const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);
   const [travellerCount, setTravellerCount] = useState(1);
@@ -1047,15 +1052,51 @@ export default function App() {
           title: activityTitle, description: activityDescription || null,
           placeName: activityPlace || null, latitude: null, longitude: null,
           durationMinutes: activityDuration ? Number(activityDuration) : null,
+          startTime: activityStartTime ? activityStartTime + ":00" : null,
+          endTime: activityEndTime ? activityEndTime + ":00" : null,
           estimatedCost: activityCost ? Number(activityCost) : null,
           currencyCode: activityCost ? selectedTrip.currencyCode : null, sortOrder: 0,
         }) },
       );
       await loadItinerary(selectedTrip);
       setActivityTitle(""); setActivityPlace(""); setActivityDescription("");
-      setActivityDuration(""); setActivityCost(""); setActiveDayId(null);
+      setActivityDuration(""); setActivityStartTime(""); setActivityEndTime(""); setActivityCost(""); setActiveDayId(null);
       setNotice("Activity added.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to add activity."); }
+    finally { setBusy(false); }
+  }
+
+  function beginEditActivity(activity: Activity) {
+    setEditingActivityId(activity.id);
+    setActivityTitle(activity.title); setActivityPlace(activity.placeName ?? "");
+    setActivityDescription(activity.description ?? "");
+    setActivityDuration(activity.durationMinutes?.toString() ?? "");
+    setActivityStartTime(activity.startTime?.slice(0,5) ?? "");
+    setActivityEndTime(activity.endTime?.slice(0,5) ?? "");
+    setActivityCost(activity.estimatedCost?.toString() ?? "");
+  }
+
+  async function updateActivity(event: FormEvent<HTMLFormElement>, activityId: string) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api<Activity>(`/api/v1/trips/${selectedTrip.id}/itinerary/activities/${activityId}`, token, {
+        method:"PUT", body:JSON.stringify({
+          title:activityTitle, description:activityDescription || null,
+          placeName:activityPlace || null, latitude:null, longitude:null,
+          durationMinutes:activityDuration ? Number(activityDuration) : null,
+          startTime:activityStartTime ? activityStartTime + ":00" : null,
+          endTime:activityEndTime ? activityEndTime + ":00" : null,
+          estimatedCost:activityCost ? Number(activityCost) : null,
+          currencyCode:activityCost ? selectedTrip.currencyCode : null, sortOrder:0
+        })
+      });
+      await loadItinerary(selectedTrip);
+      setEditingActivityId(null); setActivityTitle(""); setActivityPlace("");
+      setActivityDescription(""); setActivityDuration(""); setActivityStartTime("");
+      setActivityEndTime(""); setActivityCost(""); setNotice("Activity updated.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to update activity."); }
     finally { setBusy(false); }
   }
 
@@ -1245,6 +1286,38 @@ export default function App() {
     );
   }
 
+  const journeyTimeline:JourneyTimelineItem[] = [
+    ...tripFlights.map(flight => {
+      const departure = flight.actualDepartureUtc ?? flight.estimatedDepartureUtc ?? flight.scheduledDepartureUtc;
+      const arrival = flight.actualArrivalUtc ?? flight.estimatedArrivalUtc ?? flight.scheduledArrivalUtc;
+      const dep = new Date(departure), arr = new Date(arrival);
+      return { id:flight.id, kind:"flight" as const, sortAt:dep.getTime(), dateKey:dep.toLocaleDateString(),
+        title:`${flight.flightIdentifier} · ${flight.originAirportCode} → ${flight.destinationAirportCode}`,
+        subtitle:`${flight.journeyGroup} · Arrives ${arr.toLocaleString()}`,
+        timeLabel:`Departs ${dep.toLocaleString()}`, status:flight.status.replaceAll("_"," ") };
+    }),
+    ...(itinerary?.days.flatMap(day => day.activities.map(activity => ({
+      id:activity.id, kind:"activity" as const,
+      sortAt:new Date(day.date + "T" + (activity.startTime ?? "12:00:00")).getTime(),
+      dateKey:new Date(day.date + "T12:00:00").toLocaleDateString(),
+      title:activity.title, subtitle:activity.placeName ?? "Location not specified",
+      timeLabel:activity.startTime && activity.endTime ? `${formatDate(day.date)} · ${activity.startTime.slice(0,5)}–${activity.endTime.slice(0,5)}` : `Day ${day.dayNumber} · ${formatDate(day.date)} · Time not specified`,
+      status:"planned"
+    }))) ?? [])
+  ].sort((left,right)=>left.sortAt-right.sortAt);
+  const flightActivityDateKeys = new Set(tripFlights.flatMap(flight => {
+    const dep=new Date(flight.actualDepartureUtc ?? flight.estimatedDepartureUtc ?? flight.scheduledDepartureUtc);
+    const arr=new Date(flight.actualArrivalUtc ?? flight.estimatedArrivalUtc ?? flight.scheduledArrivalUtc);
+    return [dep.toLocaleDateString(),arr.toLocaleDateString()];
+  }));
+  const sameDayActivityCount = journeyTimeline.filter(item=>item.kind==="activity" && flightActivityDateKeys.has(item.dateKey)).length;
+  const scheduleConflicts = new Set<string>();
+  itinerary?.days.forEach(day => {
+    const timed=day.activities.filter(activity=>activity.startTime && activity.endTime);
+    for(let left=0;left<timed.length;left++) for(let right=left+1;right<timed.length;right++)
+      if(timed[left].endTime!>timed[right].startTime!) { scheduleConflicts.add(timed[left].id); scheduleConflicts.add(timed[right].id); }
+  });
+
   const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved;
 
   return (
@@ -1317,6 +1390,16 @@ export default function App() {
 
 
 
+            <section className="journey-timeline-panel">
+              <div className="section-heading"><div><p className="eyebrow">STAGE 27 · JOURNEY OVERVIEW</p><h2>Smart travel timeline</h2><small>Flights and planned activities in chronological order</small></div><span className="timeline-count">{journeyTimeline.length} items</span></div>
+              <p className="timeline-intro">Flight times use actual, then estimated, then scheduled provider times. Activity times are local itinerary times; unscheduled activities are date-only.</p>
+              {sameDayActivityCount>0 && <div className="timeline-review-note">⚠ {sameDayActivityCount} planned activities share a calendar date with a flight. Review manually; this is not a confirmed timing conflict.</div>}
+              {journeyTimeline.length===0 ? <p className="budget-empty">Add flights or itinerary activities to build your journey timeline.</p> :
+                <div className="journey-timeline-list">{journeyTimeline.map(item=><article className="journey-timeline-item" key={item.kind+item.id}>
+                  <span className={`journey-timeline-marker ${item.kind}`}>{item.kind==="flight"?"✈":"◆"}</span>
+                  <div className="journey-timeline-content"><div className="journey-timeline-heading"><strong>{item.title}</strong><span>{item.status}</span></div><p>{item.timeLabel}</p><small>{item.subtitle}</small></div>
+                </article>)}</div>}
+            </section>
             <section className="flight-operations-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 24 · JOURNEY OPERATIONS</p><h2>Flight tracking</h2><small>Keep flight details alongside your trip itinerary</small></div>
@@ -1816,12 +1899,24 @@ export default function App() {
                   <section className="day-list">{itinerary.days.map(day => <article className="day-card" key={day.id}>
                     <div className="day-date"><span>DAY {day.dayNumber.toString().padStart(2, "0")}</span><strong>{formatDate(day.date)}</strong></div>
                     <div className="day-content">
+                      {day.activities.some(activity => scheduleConflicts.has(activity.id)) && <p className="activity-schedule-warning">⚠ Scheduled activities overlap. Review their start and end times.</p>}
                       {day.activities.length === 0 ? <p className="no-activities">Nothing planned yet. Add your first activity.</p> :
-                        <div className="activity-list">{day.activities.map(activity => <div className="activity-row" key={activity.id}>
-                          <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{activity.placeName && <span>{activity.placeName}</span>}{activity.description && <p>{activity.description}</p>}</div>
-                          <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
-                          {canEditItinerary && <button className="delete-link" onClick={() => deleteActivity(activity.id)}>Remove</button>}
-                        </div>)}</div>}
+                        <div className="activity-list">{day.activities.map(activity => editingActivityId === activity.id && canEditItinerary ?
+                          <form className="activity-form activity-edit-form" key={activity.id} onSubmit={event => updateActivity(event,activity.id)}>
+                            <label>Activity name<input value={activityTitle} onChange={e=>setActivityTitle(e.target.value)} maxLength={180} required /></label>
+                            <label>Place<input value={activityPlace} onChange={e=>setActivityPlace(e.target.value)} maxLength={200} /></label>
+                            <label className="wide-field">Notes<textarea value={activityDescription} onChange={e=>setActivityDescription(e.target.value)} maxLength={2000} rows={2}/></label>
+                            <label>Start time<input type="time" value={activityStartTime} onChange={e=>setActivityStartTime(e.target.value)}/></label>
+                            <label>End time<input type="time" value={activityEndTime} onChange={e=>setActivityEndTime(e.target.value)}/></label>
+                            <label>Duration (minutes)<input type="number" min="1" value={activityDuration} onChange={e=>setActivityDuration(e.target.value)}/></label>
+                            <label>Estimated cost ({selectedTrip.currencyCode})<input type="number" min="0" step="0.01" value={activityCost} onChange={e=>setActivityCost(e.target.value)}/></label>
+                            <div className="form-actions wide-field"><button type="button" className="btn btn-quiet" onClick={()=>setEditingActivityId(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy?"Saving…":"Save changes"}</button></div>
+                          </form> :
+                          <div className="activity-row" key={activity.id}>
+                            <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)}</span>}{activity.description && <p>{activity.description}</p>}</div>
+                            <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
+                            {canEditItinerary && <><button className="delete-link" onClick={()=>beginEditActivity(activity)}>Edit</button><button className="delete-link" onClick={()=>deleteActivity(activity.id)}>Remove</button></>}
+                          </div>)}</div>}
                       {canEditItinerary && (activeDayId === day.id ?
                         <form className="activity-form" onSubmit={event => addActivity(event, day.id)}>
                           <label>Activity name<input value={activityTitle} onChange={e => setActivityTitle(e.target.value)} placeholder="e.g. Explore the old town" maxLength={180} required /></label>
