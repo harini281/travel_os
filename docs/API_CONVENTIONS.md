@@ -359,3 +359,22 @@ The budget cap is comparable only when its currency equals the selected reportin
 The report returns converted expense details, actual totals by category, planned category amounts in the reporting currency, unconverted source totals, a remaining budget value when comparable, and a pace-based projected total. Projections are estimates based on elapsed trip days and recorded converted spending, not financial advice.
 
 Migration `011_conversion_source_expense_date.sql` adds the source expense date to conversion snapshots. Existing snapshots are backfilled from their matching expense row where available. This protects against reusing a historical conversion after an expense amount, currency or date has changed.
+
+
+## Smart budget alerts
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/budget-alerts` | Trip member |
+| POST | `/api/v1/trips/{tripId}/budget-alerts/evaluate` | Trip member |
+| POST | `/api/v1/trips/{tripId}/budget-alerts/{alertId}/read` | Trip member |
+
+The evaluation checks the 50%, 75%, 90% and 100% thresholds against the trip budget. It also checks whether the average daily recorded spend, extrapolated across the trip's calendar duration, projects an overspend. A projection alert is created only while actual spend is at or below the budget and the projected total is above it.
+
+Currency safety is mandatory: expenses in the budget currency are included directly; expenses in another currency are included only when the latest saved conversion snapshot matches the current expense amount, source currency and expense date. If any expense is unconverted or stale, the evaluation returns `partial_data` and creates no threshold or projection alerts. This avoids false alerts from incomplete totals.
+
+Alert creation is idempotent through a database uniqueness constraint. The alert stores the budget amount and currency, actual spend, projection and message as a historical snapshot. A changed budget amount creates a new threshold baseline. Re-running evaluation does not duplicate an existing alert for the same trip, budget, threshold and budget amount.
+
+Alerts are shared trip events. Read state is stored separately for each trip member, so one traveller marking an alert as read does not clear it for other members. These are in-app alerts only; email, SMS and push delivery are not implemented.
+
+Migration `012_trip_budget_alerts.sql` creates the shared alert history and per-member read receipts.
