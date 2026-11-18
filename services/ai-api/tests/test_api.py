@@ -222,6 +222,7 @@ def recommendation_payload():
         "travelPace": "balanced",
         "dailyBudgetRemaining": 120,
         "question": "Suggest an indoor alternative because rain is forecast.",
+        "focus": "weather",
         "existingActivities": ["Walk around Alfama"],
         "weatherContext": ["High precipitation probability; outdoor walking may be uncomfortable."],
         "planningContext": ["One afternoon slot is free."],
