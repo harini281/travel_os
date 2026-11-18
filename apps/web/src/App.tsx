@@ -340,7 +340,7 @@ export default function App() {
     return () => { window.removeEventListener("online", updateOnline); window.removeEventListener("offline", updateOnline); };
   }, []);
 
-  useEffect(() => { if (isValidTimeZone(displayTimeZone)) localStorage.setItem("travelos.displayTimeZone", displayTimeZone); }, [displayTimeZone]);
+  useEffect(() => { if (selectedTrip && isValidTimeZone(displayTimeZone)) localStorage.setItem(`travelos.tripTimeZone.${selectedTrip.id}`, displayTimeZone); }, [displayTimeZone, selectedTrip]);
 
   useEffect(() => {
     if (!token) return;
@@ -1137,6 +1137,8 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
+    const savedZone = localStorage.getItem(`travelos.tripTimeZone.${trip.id}`);
+    setDisplayTimeZone(savedZone && isValidTimeZone(savedZone) ? savedZone : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
     setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
