@@ -30,6 +30,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripBudgetAlert> TripBudgetAlerts => Set<TripBudgetAlert>();
     public DbSet<TripBudgetAlertRead> TripBudgetAlertReads => Set<TripBudgetAlertRead>();
     public DbSet<TripWeatherAssessment> TripWeatherAssessments => Set<TripWeatherAssessment>();
+    public DbSet<TripFlight> TripFlights => Set<TripFlight>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -342,6 +343,22 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.TripId, x.ForecastFetchedAt });
             entity.HasIndex(x => new { x.ActivityId, x.ActivityDate, x.ForecastFetchedAt });
+        });
+
+        modelBuilder.Entity<TripFlight>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.FlightIdentifier).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.OriginAirportCode).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.DestinationAirportCode).HasMaxLength(3).IsRequired();
+            entity.Property(x => x.Status).HasMaxLength(24).IsRequired();
+            entity.Property(x => x.Provider).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.ProviderFlightId).HasMaxLength(80);
+            entity.Property(x => x.ProviderStatus).HasMaxLength(120);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.TripId, x.FlightIdentifier, x.ScheduledDepartureUtc }).IsUnique();
+            entity.HasIndex(x => new { x.TripId, x.ScheduledDepartureUtc });
         });
 
         base.OnModelCreating(modelBuilder);
