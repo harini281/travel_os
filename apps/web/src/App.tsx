@@ -338,7 +338,7 @@ export default function App() {
     return () => { window.removeEventListener("online", updateOnline); window.removeEventListener("offline", updateOnline); };
   }, []);
 
-  useEffect(() => { localStorage.setItem("travelos.displayTimeZone", displayTimeZone); }, [displayTimeZone]);
+  useEffect(() => { if (isValidTimeZone(displayTimeZone)) localStorage.setItem("travelos.displayTimeZone", displayTimeZone); }, [displayTimeZone]);
 
   useEffect(() => {
     if (!token) return;
