@@ -19,3 +19,14 @@
 
 ## Provider limitations
 Nominatim search results may be ambiguous and public endpoints have usage policies. OSRM's public demo routing endpoint is not an SLA-backed production service and generally provides route estimates without live traffic. Production deployment should use a contracted geocoder/routing provider or self-hosted services, with airport coordinates verified against a maintained airport dataset. Estimates are not bookings or guaranteed arrival times.
+
+
+## Stage 27 — Journey timeline
+1. Confirm unauthenticated requests return 401 and non-members receive 404.
+2. Confirm the endpoint includes flights and activities from the latest itinerary version.
+3. Confirm flight times use actual, estimated, then scheduled precedence.
+4. Confirm activities have date/order metadata and no fabricated start time.
+5. Confirm overlapping effective flight times create a high-severity advisory.
+6. Confirm activities on flight dates create review advisories, not hard conflict claims.
+7. Confirm the React timeline renders empty, loading, populated and advisory states.
+8. Confirm refresh reloads the timeline and no itinerary/booking records are modified.
