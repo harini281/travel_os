@@ -111,8 +111,10 @@ public static class TripAssistantEndpoints
         {
             foreach (var flight in context.Flights.Where(x =>
                 (x.DepartureDelayMinutes ?? 0) >= 30 ||
-                (x.Status.Contains("cancel", StringComparison.OrdinalIgnoreCase)) ||
-                (x.ProviderStatus?.Contains("cancel", StringComparison.OrdinalIgnoreCase) ?? false)))
+                x.Status.Contains("cancel", StringComparison.OrdinalIgnoreCase) ||
+                x.Status.Contains("divert", StringComparison.OrdinalIgnoreCase) ||
+                (x.ProviderStatus?.Contains("cancel", StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (x.ProviderStatus?.Contains("divert", StringComparison.OrdinalIgnoreCase) ?? false)))
             {
                 var delay = flight.DepartureDelayMinutes is > 0 ? $" Reported departure delay: {flight.DepartureDelayMinutes} minutes." : "";
                 insights.Add(new("flight", $"Check flight {flight.Identifier}",
