@@ -408,3 +408,10 @@ Reminder date/time fields entered in the web form are interpreted in the device'
 The Trip Assistant prepares a rule-based briefing from saved trip data: itinerary completeness, activity timing, budget and expense totals, flight schedules and disruption statuses, weather assessments, budget alerts, and the signed-in traveller's due notifications. The workspace refreshes the briefing when a trip is opened and offers a manual refresh action. Travellers can ask typed questions about flights, weather, budget, itinerary timing and reminders; answers are routed to the relevant saved trip data and include supporting facts.
 
 The briefing is decision support, not a generative AI chat or a live travel guarantee. It does not modify bookings or itineraries, convert currencies, or contact travel providers. See [the Stage 38 verification plan](docs/TRIP_ASSISTANT_TEST_PLAN.md).
+
+
+## Stage 39 — AI activity recommendations
+
+The itinerary workspace can request contextual activity ideas for a selected day. The platform API supplies the destination, saved activities, group interests and pace, latest saved weather assessments for that date, and same-currency remaining trip budget context to the AI service. Travellers can focus suggestions on weather alternatives, budget, group interests, schedule balance, or all planning factors.
+
+Recommendations are returned for review only. They are not saved automatically, and the feature does not replace or edit existing activities. Venue details, accessibility, opening hours and indicative costs must be verified. The AI provider must be configured; demo mode explicitly returns no generated recommendations. See [the Stage 39 verification plan](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
