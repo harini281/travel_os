@@ -16,6 +16,7 @@ public static class ItineraryEndpoints
             .RequireAuthorization();
 
         group.MapGet("/", GetAsync).WithName("GetTripItinerary");
+        group.MapGet("/schedule-analysis", AnalyzeScheduleAsync).WithName("AnalyzeItinerarySchedule");
         group.MapPost("/", CreateAsync).WithName("CreateTripItinerary");
         group.MapPost("/days", AddDayAsync).WithName("AddItineraryDay");
         group.MapPost("/days/{dayId:guid}/activities", AddActivityAsync).WithName("AddItineraryActivity");
@@ -30,6 +31,71 @@ public static class ItineraryEndpoints
         group.MapPost("/drafts/{draftId:guid}/apply", ApplyDraftAsync).WithName("ApplyAiItineraryDraft");
 
         return endpoints;
+    }
+
+    private static async Task<IResult> AnalyzeScheduleAsync(
+        Guid tripId, int? minimumGapMinutes, ClaimsPrincipal principal,
+        TravelOsDbContext db, CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        var trip = await FindTripForMemberAsync(tripId, userId, db, ct);
+        if (trip is null) return Results.NotFound();
+        var minimumGap = minimumGapMinutes ?? 30;
+        if (minimumGap is < 0 or > 240)
+            return Results.ValidationProblem(new Dictionary<string,string[]> {
+                ["minimumGapMinutes"] = ["Minimum gap must be between 0 and 240 minutes."]
+            });
+
+        var itinerary = await db.Itineraries.AsNoTracking()
+            .Include(x => x.Days).ThenInclude(x => x.Activities)
+            .Where(x => x.TripId == tripId)
+            .OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
+        if (itinerary is null)
+            return Results.Ok(new { tripId, minimumGapMinutes = minimumGap, days = Array.Empty<object>(),
+                disclaimer = "This analysis checks saved activity times only. It does not estimate road travel time, traffic, queues or opening hours." });
+
+        var days = itinerary.Days.OrderBy(x => x.DayNumber).Select(day =>
+        {
+            var activities = day.Activities.OrderBy(x => x.SortOrder).ToArray();
+            var timed = activities.Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
+                .OrderBy(x => x.StartTime).ToArray();
+            var transitions = new List<object>();
+            for (var index = 1; index < timed.Length; index++)
+            {
+                var previous = timed[index - 1];
+                var next = timed[index];
+                var gap = (int)(next.StartTime!.Value - previous.EndTime!.Value).TotalMinutes;
+                var status = gap < 0 ? "overlap" : gap < minimumGap ? "short_gap" : "buffer_met";
+                transitions.Add(new {
+                    fromActivityId = previous.Id, fromTitle = previous.Title,
+                    toActivityId = next.Id, toTitle = next.Title,
+                    gapMinutes = gap, status,
+                    recommendation = status switch {
+                        "overlap" => "These activities overlap. Adjust one of the time windows.",
+                        "short_gap" => "The break is below your selected planning buffer. Review the schedule and allow for travel.",
+                        _ => "The selected planning buffer is available. Actual travel time is not verified."
+                    }
+                });
+            }
+            var overlaps = transitions.Count(x => x.ToString() is not null); // Count is derived below from explicit windows.
+            var overlapCount = 0;
+            for (var left = 0; left < timed.Length; left++)
+                for (var right = left + 1; right < timed.Length; right++)
+                    if (timed[left].EndTime > timed[right].StartTime) overlapCount++;
+            return new {
+                dayId = day.Id, dayNumber = day.DayNumber, date = day.Date,
+                activityCount = activities.Length, timedActivityCount = timed.Length,
+                unscheduledActivityCount = activities.Length - timed.Length,
+                overlapCount,
+                shortGapCount = transitions.Count(x => x.ToString() is not null) - overlapCount,
+                transitions
+            };
+        }).ToArray();
+
+        return Results.Ok(new {
+            tripId, minimumGapMinutes = minimumGap, days,
+            disclaimer = "Heuristic schedule review only. Gaps are clock-time differences, not route or traffic estimates. Attraction opening hours and transfer durations are not included."
+        });
     }
 
     private static bool TryGetUserId(ClaimsPrincipal principal, out Guid userId)
