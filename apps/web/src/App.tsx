@@ -76,7 +76,18 @@ type FlightRefreshResponse = {
   arrivalDateActivityCount:number; itineraryImpactSummary:string;
 };
 type SuggestedActivity = Omit<Activity, "id">;
-type AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
+
+type ActivityRecommendation = {
+  title:string; category:"weather_alternative"|"new_activity"|"budget_friendly"|"group_interest"|"schedule_balance";
+  reason:string; suggestedDurationMinutes:number|null; estimatedCost:number|null;
+  currencyCode:string|null; bestFor:string; verificationNote:string;
+};
+type ItineraryRecommendations = {
+  tripId:string; dayNumber:number; activityDate:string; provider:string; model:string|null;
+  summary:string; recommendations:ActivityRecommendation[]; warnings:string[];
+  generatedAtUtc:string; disclaimer:string;
+};
+\ntype AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
 type AiDraft = {
   id: string; tripId: string; status: string; createdAt: string;
   provider: string; model: string | null; warnings: string[];
@@ -304,7 +315,7 @@ export default function App() {
   const [activityStartTime, setActivityStartTime] = useState("");
   const [activityEndTime, setActivityEndTime] = useState("");
   const [activityCost, setActivityCost] = useState("");
-  const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);
+  const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);\n  const [recommendations, setRecommendations] = useState<ItineraryRecommendations | null>(null);\n  const [loadingRecommendations, setLoadingRecommendations] = useState(false);\n  const [recommendationDay, setRecommendationDay] = useState(1);\n  const [recommendationFocus, setRecommendationFocus] = useState<\"all\" | \"weather\" | \"budget\" | \"group\" | \"schedule\">(\"all\");\n  const [recommendationQuestion, setRecommendationQuestion] = useState(\"\");
   const [travellerCount, setTravellerCount] = useState(1);
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
@@ -1316,7 +1327,7 @@ export default function App() {
   async function openTrip(trip: Trip) {
     const savedZone = localStorage.getItem(`travelos.tripTimeZone.${trip.id}`);
     setDisplayTimeZone(savedZone && isValidTimeZone(savedZone) ? savedZone : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
-    setSelectedTrip(trip); setAssistantBriefing(null); setAssistantAnswer(null); setAssistantQuestion(""); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
+    setSelectedTrip(trip); setRecommendations(null); setRecommendationDay(1); setAssistantBriefing(null); setAssistantAnswer(null); setAssistantQuestion(""); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
@@ -1328,7 +1339,7 @@ export default function App() {
   }
 
   function closeTrip() {
-    setSelectedTrip(null); setAssistantBriefing(null); setAssistantAnswer(null); setAssistantQuestion(""); setItinerary(null); setAiDrafts([]); setBudget(null);
+    setSelectedTrip(null); setRecommendations(null); setAssistantBriefing(null); setAssistantAnswer(null); setAssistantQuestion(""); setItinerary(null); setAiDrafts([]); setBudget(null);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
@@ -1579,6 +1590,29 @@ export default function App() {
       const refreshed = await api<Budget>(`/api/v1/trips/${selectedTrip.id}/budget`, token);
       setBudget(refreshed); setNotice("Budget item removed.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove budget item."); }
+  }
+
+
+  async function getActivityRecommendations(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip || !itinerary) return;
+    setLoadingRecommendations(true); setError(""); setRecommendations(null);
+    try {
+      const result = await api<ItineraryRecommendations>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/recommendations`,
+        token,
+        { method:"POST", body:JSON.stringify({
+          dayNumber: recommendationDay,
+          focus: recommendationFocus,
+          travellerCount,
+          question: recommendationQuestion.trim() || null,
+        }) }
+      );
+      setRecommendations(result);
+      setNotice("Recommendations are ready. Review them before making any itinerary changes.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to get activity recommendations.");
+    } finally { setLoadingRecommendations(false); }
   }
 
   async function generateAiDraft(event: FormEvent<HTMLFormElement>) {
@@ -2395,6 +2429,27 @@ export default function App() {
                 <label>Travel pace<select value={travelPace} onChange={e => setTravelPace(e.target.value as "relaxed" | "balanced" | "fast")}><option value="relaxed">Relaxed</option><option value="balanced">Balanced</option><option value="fast">Fast-paced</option></select></label>
                 <button className="btn btn-primary" disabled={busy}>{busy ? "Generating…" : "✳ Generate AI draft"}</button>
               </form>
+              <form className="recommendation-request" onSubmit={getActivityRecommendations}>
+                <div className="recommendation-title"><div><p className="eyebrow">STAGE 39 · SMART ACTIVITY IDEAS</p><h3>Improve a day in your itinerary</h3><p>Get contextual suggestions based on the destination, group interests, saved activities, weather and budget.</p></div><span>✦</span></div>
+                <div className="recommendation-controls">
+                  <label>Itinerary day<select value={recommendationDay} onChange={e=>setRecommendationDay(Number(e.target.value))}>{itinerary?.days.map(day=><option key={day.id} value={day.dayNumber}>Day {day.dayNumber} · {formatDate(day.date)}</option>)}</select></label>
+                  <label>Recommendation focus<select value={recommendationFocus} onChange={e=>setRecommendationFocus(e.target.value as typeof recommendationFocus)}><option value="all">All planning factors</option><option value="weather">Weather alternatives</option><option value="budget">Budget-friendly ideas</option><option value="group">Group interests</option><option value="schedule">Fill schedule gaps</option></select></label>
+                  <label className="recommendation-question">What would you like to improve?<input value={recommendationQuestion} onChange={e=>setRecommendationQuestion(e.target.value)} maxLength={500} placeholder="e.g. Suggest an indoor afternoon activity" /></label>
+                  <button className="btn btn-primary" disabled={loadingRecommendations || !itinerary?.days.length}>{loadingRecommendations ? "Finding ideas…" : "✦ Get recommendations"}</button>
+                </div>
+              </form>
+              {recommendations && <section className="recommendation-results">
+                <div className="recommendation-result-heading"><div><p className="eyebrow">SUGGESTIONS FOR DAY {recommendations.dayNumber} · {formatDate(recommendations.activityDate)}</p><h3>{recommendations.summary}</h3></div><span>{recommendations.provider}{recommendations.model ? " · "+recommendations.model : ""}</span></div>
+                <div className="recommendation-list">{recommendations.recommendations.map((item,index)=><article className="recommendation-card" key={item.title+index}>
+                  <div className="recommendation-card-top"><span>{item.category.replaceAll("_"," ")}</span><span>OPTION {index+1}</span></div>
+                  <h4>{item.title}</h4><p>{item.reason}</p>
+                  <div className="recommendation-meta">{item.suggestedDurationMinutes && <span>◷ {item.suggestedDurationMinutes} min</span>}{item.estimatedCost!==null && <span>≈ {item.estimatedCost.toLocaleString()} {item.currencyCode || selectedTrip.currencyCode}</span>}<span>{item.bestFor}</span></div>
+                  <small>{item.verificationNote}</small>
+                </article>)}</div>
+                {recommendations.warnings.map((warning,i)=><p className="ai-warning" key={i}>ⓘ {warning}</p>)}
+                <p className="trip-assistant-disclaimer">{recommendations.disclaimer}</p>
+                <p className="recommendation-updated">Generated {new Date(recommendations.generatedAtUtc).toLocaleString()}. Nothing has been added to your itinerary.</p>
+              </section>}
               <p className="ai-disclaimer">AI suggestions can be inaccurate. Verify places, hours, routes and costs. Generation requires a configured AI provider.</p>
             </section>}
             {aiDrafts.length > 0 && <section className="ai-drafts-section">
