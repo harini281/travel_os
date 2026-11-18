@@ -1,38 +1,51 @@
-# Stage 39 — AI activity recommendations verification
+# Stage 39 — AI activity recommendations verification plan
 
-## AI service contract
-1. Demo mode returns an explicit `demo_only` result with an empty recommendation list.
-2. OpenAI mode without an API key returns HTTP 503.
-3. Invalid currencies, oversized context strings and malformed requests are rejected.
-4. Structured provider output is validated against the recommendation schema.
-5. Recommendation count is limited to 1–6.
-6. Returned cost currency must match the requested trip currency; missing cost currency is filled from the request.
-7. Provider timeouts, transport errors, invalid JSON and provider errors return controlled API errors.
-8. Prompts prohibit claims about live opening hours, availability, verified prices, bookings, exact travel times or coordinates.
+## AI service checks
 
-## Platform API
-9. Unauthenticated requests return 401.
-10. Non-members cannot read another trip's itinerary context.
-11. A missing itinerary returns a conflict response.
-12. A missing day returns 404.
-13. Invalid day number, focus, traveller count and oversized question are rejected.
-14. Context is assembled only from the requested trip and selected itinerary day.
-15. Group interest and pace context comes from saved trip-member preferences.
-16. Weather context uses the latest saved assessment per activity for the selected day.
-17. Budget context compares expenses only in the budget currency and does not convert currencies.
-18. Recommendation requests are rate limited.
-19. No recommendation is persisted and no existing activity is modified.
+1. Run `pytest -q` from `services/ai-api`.
+2. Confirm request validation rejects invalid currencies, oversized dates/context, invalid traveller counts and oversized questions.
+3. Confirm omitted `travellerCount` defaults to one.
+4. Confirm demo mode returns `demo_only` with an empty recommendation list; it must not fabricate suggestions.
+5. Confirm OpenAI mode without an API key returns HTTP 503.
+6. Confirm structured provider output is validated, limited to 1–6 suggestions, and costs use the requested trip currency.
+7. Confirm timeout, refusal, malformed JSON and provider errors return controlled errors.
+8. Confirm prompts prohibit claims about live opening hours, availability, verified prices, bookings, exact travel times or coordinates.
 
-## Workspace
-20. A traveller can select an itinerary day and recommendation focus.
-21. A traveller can enter an optional natural-language request.
-22. Results show category, rationale, estimated duration, indicative cost, best-fit group and verification note.
-23. Demo/unconfigured provider errors are shown without presenting fake suggestions.
-24. The recommendation panel is responsive on mobile.
-25. The existing AI full-itinerary draft workflow and apply/review flow remain available.
+## Platform API checks
 
-## Explicit limitations
-- AI recommendations are not verified venue listings or live search results.
-- Costs are approximate and are not supplier quotes.
-- The recommendation service does not book, add, replace or edit itinerary activities.
-- The traveller must verify venue details, accessibility, opening hours, prices and suitability before acting.
+1. Run `dotnet build services/platform-api/TravelOS.PlatformApi.csproj --configuration Release`.
+2. Confirm unauthenticated requests return 401.
+3. Confirm non-members cannot request recommendations for another trip.
+4. Confirm a missing itinerary returns 409 and a day number not present in the current itinerary returns a validation error.
+5. Confirm focus is one of `all`, `weather`, `budget`, `group`, or `schedule`; traveller count is 1–30; question is at most 500 characters.
+6. Confirm group interests are aggregated from saved trip-member preferences.
+7. Confirm selected-day activities and the latest saved weather assessments are included in the AI context.
+8. Confirm budget context compares only expenses and planned amounts in the trip budget currency; no currency conversion is implied.
+9. Confirm the request uses the existing `ai-generation` rate limit.
+10. Confirm demo/unconfigured AI returns 503 and provider failures return safe 502/503/504 responses.
+11. Confirm no recommendation is persisted and no itinerary activity, time, budget, booking or approval state is changed.
+
+## Workspace checks
+
+1. Open a trip with an itinerary and select each available day.
+2. Request recommendations using each focus and an optional natural-language question.
+3. Confirm cards show category, rationale, indicative duration/cost, best-for context and verification note.
+4. Confirm provider/model and generation timestamp are displayed.
+5. Confirm recommendations clear when switching trips.
+6. Confirm the existing AI full-itinerary draft/review/apply flow remains available.
+7. Confirm an empty itinerary disables recommendation generation.
+8. Run `npm run build` from `apps/web`.
+
+## Manual scenarios
+
+- Outdoor activity with a recent high-severity weather assessment.
+- Day with several activities and a schedule-balance request.
+- Group members with different saved interests.
+- Budget with expenses in the trip currency.
+- Budget with expenses in another currency; ensure no silent conversion occurs.
+- Day without a weather assessment.
+- AI service unavailable or configured in demo mode.
+
+## Limitations
+
+Recommendations are advisory, not verified venue listings. Weather assessments can become stale. Venue accessibility, opening hours, availability, route durations and prices are not independently verified. Verify details with authoritative providers before changing travel plans.
