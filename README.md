@@ -313,3 +313,17 @@ API:
 Provider: [FlightAware AeroAPI](https://www.flightaware.com/commercial/aeroapi/). See its [API usage and pricing](https://www.flightaware.com/commercial/aeroapi/) before connecting a key.
 
 Apply `014_trip_flights.sql` after migration 013.
+
+
+## Stage 25 — Airport and connection intelligence
+
+Flights can be assigned to a traveller-defined journey group such as `Outbound` or `Return`. The connection assessment pairs only consecutive scheduled legs within the same group; it never pairs the final outbound leg with the first return leg simply because they are chronologically adjacent.
+
+- `GET /api/v1/trips/{tripId}/flights/connections` returns a read-only heuristic assessment.
+- The effective arrival/departure uses provider actual time, then provider estimate, then scheduled time.
+- It identifies airport-code changes, overlapping legs, very tight (<60 min), tight (60–119 min), moderate (120–179 min) and longer (180+ min) schedule gaps.
+- Cancelled/diverted legs are marked unassessable rather than assigned a false safe/unsafe connection result.
+- The default 120-minute reference is a UI/explanation heuristic only, not an airline minimum connection time.
+- Terminal, immigration, baggage reclaim, visa, boarding cutoff, ground transport, separate tickets and protected-connection status are not known by this assessment.
+- No airline minimum connection time, guarantee or live operational alert is implied.
+- Migration `015_flight_journey_groups.sql` adds the journey grouping field.
