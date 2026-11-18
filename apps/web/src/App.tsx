@@ -87,7 +87,8 @@ type ItineraryRecommendations = {
   summary:string; recommendations:ActivityRecommendation[]; warnings:string[];
   generatedAtUtc:string; disclaimer:string;
 };
-\ntype AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
+
+type AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
 type AiDraft = {
   id: string; tripId: string; status: string; createdAt: string;
   provider: string; model: string | null; warnings: string[];
@@ -315,7 +316,12 @@ export default function App() {
   const [activityStartTime, setActivityStartTime] = useState("");
   const [activityEndTime, setActivityEndTime] = useState("");
   const [activityCost, setActivityCost] = useState("");
-  const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);\n  const [recommendations, setRecommendations] = useState<ItineraryRecommendations | null>(null);\n  const [loadingRecommendations, setLoadingRecommendations] = useState(false);\n  const [recommendationDay, setRecommendationDay] = useState(1);\n  const [recommendationFocus, setRecommendationFocus] = useState<\"all\" | \"weather\" | \"budget\" | \"group\" | \"schedule\">(\"all\");\n  const [recommendationQuestion, setRecommendationQuestion] = useState(\"\");
+  const [aiDrafts, setAiDrafts] = useState<AiDraft[]>([]);
+  const [recommendations, setRecommendations] = useState<ItineraryRecommendations | null>(null);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+  const [recommendationDay, setRecommendationDay] = useState(1);
+  const [recommendationFocus, setRecommendationFocus] = useState<\"all\" | \"weather\" | \"budget\" | \"group\" | \"schedule\">(\"all\");
+  const [recommendationQuestion, setRecommendationQuestion] = useState(\"\");
   const [travellerCount, setTravellerCount] = useState(1);
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
