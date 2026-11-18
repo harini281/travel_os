@@ -1747,7 +1747,7 @@ export default function App() {
             <section className="trip-assistant-panel">
               <div className="trip-assistant-heading">
                 <div><p className="eyebrow">STAGE 38 · CONTEXTUAL TRIP ASSISTANT</p><h2>Your trip briefing</h2><p>One place to spot what needs attention across your saved itinerary, budget, flights, weather and reminders.</p></div>
-                <button type="button" className="btn btn-primary" onClick={() => loadTripAssistantBriefing(selectedTrip)} disabled={loadingAssistantBriefing || !isOnline}>{loadingAssistantBriefing ? "Reviewing trip…" : "Refresh briefing"}</button>
+                <button type="button" className="btn btn-primary" onClick={() => selectedTrip && loadTripAssistantBriefing(selectedTrip)} disabled={loadingAssistantBriefing || !isOnline}>{loadingAssistantBriefing ? "Reviewing trip…" : "Refresh briefing"}</button>
               </div>
               {!isOnline ? <p className="trip-assistant-empty">Connect to the internet to prepare a fresh trip briefing.</p> :
                 loadingAssistantBriefing && !assistantBriefing ? <p className="trip-assistant-empty">Reviewing your saved trip details…</p> :
