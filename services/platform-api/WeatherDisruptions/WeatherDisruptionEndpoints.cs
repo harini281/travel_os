@@ -42,14 +42,17 @@ public static class WeatherDisruptionEndpoints
         if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
         if (!await IsMemberAsync(tripId, userId, db, ct)) return Results.NotFound();
 
-        var rows = await db.TripWeatherAssessments.AsNoTracking()
+        var history = await db.TripWeatherAssessments.AsNoTracking()
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.ForecastFetchedAt)
-            .ThenBy(x => x.ActivityDate)
-            .Take(200)
-            .Select(x => ToResponse(x))
+            .Take(500)
             .ToListAsync(ct);
-        return Results.Ok(rows);
+        var latest = history
+            .GroupBy(x => new { x.ActivityId, x.ActivityDate })
+            .Select(group => ToResponse(group.First()))
+            .OrderBy(x => x.ActivityDate)
+            .ToArray();
+        return Results.Ok(latest);
     }
 
     private static async Task<IResult> ScanAsync(
