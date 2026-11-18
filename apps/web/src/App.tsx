@@ -72,6 +72,16 @@ type BudgetIntelligence = {
   expenseCount:number; convertedExpenseCount:number; unconvertedExpenseCount:number;
   elapsedDays:number; remainingDays:number;
 };
+type BudgetAlert = {
+  id:string; alertType:string; thresholdPercent:number; budgetAmountSnapshot:number;
+  currencyCode:string; actualAmountSnapshot:number; projectedAmountSnapshot:number|null;
+  message:string; triggeredAt:string; isRead:boolean;
+};
+type BudgetAlertEvaluation = {
+  tripId:string; budgetId:string; currencyCode:string; budgetAmount:number;
+  actualAmount:number; projectedAmount:number|null; status:string;
+  unconvertedExpenseCount:number; newAlertsCreated:number; message:string;
+};
 type CurrencyOption = { isoCode:string; name:string; symbol:string|null };
 type CurrencyConversion = { id:string; expenseId:string; originalAmount:number; originalCurrencyCode:string; convertedAmount:number; convertedCurrencyCode:string; exchangeRate:number; rateDate:string; provider:string; createdAt:string };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
@@ -142,6 +152,9 @@ export default function App() {
   const [budgetReportingCurrency, setBudgetReportingCurrency] = useState("USD");
   const [budgetIntelligence, setBudgetIntelligence] = useState<BudgetIntelligence | null>(null);
   const [loadingBudgetIntelligence, setLoadingBudgetIntelligence] = useState(false);
+  const [budgetAlerts, setBudgetAlerts] = useState<BudgetAlert[]>([]);
+  const [loadingBudgetAlerts, setLoadingBudgetAlerts] = useState(false);
+  const [evaluatingBudgetAlerts, setEvaluatingBudgetAlerts] = useState(false);
   const [budgetAmount, setBudgetAmount] = useState("");
   const [budgetCurrency, setBudgetCurrency] = useState("USD");
   const [budgetCategory, setBudgetCategory] = useState("");
@@ -256,6 +269,43 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load trip budget.");
     }
+  }
+
+  async function loadBudgetAlerts(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    setLoadingBudgetAlerts(true);
+    try {
+      const data = await api<BudgetAlert[]>(`/api/v1/trips/${trip.id}/budget-alerts`, accessToken);
+      setBudgetAlerts(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load budget alerts.");
+    } finally { setLoadingBudgetAlerts(false); }
+  }
+
+  async function evaluateBudgetAlerts() {
+    if (!token || !selectedTrip) return;
+    setEvaluatingBudgetAlerts(true); setError("");
+    try {
+      const result = await api<BudgetAlertEvaluation>(
+        `/api/v1/trips/${selectedTrip.id}/budget-alerts/evaluate`, token, { method:"POST" }
+      );
+      await loadBudgetAlerts(selectedTrip);
+      setNotice(result.unconvertedExpenseCount > 0
+        ? result.message
+        : result.newAlertsCreated > 0
+          ? `${result.newAlertsCreated} new budget alert(s) created for your trip group.`
+          : result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to evaluate budget alerts.");
+    } finally { setEvaluatingBudgetAlerts(false); }
+  }
+
+  async function markBudgetAlertRead(alertId: string) {
+    if (!token || !selectedTrip) return;
+    try {
+      await api<void>(`/api/v1/trips/${selectedTrip.id}/budget-alerts/${alertId}/read`, token, { method:"POST" });
+      setBudgetAlerts(current => current.map(alert => alert.id === alertId ? {...alert,isRead:true} : alert));
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to mark alert as read."); }
   }
 
   async function loadBudgetIntelligence(trip: Trip, reportingCurrency = budgetReportingCurrency, accessToken = token) {
@@ -700,11 +750,11 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
   }
 
   function closeTrip() {
@@ -1286,6 +1336,28 @@ export default function App() {
 
             <section className="budget-workspace">
               <div className="section-heading"><div><p className="eyebrow">TRIP FINANCES</p><h2>Budget overview</h2></div>{budget && <span className="count-label">{budget.items.length} PLANNED ITEMS</span>}</div>
+              <section className="budget-alerts-panel">
+                <div className="section-heading">
+                  <div><p className="eyebrow">PROACTIVE TRIP FINANCE</p><h3>Budget alerts</h3><small>Shared with everyone in this trip</small></div>
+                  <button type="button" className="btn btn-primary" disabled={evaluatingBudgetAlerts || !budget} onClick={evaluateBudgetAlerts}>
+                    {evaluatingBudgetAlerts ? "Checking…" : "Check budget"}
+                  </button>
+                </div>
+                <p className="budget-alerts-help">Checks 50%, 75%, 90% and 100% of your budget, plus a possible overspend forecast. Alerts are not duplicated for the same budget amount and threshold.</p>
+                {loadingBudgetAlerts ? <p className="budget-empty">Loading alert history…</p>
+                  : budgetAlerts.length ? <div className="budget-alert-list">
+                    {budgetAlerts.map(alert => <article className={`budget-alert-row ${alert.isRead ? "is-read" : "is-unread"}`} key={alert.id}>
+                      <div className="budget-alert-marker">{alert.alertType === "projected_over_budget" ? "↗" : alert.thresholdPercent + "%"}</div>
+                      <div className="budget-alert-content">
+                        <div className="budget-alert-title"><strong>{alert.alertType === "projected_over_budget" ? "Projected overspending" : `${alert.thresholdPercent}% budget threshold`}</strong><small>{new Date(alert.triggeredAt).toLocaleString()}</small></div>
+                        <p>{alert.message}</p>
+                        <small>Actual: {alert.actualAmountSnapshot.toLocaleString()} {alert.currencyCode}{alert.projectedAmountSnapshot !== null ? ` · Projected: ${alert.projectedAmountSnapshot.toLocaleString()} ${alert.currencyCode}` : ""}</small>
+                      </div>
+                      {!alert.isRead && <button type="button" className="expense-edit" onClick={() => markBudgetAlertRead(alert.id)}>Mark read</button>}
+                      {alert.isRead && <span className="budget-alert-read">Read</span>}
+                    </article>)}
+                  </div> : <p className="budget-empty">No budget alerts yet. Select “Check budget” after adding expenses or changing your budget.</p>}
+              </section>
               <div className="expense-intelligence-panel">
                 <div className="subheading"><strong>Smart spending insights</strong><span>{loadingExpenseIntelligence ? "Refreshing…" : "Based on recorded trip data"}</span></div>
                 {expenseIntelligence ? <>
