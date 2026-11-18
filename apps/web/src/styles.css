@@ -710,3 +710,12 @@
 .notification-item-actions button{border:0;background:none;color:#52785b;font-size:10px;font-weight:700;cursor:pointer}
 .notification-empty{padding:28px 10px;text-align:center;color:#829084;font-size:12px;line-height:1.7}
 @media(max-width:680px){.topbar-actions{gap:7px}.notification-trigger{padding:8px}.notification-inbox{margin:8px auto 0;width:calc(100% - 20px);padding:14px}.notification-item{gap:8px}.notification-item-actions button{font-size:9px}}
+
+
+.notification-reminder-form{display:grid;gap:9px;margin:14px 0;padding:13px;border:1px solid #e6ece6;border-radius:10px;background:#f8faf8}
+.notification-reminder-form h3{margin:0 0 2px;color:#405344;font-size:12px}
+.notification-reminder-form input,.notification-reminder-form textarea{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dce5dc;border-radius:7px;background:#fff;color:#405344;font:inherit;font-size:11px}
+.notification-reminder-form textarea{min-height:58px;resize:vertical}
+.notification-reminder-form label{display:grid;gap:6px;color:#647169;font-size:10px;font-weight:700}
+.notification-reminder-form .btn{justify-self:start;padding:9px 13px;font-size:10px}
+.notification-reminder-form small{color:#879187;font-size:9px;line-height:1.5}
