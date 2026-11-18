@@ -276,3 +276,25 @@ public sealed class TripBudgetAlertRead
     public Guid UserId { get; set; }
     public DateTimeOffset ReadAt { get; set; } = DateTimeOffset.UtcNow;
 }
+
+
+/// <summary>Historical forecast evidence used for a trip disruption assessment.</summary>
+public sealed class TripWeatherAssessment
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid TripId { get; set; }
+    public Guid ActivityId { get; set; }
+    public string ActivityTitle { get; set; } = "";
+    public string? PlaceName { get; set; }
+    public DateOnly ActivityDate { get; set; }
+    public int WeatherCode { get; set; }
+    public decimal? PrecipitationProbabilityMax { get; set; }
+    public decimal? PrecipitationSumMm { get; set; }
+    public decimal? WindSpeedMaxKmh { get; set; }
+    public decimal? TemperatureMaxC { get; set; }
+    public string Severity { get; set; } = "low";
+    public string Summary { get; set; } = "";
+    public string Recommendation { get; set; } = "";
+    public string Source { get; set; } = "Open-Meteo";
+    public DateTimeOffset ForecastFetchedAt { get; set; } = DateTimeOffset.UtcNow;
+}

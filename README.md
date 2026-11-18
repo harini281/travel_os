@@ -270,3 +270,25 @@ API:
 - `POST /api/v1/trips/{tripId}/budget-alerts/{alertId}/read`
 
 Apply `012_trip_budget_alerts.sql` after migration 011.
+
+
+## Stage 23 — Weather disruption intelligence (initial release)
+
+TravelOS can scan itinerary activities against the Open-Meteo daily forecast and save a timestamped assessment for each activity with coordinates and a matching forecast date.
+
+- The scan uses activity latitude/longitude, not the trip destination text or the user's current location.
+- Up to 40 activities and 12 distinct coordinate locations are accepted per scan.
+- Forecast requests use a short-range window (up to 16 forecast days, plus one past day); dates outside the provider response are explicitly skipped.
+- Weather condition codes, precipitation probability/amount and maximum wind speed are used to create low, moderate or high disruption signals.
+- Assessments preserve the provider name, forecast retrieval time and metric snapshots.
+- Activities without coordinates, unavailable forecasts and out-of-window dates are reported as skipped.
+- The API is rate-limited. Weather assessment is informational and is not an official warning or guarantee.
+- No itinerary changes are made. Flight status, official warning feeds, alternative place discovery and approval-based itinerary replacement are not included in this initial release.
+
+API:
+- `GET /api/v1/trips/{tripId}/weather-disruptions`
+- `POST /api/v1/trips/{tripId}/weather-disruptions/scan`
+
+Weather data is provided by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0). Include attribution when redistributing weather data or screenshots.
+
+Apply `013_trip_weather_assessments.sql` after migration 012.

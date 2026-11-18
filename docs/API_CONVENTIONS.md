@@ -378,3 +378,20 @@ Alert creation is idempotent through a database uniqueness constraint. The alert
 Alerts are shared trip events. Read state is stored separately for each trip member, so one traveller marking an alert as read does not clear it for other members. These are in-app alerts only; email, SMS and push delivery are not implemented.
 
 Migration `012_trip_budget_alerts.sql` creates the shared alert history and per-member read receipts.
+
+
+## Weather disruption intelligence
+
+| Method | Route | Access |
+|---|---|---|
+| GET | `/api/v1/trips/{tripId}/weather-disruptions` | Trip member |
+| POST | `/api/v1/trips/{tripId}/weather-disruptions/scan` | Trip member; rate limited |
+
+The scan selects the latest itinerary version and evaluates up to 40 activities at up to 12 unique coordinate locations. It requests daily forecast data from Open-Meteo for each unique location and matches forecast days to the itinerary activity date. The short-range request includes up to 16 forecast days and one past day. Dates not present in the provider response are skipped rather than extrapolated.
+
+The initial severity heuristic labels thunderstorms, heavy precipitation and wind at or above 50 km/h as high; rain, snow, fog, wind at or above 35 km/h and elevated precipitation combinations as moderate. Other returned conditions are low. These are product heuristics, not official hazard warnings or guarantees.
+
+Each assessment stores the activity title and date snapshot, WMO weather code, precipitation probability and amount, maximum wind speed, maximum temperature, severity, recommendation, provider and retrieval timestamp. Missing coordinates, provider errors and unavailable dates are returned in `skippedActivities`. The scan does not change the itinerary or automatically cancel or replace activities.
+
+Weather provider requests are limited to four scans per user per minute. The weather service endpoint uses Open-Meteo and attribution must be retained when redistributing weather data.
+Migration `013_trip_weather_assessments.sql` creates the historical assessment table.

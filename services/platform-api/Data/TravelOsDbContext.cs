@@ -29,6 +29,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripExpenseConversion> TripExpenseConversions => Set<TripExpenseConversion>();
     public DbSet<TripBudgetAlert> TripBudgetAlerts => Set<TripBudgetAlert>();
     public DbSet<TripBudgetAlertRead> TripBudgetAlertReads => Set<TripBudgetAlertRead>();
+    public DbSet<TripWeatherAssessment> TripWeatherAssessments => Set<TripWeatherAssessment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -320,6 +321,27 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<TripWeatherAssessment>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.ActivityTitle).HasMaxLength(180).IsRequired();
+            entity.Property(x => x.PlaceName).HasMaxLength(200);
+            entity.Property(x => x.Severity).HasMaxLength(16).IsRequired();
+            entity.Property(x => x.Summary).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Recommendation).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.Source).HasMaxLength(40).IsRequired();
+            entity.Property(x => x.PrecipitationProbabilityMax).HasPrecision(6, 2);
+            entity.Property(x => x.PrecipitationSumMm).HasPrecision(8, 2);
+            entity.Property(x => x.WindSpeedMaxKmh).HasPrecision(8, 2);
+            entity.Property(x => x.TemperatureMaxC).HasPrecision(6, 2);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Activity>().WithMany().HasForeignKey(x => x.ActivityId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasIndex(x => new { x.TripId, x.ForecastFetchedAt });
+            entity.HasIndex(x => new { x.ActivityId, x.ActivityDate, x.ForecastFetchedAt });
         });
 
         base.OnModelCreating(modelBuilder);

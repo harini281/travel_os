@@ -447,3 +447,38 @@
 .budget-alert-content p{margin:0;font-size:9px;line-height:1.5;color:#69766a}
 .budget-alert-read{font-size:8px;color:#8b968b}
 @media(max-width:520px){.budget-alerts-panel .section-heading{align-items:flex-start;flex-direction:column}.budget-alert-title{align-items:flex-start;flex-direction:column}}
+
+
+/* Stage 23 — forecast-backed activity disruption watch */
+.weather-disruption-panel{display:grid;gap:13px;margin:18px 0;padding:20px;border:1px solid #dfe8e1;border-radius:14px;background:linear-gradient(145deg,#fbfdfb,#f6faf8)}
+.weather-disruption-panel .section-heading{align-items:center;gap:14px}
+.weather-disruption-panel .section-heading h2{margin:3px 0;font-size:19px;color:#334a3b}
+.weather-disruption-panel .section-heading small{font-size:9px;color:#839084}
+.weather-disruption-intro{max-width:760px;margin:0;color:#7d897f;font-size:9px;line-height:1.65}
+.weather-scan-meta{display:flex;justify-content:space-between;gap:10px;color:#8b968d;font-size:8px}
+.weather-summary-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.weather-summary-stats>div{display:grid;gap:4px;padding:12px;border:1px solid #e7ece7;border-radius:9px;background:#fff}
+.weather-summary-stats strong{font-size:19px;color:#405845}
+.weather-summary-stats span{font-size:8px;letter-spacing:.07em;color:#89948b}
+.weather-assessment-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.weather-assessment-card{display:grid;gap:9px;padding:13px;border:1px solid #e4eae5;border-left:3px solid #91a992;border-radius:9px;background:#fff}
+.weather-assessment-card.severity-moderate{border-left-color:#d3a24e}
+.weather-assessment-card.severity-high{border-left-color:#bd6d60}
+.weather-assessment-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.weather-assessment-heading>div{display:grid;gap:4px;min-width:0}
+.weather-assessment-heading strong{font-size:11px;color:#3c5040}
+.weather-assessment-heading small,.weather-source{font-size:8px;color:#8a958c}
+.weather-severity{padding:4px 7px;border-radius:20px;background:#edf3ed;color:#58715b;font-size:8px;font-weight:700;text-transform:uppercase}
+.weather-severity.severity-moderate{background:#fff4df;color:#906d32}
+.weather-severity.severity-high{background:#fff0ed;color:#a24e43}
+.weather-assessment-card>p{margin:0;color:#657367;font-size:9px;line-height:1.55}
+.weather-metrics{display:flex;flex-wrap:wrap;gap:6px}
+.weather-metrics span{padding:5px 7px;border-radius:6px;background:#f3f6f2;color:#78847a;font-size:8px}
+.weather-metrics b{color:#46594a}
+.weather-assessment-card .weather-recommendation{padding:8px 9px;border-radius:7px;background:#f8faf6;color:#566a57}
+.weather-skipped-list{display:grid;gap:8px;padding:12px;border:1px dashed #d9e0d8;border-radius:9px;background:#fff}
+.weather-skipped-list>strong{font-size:10px;color:#58685a}
+.weather-skipped-list>div{display:grid;gap:3px}
+.weather-skipped-list b{font-size:9px;color:#5b695d}
+.weather-skipped-list span{font-size:8px;line-height:1.5;color:#89938a}
+@media(max-width:680px){.weather-assessment-list{grid-template-columns:1fr}.weather-disruption-panel .section-heading{align-items:flex-start;flex-direction:column}.weather-scan-meta{flex-direction:column}}

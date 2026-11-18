@@ -94,7 +94,8 @@ jobs:
             009_trip_receipts.sql \
             010_currency_conversions.sql \
             011_conversion_source_expense_date.sql \
-            012_trip_budget_alerts.sql
+            012_trip_budget_alerts.sql \
+            013_trip_weather_assessments.sql
           do
             echo "Applying $migration"
             psql -h localhost -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
