@@ -1017,7 +1017,8 @@ export default function App() {
           title: activityTitle, description: activityDescription || null,
           placeName: activityPlace || null, latitude: null, longitude: null,
           durationMinutes: activityDuration ? Number(activityDuration) : null,
-          startTime: activityStartTime || null, endTime: activityEndTime || null,
+          startTime: activityStartTime ? activityStartTime + ":00" : null,
+          endTime: activityEndTime ? activityEndTime + ":00" : null,
           estimatedCost: activityCost ? Number(activityCost) : null,
           currencyCode: activityCost ? selectedTrip.currencyCode : null, sortOrder: 0,
         }) },
@@ -1220,10 +1221,11 @@ export default function App() {
   itinerary?.days.forEach(day => {
     const timed = day.activities.filter(activity => activity.startTime && activity.endTime)
       .slice().sort((left,right) => left.startTime!.localeCompare(right.startTime!));
-    for (let index=1; index<timed.length; index++) {
-      const previous=timed[index-1], current=timed[index];
-      if (previous.endTime! > current.startTime!) {
-        scheduleConflicts.add(previous.id); scheduleConflicts.add(current.id);
+    for (let left=0; left<timed.length; left++) {
+      for (let right=left+1; right<timed.length; right++) {
+        if (timed[left].endTime! > timed[right].startTime!) {
+          scheduleConflicts.add(timed[left].id); scheduleConflicts.add(timed[right].id);
+        }
       }
     }
   });
