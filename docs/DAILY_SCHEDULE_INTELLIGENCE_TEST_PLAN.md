@@ -20,3 +20,8 @@
 18. Verify an activity that cannot fit before midnight is marked cannot_fit with a manual-review reason.
 19. Verify suggestions are returned as proposals only and do not update saved activity times.
 20. Verify activities without times remain unscheduled and are never assigned invented times.
+
+21. Verify that when one activity cannot fit before midnight, every later activity in the proposed sequence is also flagged for manual review rather than receiving an unsafe time.
+22. Verify end times earlier than or equal to start times are rejected by the activity API and cannot enter optimization.
+23. Verify an activity already meeting the selected buffer is left at its original time.
+24. Verify the optimizer never proposes an earlier start time than the saved activity time.
