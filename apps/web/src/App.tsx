@@ -234,7 +234,8 @@ export default function App() {
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderMessage, setReminderMessage] = useState("");
   const [reminderAt, setReminderAt] = useState("");
-  const [savingReminder, setSavingReminder] = useState(false);\n  const [assistantBriefing, setAssistantBriefing] = useState<TripAssistantBriefing | null>(null);\n  const [loadingAssistantBriefing, setLoadingAssistantBriefing] = useState(false);\n  const [assistantQuestion, setAssistantQuestion] = useState("");\n  const [assistantAnswer, setAssistantAnswer] = useState<TripAssistantAnswer | null>(null);\n  const [askingAssistant, setAskingAssistant] = useState(false);
+  const [savingReminder, setSavingReminder] = useState(false);
+  const [assistantBriefing, setAssistantBriefing] = useState<TripAssistantBriefing | null>(null);\n  const [loadingAssistantBriefing, setLoadingAssistantBriefing] = useState(false);\n  const [assistantQuestion, setAssistantQuestion] = useState("");\n  const [assistantAnswer, setAssistantAnswer] = useState<TripAssistantAnswer | null>(null);\n  const [askingAssistant, setAskingAssistant] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
