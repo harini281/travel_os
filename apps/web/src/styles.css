@@ -540,3 +540,18 @@
 .connection-card>p{margin:0;font-size:9px;line-height:1.6;color:#667569}
 .connection-source{font-size:8px;color:#929b93}
 @media(max-width:680px){.connection-intelligence-panel .section-heading{align-items:flex-start;flex-direction:column}.connection-airports{gap:5px;padding:8px}.connection-airports strong{font-size:14px}}
+
+
+.ground-transfer-panel{margin:24px 0;padding:24px;border:1px solid var(--border-color,#e5e7eb);border-radius:18px;background:var(--surface,#fff)}
+.ground-transfer-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:18px 0}
+.ground-transfer-form label{display:flex;flex-direction:column;gap:7px;font-size:.88rem;font-weight:600}
+.ground-transfer-form input,.ground-transfer-form select{width:100%;min-height:42px;padding:10px 12px;border:1px solid var(--border-color,#d1d5db);border-radius:9px;background:var(--input-bg,#fff);color:inherit}
+.ground-transfer-result{margin-top:18px;padding:18px;border:1px solid var(--border-color,#d1d5db);border-radius:14px}
+.ground-transfer-result-head,.ground-transfer-metrics{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.ground-transfer-result-head h3{margin:6px 0}
+.ground-transfer-result-head>strong{font-size:1.35rem}
+.ground-transfer-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin:16px 0}
+.ground-transfer-metrics div{display:flex;flex-direction:column;gap:4px;padding:12px;background:var(--subtle-surface,#f7f8fa);border-radius:10px}
+.ground-transfer-metrics strong{font-size:1.2rem}
+.ground-transfer-metrics small,.ground-transfer-disclaimer,.ground-transfer-result .connection-source{color:var(--muted,#6b7280)}
+.ground-transfer-disclaimer{font-size:.82rem;line-height:1.5}
