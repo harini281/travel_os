@@ -84,6 +84,10 @@ public sealed class OpenStreetMapTransferRouter(HttpClient geocoder, HttpClient 
         if (airport is null || !TryCoordinate(airport.Lat, out var airportLat) || !TryCoordinate(airport.Lon, out var airportLon))
             return null;
 
+        // Nominatim's public service policy requires at most one request per second
+        // across the application. The endpoint limiter spaces estimates globally per
+        // API instance; this delay spaces the two sequential lookups within each estimate.
+        await Task.Delay(TimeSpan.FromSeconds(1), ct);
         var destinationQuery = Uri.EscapeDataString(destination);
         var destinationMatches = await geocoder.GetFromJsonAsync<List<NominatimPlace>>(
             $"search?format=jsonv2&limit=1&q={destinationQuery}", ct);
