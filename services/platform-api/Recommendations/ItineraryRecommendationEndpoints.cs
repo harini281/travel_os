@@ -85,9 +85,10 @@ public static class ItineraryRecommendationEndpoints
             .Select(x => x.Title).Where(x => !string.IsNullOrWhiteSpace(x))
             .Take(12).ToArray();
 
+        var activityIds = day.Activities.Select(activity => activity.Id).ToArray();
         var weatherRows = await db.TripWeatherAssessments.AsNoTracking()
             .Where(x => x.TripId == tripId && x.ActivityDate == day.Date &&
-                day.Activities.Select(a => a.Id).Contains(x.ActivityId))
+                activityIds.Contains(x.ActivityId))
             .OrderByDescending(x => x.ForecastFetchedAt)
             .Take(40).ToListAsync(ct);
         var weatherContext = weatherRows
