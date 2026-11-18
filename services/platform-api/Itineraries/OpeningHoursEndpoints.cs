@@ -175,7 +175,8 @@ public static class OpeningHoursEndpoints
         {
             var lat = x.Latitude!.Value.ToString(CultureInfo.InvariantCulture);
             var lon = x.Longitude!.Value.ToString(CultureInfo.InvariantCulture);
-            var name = Regex.Escape(Regex.Replace(x.PlaceName!, @"\s+", " ").Trim());
+            var name = Regex.Escape(Regex.Replace(x.PlaceName!, @"\s+", " ").Trim())
+                .Replace("\\", "\\\\").Replace("\"", "\\\"");
             return $"""
                 node(around:250,{lat},{lon})["name"~"^{name}$",i];
                 way(around:250,{lat},{lon})["name"~"^{name}$",i];
