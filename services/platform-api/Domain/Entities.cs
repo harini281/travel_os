@@ -59,6 +59,8 @@ public sealed class Activity
     public decimal? Latitude { get; set; }
     public decimal? Longitude { get; set; }
     public int? DurationMinutes { get; set; }
+    public TimeOnly? StartTime { get; set; }
+    public TimeOnly? EndTime { get; set; }
     public decimal? EstimatedCost { get; set; }
     public string? CurrencyCode { get; set; }
     public int SortOrder { get; set; }
