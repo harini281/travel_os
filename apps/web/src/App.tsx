@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
-import { readOfflineItinerary, removeOfflineItinerary, saveOfflineItinerary } from "./offlineItinerary";
+import { readOfflineItinerary, readOfflineTripIndex, removeOfflineItinerary, saveOfflineItinerary, saveOfflineTripIndex } from "./offlineItinerary";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
 
@@ -321,14 +321,16 @@ export default function App() {
   const loadTrips = useCallback(async (accessToken: string) => {
     const data = await api<Trip[]>("/api/v1/trips", accessToken);
     setTrips(data);
+    return data;
   }, []);
   const loadProfile = useCallback(async (accessToken: string) => {
     const profile = await api<AuthUser>("/api/v1/auth/me", accessToken);
     setUser(profile);
-    await Promise.all([
+    const [tripData] = await Promise.all([
       loadTrips(accessToken),
       api<TripInvitation[]>("/api/v1/me/invitations", accessToken).then(setMyInvitations),
     ]);
+    try { await saveOfflineTripIndex(profile, tripData); } catch { /* Offline index is an optional enhancement. */ }
   }, [loadTrips]);
 
   useEffect(() => {
@@ -342,10 +344,31 @@ export default function App() {
 
   useEffect(() => {
     if (!token) return;
-    loadProfile(token).catch(() => {
-      sessionStorage.removeItem("travelos.accessToken");
-      setToken(null); setUser(null); setTrips([]);
-      setError("Your session expired. Please sign in again.");
+    loadProfile(token).catch(async err => {
+      if (!navigator.onLine) {
+        try {
+          const cached = await readOfflineTripIndex();
+          if (cached) {
+            setUser(cached.user);
+            setTrips(cached.trips);
+            setNotice(`Offline mode · trip list last saved ${new Date(cached.cachedAt).toLocaleString()}.`);
+            return;
+          }
+        } catch { /* Fall through to the offline availability message. */ }
+        setError("You're offline and no saved trip list is available on this device yet.");
+        return;
+      }
+      if (String(err instanceof Error ? err.message : err).includes("401")) {
+        sessionStorage.removeItem("travelos.accessToken");
+        setToken(null); setUser(null); setTrips([]);
+        setError("Your session expired. Please sign in again.");
+      } else {
+        setError("TravelOS cannot reach the server. Your saved offline trips remain available if this device has a cached trip list.");
+        try {
+          const cached = await readOfflineTripIndex();
+          if (cached) { setUser(cached.user); setTrips(cached.trips); }
+        } catch { /* No offline index available. */ }
+      }
     });
   }, [token, loadProfile]);
 
@@ -1118,6 +1141,10 @@ export default function App() {
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
+    if (!navigator.onLine) {
+      await loadItinerary(trip);
+      return;
+    }
     await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadTripFlights(trip), loadFlightConnections(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
   }
 
