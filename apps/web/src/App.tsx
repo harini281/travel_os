@@ -423,6 +423,14 @@ export default function App() {
   }, [token, loadNotifications]);
 
 
+  useEffect(() => {
+    if (!token) return;
+    const refresh = () => { if (document.visibilityState === "visible") void loadNotifications(token); };
+    const timer = window.setInterval(refresh, 60_000);
+    document.addEventListener("visibilitychange", refresh);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", refresh); };
+  }, [token, loadNotifications]);
+
   async function createReminder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token || !selectedTrip) return;
