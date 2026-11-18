@@ -358,3 +358,9 @@ This is a clock-time heuristic, not a route-duration or live-traffic estimate. I
 Schedule analysis now returns every overlapping activity pair, including nested and cascading conflicts, rather than only comparing adjacent activities in start-time order. For each activity it also checks the nearest previously completed activity to assess the planning buffer without generating misleading gap comparisons against every earlier activity. The dashboard presents conflict pairs separately from short-break warnings.
 
 The analysis remains a local clock-time heuristic. It does not calculate route duration, traffic, attraction opening hours or verified transfer times. See [the schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md) for nested and cascading overlap scenarios.
+
+## Stage 31 — Intelligent itinerary optimization
+
+Daily schedule review now proposes same-day time adjustments for overlaps and breaks shorter than the selected planning buffer. Suggestions preserve each activity's duration, move activities forward in chronological order, and flag activities that cannot fit before the day ends. Suggestions are returned alongside the analysis and displayed as proposals only; the saved itinerary is not changed. Travellers retain control of edits and approval.
+
+The optimizer uses local wall-clock times and a simple earliest-safe-slot heuristic. It does not calculate routes, traffic, venue opening hours, transit schedules or actual transfer durations. A proposed slot is not a guarantee of feasibility. See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md).

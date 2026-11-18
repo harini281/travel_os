@@ -96,6 +96,73 @@ public static class ItineraryEndpoints
                 }
             }
 
+            // Build a proposed same-day sequence without persisting any changes.
+            // Preserve each activity's duration and move only later activities forward.
+            var suggestions = new List<object>();
+            TimeOnly? plannedEnd = null;
+            var blockedByUnplaceableActivity = false;
+            foreach (var activity in timed)
+            {
+                var originalStart = activity.StartTime!.Value;
+                var originalEnd = activity.EndTime!.Value;
+                var durationMinutes = (int)(originalEnd - originalStart).TotalMinutes;
+                var suggestedStart = originalStart;
+                var cannotFit = blockedByUnplaceableActivity;
+
+                if (plannedEnd.HasValue)
+                {
+                    var earliestStart = plannedEnd.Value.AddMinutes(minimumGap, out var startDayOffset);
+                    if (startDayOffset > 0)
+                    {
+                        cannotFit = true;
+                    }
+                    else if (earliestStart > suggestedStart)
+                    {
+                        suggestedStart = earliestStart;
+                    }
+                }
+
+                var suggestedEnd = suggestedStart.AddMinutes(durationMinutes, out var endDayOffset);
+                if (endDayOffset > 0) cannotFit = true;
+
+                if (cannotFit)
+                {
+                    suggestions.Add(new {
+                        activityId = activity.Id,
+                        activityTitle = activity.Title,
+                        originalStartTime = originalStart.ToString("HH:mm"),
+                        originalEndTime = originalEnd.ToString("HH:mm"),
+                        suggestedStartTime = (string?)null,
+                        suggestedEndTime = (string?)null,
+                        shiftMinutes = (int?)null,
+                        status = "cannot_fit",
+                        reason = blockedByUnplaceableActivity
+                            ? "An earlier activity could not be placed within this day, so this activity cannot be safely positioned in the proposed sequence. Review the remaining day manually."
+                            : "This activity cannot be moved into a valid same-day slot while preserving its duration and selected buffer. Review the day manually."
+                    });
+                    blockedByUnplaceableActivity = true;
+                    continue;
+                }
+
+                if (suggestedStart > originalStart)
+                {
+                    var shiftMinutes = (int)(suggestedStart - originalStart).TotalMinutes;
+                    suggestions.Add(new {
+                        activityId = activity.Id,
+                        activityTitle = activity.Title,
+                        originalStartTime = originalStart.ToString("HH:mm"),
+                        originalEndTime = originalEnd.ToString("HH:mm"),
+                        suggestedStartTime = suggestedStart.ToString("HH:mm"),
+                        suggestedEndTime = suggestedEnd.ToString("HH:mm"),
+                        shiftMinutes,
+                        status = "suggested",
+                        reason = $"Move this activity {shiftMinutes} minutes later to preserve its duration and the selected planning buffer."
+                    });
+                }
+
+                plannedEnd = suggestedEnd;
+            }
+
             var overlapCount = transitions.Count(x => x.Status == "overlap");
             return new {
                 dayId = day.Id, dayNumber = day.DayNumber, date = day.Date,
@@ -103,6 +170,7 @@ public static class ItineraryEndpoints
                 unscheduledActivityCount = activities.Length - timed.Length,
                 overlapCount,
                 shortGapCount = transitions.Count(x => x.Status == "short_gap"),
+                suggestions,
                 transitions = transitions.Select(x => new {
                     fromActivityId = x.FromId, fromTitle = x.FromTitle,
                     toActivityId = x.ToId, toTitle = x.ToTitle,
