@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TravelOS.PlatformApi.Auth;
+using TravelOS.PlatformApi.Assistant;
 using TravelOS.PlatformApi.Budgets;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
@@ -256,6 +257,7 @@ app.MapBudgetAlertEndpoints();
 app.MapWeatherDisruptionEndpoints();
 app.MapFlightEndpoints();
 app.MapTripNotificationEndpoints();
+app.MapTripAssistantEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
