@@ -32,7 +32,7 @@ type WeatherScanResponse = {
   moderateSeverityCount:number; message:string;
 };
 type TripFlight = {
-  id:string; tripId:string; flightIdentifier:string; originAirportCode:string; destinationAirportCode:string;
+  id:string; tripId:string; flightIdentifier:string; journeyGroup:string; originAirportCode:string; destinationAirportCode:string;
   scheduledDepartureUtc:string; scheduledArrivalUtc:string; status:string; provider:string;
   providerFlightId:string|null; providerStatus:string|null; estimatedDepartureUtc:string|null;
   actualDepartureUtc:string|null; estimatedArrivalUtc:string|null; actualArrivalUtc:string|null;
