@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 41 — AI recommendation scheduling. Stages 40 and 41 are under review in separate draft pull requests. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 42 — automated tests for AI recommendation scheduling. Stages 40 and 41 remain under review in separate draft pull requests. This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -287,7 +287,8 @@ GitHub Actions run **#136** for the Stage 39 pull request completed successfully
 |---|---|
 | Web TypeScript check and Vite build | PASS |
 | ASP.NET Core Platform API build | PASS |
-| AI API automated tests | PASS — 18 passed, 1 warning |
+| AI API automated tests | PASS — 18 passed, 1 warning (Stage 39 run) |
+| Platform API unit tests | Added in Stage 42; CI result pending |
 | PostgreSQL migrations 001–017 | PASS |
 
 These are the checks currently automated in CI. They do **not** mean every user journey, external provider integration, deployed environment or production security scenario has been end-to-end tested.
@@ -371,3 +372,22 @@ infrastructure            Deployment and infrastructure assets
 - Stage 39 pull request: https://github.com/harini281/travel_os/pull/41
 - CI workflow: [TravelOS CI](.github/workflows/ci.yml)
 - AI recommendation test plan: [AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md)
+
+
+### Stage 42 — Recommendation scheduling tests
+
+The scheduling slot calculation has been extracted into a deterministic, independently testable planner. A .NET xUnit test project now covers:
+- Slots before, between and after saved timed activities.
+- No-fit planning windows.
+- Overlapping saved activities and conflict warnings.
+- Activities without times and the corresponding warning.
+- Sorting activities before gap calculation.
+- Invalid planning windows, durations and buffers.
+
+GitHub Actions now runs the Platform API test project as a separate CI job. These tests cover the scheduling calculation; they do not replace database-backed authorization/API integration tests or manual browser verification.
+
+Run locally from the repository root:
+
+```bash
+dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
+```
