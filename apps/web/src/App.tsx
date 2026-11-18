@@ -1,4 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import ItineraryMap from "./ItineraryMap";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
 
@@ -1533,6 +1534,7 @@ export default function App() {
               </div>
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
+            <ItineraryMap days={itinerary.days} />
             <section className="opening-hours-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 34 · ATTRACTION INTELLIGENCE</p><h2>Check attraction opening hours</h2><small>Compare scheduled visits with published weekly opening times</small></div>
