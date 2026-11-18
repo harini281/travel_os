@@ -767,3 +767,30 @@
 .trip-assistant-answer ul{margin:8px 0;padding-left:18px}
 .trip-assistant-answer small{color:#89948a;font-size:9px;line-height:1.5}
 @media(max-width:560px){.trip-assistant-ask-row{flex-direction:column}.trip-assistant-ask-row .btn{align-self:flex-start}.trip-assistant-insights{grid-template-columns:1fr}}
+
+
+/* Stage 39 — contextual activity recommendations */
+.recommendation-request{margin:16px 0;padding:17px;border:1px solid #dfe9df;border-radius:13px;background:linear-gradient(145deg,#fbfdfb,#f3f7f2)}
+.recommendation-title{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.recommendation-title h3,.recommendation-result-heading h3{margin:4px 0;color:#405344;font-size:16px}
+.recommendation-title p:not(.eyebrow){margin:4px 0 0;color:#7b897d;font-size:11px;line-height:1.6}
+.recommendation-title>span{display:grid;place-items:center;flex:0 0 35px;height:35px;border-radius:11px;background:#e8f0e7;color:#55775b;font-size:19px}
+.recommendation-controls{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-top:15px;align-items:end}
+.recommendation-controls label{display:grid;gap:6px;color:#627365;font-size:10px;font-weight:700}
+.recommendation-controls select,.recommendation-controls input{width:100%;min-width:0;padding:9px 10px;border:1px solid #dce6dc;border-radius:8px;background:#fff;color:#435548;font:inherit;font-size:11px}
+.recommendation-question{grid-column:1/-1}
+.recommendation-controls>.btn{justify-self:start}
+.recommendation-results{margin:14px 0 20px;padding:17px;border:1px solid #e2eae2;border-radius:13px;background:#fff}
+.recommendation-result-heading{display:flex;justify-content:space-between;gap:15px;align-items:flex-start}
+.recommendation-result-heading>span{color:#879488;font-size:9px;white-space:nowrap}
+.recommendation-result-heading h3{max-width:700px;line-height:1.5}
+.recommendation-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:13px}
+.recommendation-card{padding:14px;border:1px solid #e6ece6;border-radius:10px;background:#fbfcfb}
+.recommendation-card-top{display:flex;justify-content:space-between;gap:8px;color:#829184;font-size:8px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.recommendation-card h4{margin:9px 0 5px;color:#405344;font-size:13px}
+.recommendation-card p{margin:0;color:#6e7d71;font-size:11px;line-height:1.6}
+.recommendation-meta{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
+.recommendation-meta span{padding:5px 7px;border-radius:20px;background:#edf3ed;color:#637567;font-size:9px}
+.recommendation-card>small{display:block;color:#8a968b;font-size:9px;line-height:1.55}
+.recommendation-updated{margin:8px 0 0;color:#9aa49b;font-size:9px}
+@media(max-width:700px){.recommendation-controls,.recommendation-list{grid-template-columns:1fr}.recommendation-question{grid-column:auto}.recommendation-result-heading{flex-direction:column}}
