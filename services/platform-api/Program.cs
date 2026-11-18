@@ -133,6 +133,16 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("opening-hours", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: "overpass-public-service",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 1,
+                Window = TimeSpan.FromSeconds(15),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("flight-refresh", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.User.FindFirst("sub")?.Value
@@ -198,6 +208,12 @@ builder.Services.AddHttpClient("nominatim", client =>
     client.Timeout = TimeSpan.FromSeconds(12);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("TravelOS/1.0 (airport ground transfer estimates)");
 });
+builder.Services.AddHttpClient("overpass", client =>
+{
+    client.BaseAddress = new Uri("https://overpass-api.de/api/interpreter");
+    client.Timeout = TimeSpan.FromSeconds(35);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TravelOS/1.0 (attraction opening hours)");
+});
 builder.Services.AddHttpClient("osrm", client =>
 {
     client.BaseAddress = new Uri("https://router.project-osrm.org/");
@@ -223,6 +239,7 @@ app.MapTripEndpoints();
 app.MapGroundTransferEndpoints();
 app.MapItineraryEndpoints();
 app.MapRouteAnalysisEndpoints();
+app.MapOpeningHoursEndpoints();
 app.MapBudgetEndpoints();
 app.MapGroupEndpoints();
 app.MapPreferenceEndpoints();
