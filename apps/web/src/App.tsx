@@ -420,6 +420,39 @@ export default function App() {
     }
   }, [token, loadNotifications]);
 
+
+  async function createReminder(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    if (!reminderTitle.trim() || !reminderMessage.trim() || !reminderAt) {
+      setError("Add a reminder title, message and date/time.");
+      return;
+    }
+    const scheduledForUtc = new Date(reminderAt).toISOString();
+    if (new Date(scheduledForUtc).getTime() <= Date.now()) {
+      setError("Choose a reminder time in the future.");
+      return;
+    }
+    setSavingReminder(true);
+    setError("");
+    try {
+      await api<TripNotification>("/api/v1/notifications", token, {
+        method: "POST",
+        body: JSON.stringify({
+          tripId: selectedTrip.id, type: "reminder",
+          title: reminderTitle.trim(), message: reminderMessage.trim(),
+          scheduledForUtc,
+          dedupeKey: null,
+        }),
+      });
+      setReminderTitle(""); setReminderMessage(""); setReminderAt("");
+      await loadNotifications(token);
+      setNotice("Reminder saved to your TravelOS notification inbox.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save reminder.");
+    } finally { setSavingReminder(false); }
+  }
+
   async function markNotificationRead(notificationId: string) {
     if (!token) return;
     try {
@@ -1611,7 +1644,7 @@ export default function App() {
           <span className="breadcrumb">Workspace <b>/</b> {selectedTrip ? selectedTrip.name : "My trips"}</span>
           <div className="topbar-actions"><button className="notification-trigger" onClick={() => setShowNotificationInbox(value => !value)} aria-label="Open notifications" aria-expanded={showNotificationInbox}>♧ Notifications{notificationUnreadCount > 0 && <span className="notification-count">{notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}</span>}</button><span className="preview-tag">TRAVELOS PREVIEW</span></div>
         </header>
-        {showNotificationInbox && <section className="notification-inbox" aria-label="Notification inbox"><div className="notification-inbox-heading"><div><p className="eyebrow">TRAVEL UPDATES</p><h2>Notifications</h2><small>{notificationUnreadCount} unread</small></div><div className="notification-inbox-actions"><button className="btn btn-secondary" onClick={markAllNotificationsRead} disabled={notificationUnreadCount === 0}>Mark all read</button><button className="notification-close" onClick={() => setShowNotificationInbox(false)} aria-label="Close notifications">×</button></div></div>{loadingNotifications ? <p className="muted">Loading notifications…</p> : notifications.length === 0 ? <p className="notification-empty">You’re all caught up. Trip updates and reminders will appear here.</p> : <div className="notification-list">{notifications.map(item => <article className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id}><div className="notification-item-copy"><div className="notification-item-meta"><span>{item.type}</span><time>{new Date(item.createdAt).toLocaleString()}</time></div><h3>{item.title}</h3><p>{item.message}</p></div><div className="notification-item-actions">{!item.readAt && <button onClick={() => markNotificationRead(item.id)}>Mark read</button>}<button onClick={() => dismissNotification(item.id)}>Dismiss</button></div></article>)}</div>}</section>}
+        {showNotificationInbox && <section className="notification-inbox" aria-label="Notification inbox"><div className="notification-inbox-heading"><div><p className="eyebrow">TRAVEL UPDATES</p><h2>Notifications</h2><small>{notificationUnreadCount} unread</small></div><div className="notification-inbox-actions"><button className="btn btn-secondary" onClick={markAllNotificationsRead} disabled={notificationUnreadCount === 0}>Mark all read</button><button className="notification-close" onClick={() => setShowNotificationInbox(false)} aria-label="Close notifications">×</button></div></div>{selectedTrip && <form className="notification-reminder-form" onSubmit={createReminder}><h3>Schedule a trip reminder</h3><input aria-label="Reminder title" placeholder="Reminder title" maxLength={120} value={reminderTitle} onChange={event => setReminderTitle(event.target.value)} required/><textarea aria-label="Reminder message" placeholder="What should you remember?" maxLength={500} value={reminderMessage} onChange={event => setReminderMessage(event.target.value)} required/><label>Remind me at <input type="datetime-local" value={reminderAt} onChange={event => setReminderAt(event.target.value)} required/></label><button className="btn btn-primary" type="submit" disabled={savingReminder}>{savingReminder ? "Saving…" : "Save reminder"}</button><small>Saved in UTC and shown in your inbox when it is due. This is an in-app reminder, not a push or email alert.</small></form>}{loadingNotifications ? <p className="muted">Loading notifications…</p> : notifications.length === 0 ? <p className="notification-empty">You’re all caught up. Trip updates and reminders will appear here.</p> : <div className="notification-list">{notifications.map(item => <article className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id}><div className="notification-item-copy"><div className="notification-item-meta"><span>{item.type}</span><time>{new Date(item.createdAt).toLocaleString()}</time></div><h3>{item.title}</h3><p>{item.message}</p></div><div className="notification-item-actions">{!item.readAt && <button onClick={() => markNotificationRead(item.id)}>Mark read</button>}<button onClick={() => dismissNotification(item.id)}>Dismiss</button></div></article>)}</div>}</section>}
         <div className={isOfflineSnapshot ? "content-wrap offline-snapshot" : "content-wrap"}>
           {notice && <div className="alert success">{notice}<button onClick={() => setNotice("")}>×</button></div>}
           {error && <div className="alert error">{error}<button onClick={() => setError("")}>×</button></div>}
