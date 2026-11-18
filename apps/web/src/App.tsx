@@ -194,6 +194,7 @@ export default function App() {
   const [showAddDay, setShowAddDay] = useState(false);
   const [newDayDate, setNewDayDate] = useState("");
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
+  const [editingActivityId, setEditingActivityId] = useState<string | null>(null);
   const [activityTitle, setActivityTitle] = useState("");
   const [activityPlace, setActivityPlace] = useState("");
   const [activityDescription, setActivityDescription] = useState("");
@@ -1031,6 +1032,43 @@ export default function App() {
     finally { setBusy(false); }
   }
 
+  function beginEditActivity(activity: Activity) {
+    setEditingActivityId(activity.id);
+    setActivityTitle(activity.title);
+    setActivityPlace(activity.placeName ?? "");
+    setActivityDescription(activity.description ?? "");
+    setActivityDuration(activity.durationMinutes?.toString() ?? "");
+    setActivityStartTime(activity.startTime?.slice(0,5) ?? "");
+    setActivityEndTime(activity.endTime?.slice(0,5) ?? "");
+    setActivityCost(activity.estimatedCost?.toString() ?? "");
+  }
+
+  async function updateActivity(event: FormEvent<HTMLFormElement>, activityId: string) {
+    event.preventDefault();
+    if (!token || !selectedTrip) return;
+    setBusy(true); setError("");
+    try {
+      await api<Activity>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/activities/${activityId}`, token,
+        { method: "PUT", body: JSON.stringify({
+          title: activityTitle, description: activityDescription || null,
+          placeName: activityPlace || null, latitude: null, longitude: null,
+          durationMinutes: activityDuration ? Number(activityDuration) : null,
+          startTime: activityStartTime ? activityStartTime + ":00" : null,
+          endTime: activityEndTime ? activityEndTime + ":00" : null,
+          estimatedCost: activityCost ? Number(activityCost) : null,
+          currencyCode: activityCost ? selectedTrip.currencyCode : null, sortOrder: 0,
+        }) },
+      );
+      await loadItinerary(selectedTrip);
+      setEditingActivityId(null); setActivityTitle(""); setActivityPlace("");
+      setActivityDescription(""); setActivityDuration(""); setActivityStartTime("");
+      setActivityEndTime(""); setActivityCost("");
+      setNotice("Activity updated.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to update activity."); }
+    finally { setBusy(false); }
+  }
+
   async function deleteActivity(activityId: string) {
     if (!token || !selectedTrip || !window.confirm("Remove this activity from the itinerary?")) return;
     setError("");
@@ -1777,11 +1815,22 @@ export default function App() {
                     <div className="day-content">
                       {day.activities.some(activity => scheduleConflicts.has(activity.id)) && <p className="activity-schedule-warning">⚠ Scheduled activities overlap. Review their start and end times.</p>}
                       {day.activities.length === 0 ? <p className="no-activities">Nothing planned yet. Add your first activity.</p> :
-                        <div className="activity-list">{day.activities.map(activity => <div className="activity-row" key={activity.id}>
-                          <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{scheduleConflicts.has(activity.id) && <span className="activity-overlap-tag">Time overlap</span>}{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)}</span>}{activity.description && <p>{activity.description}</p>}</div>
-                          <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
-                          {canEditItinerary && <button className="delete-link" onClick={() => deleteActivity(activity.id)}>Remove</button>}
-                        </div>)}</div>}
+                        <div className="activity-list">{day.activities.map(activity => editingActivityId === activity.id && canEditItinerary ?
+                          <form className="activity-form activity-edit-form" key={activity.id} onSubmit={event => updateActivity(event, activity.id)}>
+                            <label>Activity name<input value={activityTitle} onChange={e => setActivityTitle(e.target.value)} maxLength={180} required /></label>
+                            <label>Place<input value={activityPlace} onChange={e => setActivityPlace(e.target.value)} maxLength={200} /></label>
+                            <label className="wide-field">Notes<textarea value={activityDescription} onChange={e => setActivityDescription(e.target.value)} maxLength={2000} rows={2} /></label>
+                            <label>Start time<input type="time" value={activityStartTime} onChange={e => setActivityStartTime(e.target.value)} /></label>
+                            <label>End time<input type="time" value={activityEndTime} onChange={e => setActivityEndTime(e.target.value)} /></label>
+                            <label>Duration (minutes)<input type="number" min="1" value={activityDuration} onChange={e => setActivityDuration(e.target.value)} /></label>
+                            <label>Estimated cost ({selectedTrip.currencyCode})<input type="number" min="0" step="0.01" value={activityCost} onChange={e => setActivityCost(e.target.value)} /></label>
+                            <div className="form-actions wide-field"><button type="button" className="btn btn-quiet" onClick={() => setEditingActivityId(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy ? "Saving…" : "Save changes"}</button></div>
+                          </form> :
+                          <div className="activity-row" key={activity.id}>
+                            <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{scheduleConflicts.has(activity.id) && <span className="activity-overlap-tag">Time overlap</span>}{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)}</span>}{activity.description && <p>{activity.description}</p>}</div>
+                            <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
+                            {canEditItinerary && <><button className="delete-link" onClick={() => beginEditActivity(activity)}>Edit</button><button className="delete-link" onClick={() => deleteActivity(activity.id)}>Remove</button></>}
+                          </div>)}</div>}
                       {canEditItinerary && (activeDayId === day.id ?
                         <form className="activity-form" onSubmit={event => addActivity(event, day.id)}>
                           <label>Activity name<input value={activityTitle} onChange={e => setActivityTitle(e.target.value)} placeholder="e.g. Explore the old town" maxLength={180} required /></label>
