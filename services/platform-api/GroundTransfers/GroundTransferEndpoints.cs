@@ -34,6 +34,8 @@ public static class GroundTransferEndpoints
             return Results.ValidationProblem(new Dictionary<string,string[]> { ["airportIataCode"] = ["Enter a three-letter IATA airport code."] });
         if (destination.Length is < 4 or > 240)
             return Results.ValidationProblem(new Dictionary<string,string[]> { ["destination"] = ["Enter a destination address or place name (4–240 characters)."] });
+        if (request.TravelMode is not ("driving" or "cycling"))
+            return Results.ValidationProblem(new Dictionary<string,string[]> { ["travelMode"] = ["Choose driving or cycling."] });
         if (request.PickupBufferMinutes is < 0 or > 240)
             return Results.ValidationProblem(new Dictionary<string,string[]> { ["pickupBufferMinutes"] = ["Pickup buffer must be between 0 and 240 minutes."] });
 
@@ -43,7 +45,7 @@ public static class GroundTransferEndpoints
             if (result is null)
                 return Results.NotFound(new { code = "route_not_found", message = "A road route could not be found. Check the airport code and destination." });
             var pickup = result.DurationMinutes + request.PickupBufferMinutes;
-            var recommended = request.ArrivalUtc?.AddMinutes(pickup);
+            var recommended = request.ArrivalUtc?.AddMinutes(request.PickupBufferMinutes);
             return Results.Ok(new GroundTransferEstimateResponse(
                 airport, result.AirportName, result.AirportLatitude, result.AirportLongitude,
                 destination, result.DestinationLatitude, result.DestinationLongitude,
