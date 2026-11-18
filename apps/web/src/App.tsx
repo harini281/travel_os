@@ -56,6 +56,9 @@ type GroundTransferEstimate = {
   arrivalUtc:string|null; recommendedDepartureUtc:string|null; provider:string; estimatedAt:string; disclaimer:string;
 };
 type JourneyTimelineItem = { id:string; kind:"flight"|"activity"; sortAt:number; dateKey:string; title:string; subtitle:string; timeLabel:string; status:string; };
+type ScheduleTransition = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; status:"overlap"|"short_gap"|"buffer_met"; recommendation:string; };
+type ScheduleDayAnalysis = { dayId:string; dayNumber:number; date:string; activityCount:number; timedActivityCount:number; unscheduledActivityCount:number; overlapCount:number; shortGapCount:number; transitions:ScheduleTransition[]; };
+type ScheduleAnalysis = { tripId:string; minimumGapMinutes:number; days:ScheduleDayAnalysis[]; disclaimer:string; };
 type FlightConnectionsResponse = {
   tripId:string; assessedAt:string; connections:FlightConnection[]; disclaimer:string;
 };
@@ -179,6 +182,9 @@ export default function App() {
 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
+  const [scheduleAnalysis, setScheduleAnalysis] = useState<ScheduleAnalysis | null>(null);
+  const [scheduleBuffer, setScheduleBuffer] = useState("30");
+  const [loadingScheduleAnalysis, setLoadingScheduleAnalysis] = useState(false);
   const [loadingItinerary, setLoadingItinerary] = useState(false);
   const [weatherAssessments, setWeatherAssessments] = useState<WeatherAssessment[]>([]);
   const [weatherSkipped, setWeatherSkipped] = useState<WeatherSkippedActivity[]>([]);
@@ -311,11 +317,27 @@ export default function App() {
         `/api/v1/trips/${trip.id}/itinerary`, accessToken,
       );
       setItinerary(result ?? null);
+      const analysis = await api<ScheduleAnalysis>(
+        `/api/v1/trips/${trip.id}/itinerary/schedule-analysis?minimumGapMinutes=${scheduleBuffer}`, accessToken,
+      );
+      setScheduleAnalysis(analysis);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to load itinerary.");
     } finally {
       setLoadingItinerary(false);
     }
+  }
+
+  async function refreshScheduleAnalysis() {
+    if (!token || !selectedTrip) return;
+    setLoadingScheduleAnalysis(true);
+    try {
+      const analysis = await api<ScheduleAnalysis>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/schedule-analysis?minimumGapMinutes=${scheduleBuffer}`, token,
+      );
+      setScheduleAnalysis(analysis);
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to analyse the daily schedule."); }
+    finally { setLoadingScheduleAnalysis(false); }
   }
 
   async function loadTripFlights(trip: Trip, accessToken = token) {
@@ -1390,6 +1412,34 @@ export default function App() {
 
 
 
+            {scheduleAnalysis && <section className="schedule-analysis-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 29 · DAILY SCHEDULE INTELLIGENCE</p><h2>Daily schedule review</h2><small>Check overlaps and the breaks between timed activities</small></div>
+                <div className="schedule-analysis-controls">
+                  <label>Minimum planning buffer
+                    <select value={scheduleBuffer} onChange={e=>setScheduleBuffer(e.target.value)}>
+                      <option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option>
+                    </select>
+                  </label>
+                  <button type="button" className="btn btn-quiet" onClick={refreshScheduleAnalysis} disabled={loadingScheduleAnalysis}>{loadingScheduleAnalysis?"Checking…":"Recheck schedule"}</button>
+                </div>
+              </div>
+              <div className="schedule-analysis-days">
+                {scheduleAnalysis.days.length===0 ? <p className="budget-empty">Add an itinerary to review daily schedules.</p> :
+                  scheduleAnalysis.days.map(day=><article className="schedule-analysis-day" key={day.dayId}>
+                    <div className="schedule-analysis-day-heading"><strong>Day {day.dayNumber} · {formatDate(day.date)}</strong><span>{day.timedActivityCount}/{day.activityCount} timed</span></div>
+                    {day.unscheduledActivityCount>0 && <p className="schedule-analysis-note">{day.unscheduledActivityCount} activities have no start/end time and cannot be checked for gaps.</p>}
+                    {day.overlapCount>0 && <p className="schedule-analysis-alert">{day.overlapCount} overlapping activity pair(s) detected.</p>}
+                    {day.transitions.map((item,index)=><div className="schedule-transition" key={item.fromActivityId+item.toActivityId+index}>
+                      <div><strong>{item.fromTitle} → {item.toTitle}</strong><small>{item.gapMinutes<0?Math.abs(item.gapMinutes)+" min overlap":item.gapMinutes+" min break"}</small></div>
+                      <span className={"schedule-transition-status "+item.status}>{item.status.replace("_"," ")}</span>
+                      <p>{item.recommendation}</p>
+                    </div>)}
+                    {day.timedActivityCount<2 && <p className="schedule-analysis-note">Add times to at least two activities to analyse the break between them.</p>}
+                  </article>)}
+              </div>
+              <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
+            </section>}
             <section className="journey-timeline-panel">
               <div className="section-heading"><div><p className="eyebrow">STAGE 27 · JOURNEY OVERVIEW</p><h2>Smart travel timeline</h2><small>Flights and planned activities in chronological order</small></div><span className="timeline-count">{journeyTimeline.length} items</span></div>
               <p className="timeline-intro">Flight times use actual, then estimated, then scheduled provider times. Activity times are local itinerary times; unscheduled activities are date-only.</p>

@@ -345,3 +345,10 @@ The trip dashboard can request a point-to-point road/cycling estimate from an ai
 ## Journey timeline and activity scheduling
 
 The traveller dashboard combines saved flights and itinerary activities in a chronological timeline. Flight events use actual, estimated, then scheduled provider times. Activities support optional local start/end times; existing date-only activities remain valid. Overlapping activity windows are flagged for manual review, including nested overlaps. Flights contribute both departure and arrival calendar dates to the same-day activity review. Activity time values are local itinerary wall-clock times and are not converted between time zones. The timeline is read-only and does not change bookings.
+
+
+## Stage 29 — Daily schedule intelligence
+
+The itinerary API exposes `GET /api/v1/trips/{tripId}/itinerary/schedule-analysis?minimumGapMinutes=30`. It reviews saved local activity time windows, reports overlapping pairs and breaks shorter than a traveller-selected planning buffer (0–240 minutes), and identifies activities without times. The traveller dashboard supports 15, 30, 45 and 60-minute review buffers.
+
+This is a clock-time heuristic, not a route-duration or live-traffic estimate. It does not check attraction opening hours, transit schedules or airport processing. A gap meeting the selected buffer is not a guarantee that travel is feasible.
