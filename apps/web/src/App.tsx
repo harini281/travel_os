@@ -320,8 +320,8 @@ export default function App() {
   const [recommendations, setRecommendations] = useState<ItineraryRecommendations | null>(null);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [recommendationDay, setRecommendationDay] = useState(1);
-  const [recommendationFocus, setRecommendationFocus] = useState<\"all\" | \"weather\" | \"budget\" | \"group\" | \"schedule\">(\"all\");
-  const [recommendationQuestion, setRecommendationQuestion] = useState(\"\");
+  const [recommendationFocus, setRecommendationFocus] = useState<"all" | "weather" | "budget" | "group" | "schedule">("all");
+  const [recommendationQuestion, setRecommendationQuestion] = useState("");
   const [travellerCount, setTravellerCount] = useState(1);
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
