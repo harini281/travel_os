@@ -168,12 +168,14 @@ public static class OpeningHoursEndpoints
 
     private static string BuildOverpassQuery(IEnumerable<OpeningHoursCandidate> candidates)
     {
-        var queries = candidates.Select(x =>
+        var queries = candidates
+            .GroupBy(x => (Normalize(x.PlaceName!), x.Latitude, x.Longitude))
+            .Select(group => group.First())
+            .Select(x =>
         {
             var lat = x.Latitude!.Value.ToString(CultureInfo.InvariantCulture);
             var lon = x.Longitude!.Value.ToString(CultureInfo.InvariantCulture);
-            var escaped = Regex.Replace(x.PlaceName!, @"[.*+?^${}()|\[\]\\]", @"\$&");
-            var name = Regex.Replace(escaped, @"\s+", " ").Trim();
+            var name = Regex.Escape(Regex.Replace(x.PlaceName!, @"\s+", " ").Trim());
             return $"""
                 node(around:250,{lat},{lon})["name"~"^{name}$",i];
                 way(around:250,{lat},{lon})["name"~"^{name}$",i];
