@@ -17,6 +17,8 @@ public static class ItineraryRecommendationEndpoints
         group.MapPost("/recommendations", GenerateAsync)
             .RequireRateLimiting("ai-generation")
             .WithName("GenerateItineraryRecommendations");
+        group.MapPost("/recommendations/schedule", SuggestScheduleAsync)
+            .WithName("SuggestRecommendationSchedule");
         return endpoints;
     }
 
@@ -26,6 +28,141 @@ public static class ItineraryRecommendationEndpoints
             ?? principal.FindFirstValue(ClaimTypes.NameIdentifier);
         return Guid.TryParse(value, out userId);
     }
+
+
+    private static async Task<IResult> SuggestScheduleAsync(
+        Guid tripId,
+        RecommendationScheduleRequest request,
+        ClaimsPrincipal principal,
+        TravelOsDbContext db,
+        CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+
+        var trip = await db.Trips.AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == tripId && x.OwnerUserId == userId, ct);
+        if (trip is null) return Results.NotFound();
+
+        var itinerary = await db.Itineraries.AsNoTracking()
+            .Where(x => x.TripId == tripId)
+            .OrderByDescending(x => x.Version)
+            .Include(x => x.Days).ThenInclude(x => x.Activities)
+            .FirstOrDefaultAsync(ct);
+        if (itinerary is null) return Results.Conflict(new { message = "Create an itinerary before scheduling recommendations." });
+        if (itinerary.ApprovedAt is not null) return Results.Conflict(new { message = "Approved itineraries are read-only." });
+
+        var day = itinerary.Days.FirstOrDefault(x => x.DayNumber == request.DayNumber);
+        if (day is null) return Results.ValidationProblem(new Dictionary<string, string[]>
+        {
+            ["dayNumber"] = ["Choose a day in the current itinerary."]
+        });
+
+        if (string.IsNullOrWhiteSpace(request.Title) || request.Title.Trim().Length > 180 ||
+            request.DurationMinutes is < 15 or > 720 ||
+            request.BufferMinutes is < 0 or > 240 ||
+            !TimeOnly.TryParse(request.DayStartTime, out var dayStart) ||
+            !TimeOnly.TryParse(request.DayEndTime, out var dayEnd) ||
+            dayEnd <= dayStart)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["schedule"] = ["Provide a recommendation title, a duration from 15 to 720 minutes, a buffer from 0 to 240 minutes, and a valid planning window where the end is after the start."]
+            });
+        }
+
+        var timed = day.Activities
+            .Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
+            .OrderBy(x => x.StartTime).ThenBy(x => x.EndTime).ToArray();
+        var conflicts = new List<object>();
+        for (var i = 0; i < timed.Length; i++)
+        {
+            for (var j = 0; j < i; j++)
+            {
+                if (timed[j].EndTime!.Value > timed[i].StartTime!.Value)
+                    conflicts.Add(new
+                    {
+                        firstActivity = timed[j].Title,
+                        secondActivity = timed[i].Title,
+                        overlapMinutes = (int)(timed[j].EndTime!.Value - timed[i].StartTime!.Value).TotalMinutes
+                    });
+            }
+        }
+
+        var slots = new List<object>();
+        var cursor = dayStart;
+        string? previousTitle = null;
+        foreach (var activity in timed)
+        {
+            var activityStart = activity.StartTime!.Value;
+            var activityEnd = activity.EndTime!.Value;
+            if (activityStart > cursor)
+            {
+                var earliest = previousTitle is null ? cursor : cursor.AddMinutes(request.BufferMinutes);
+                var latestEnd = activityStart.AddMinutes(-request.BufferMinutes);
+                if (earliest.AddMinutes(request.DurationMinutes) <= latestEnd)
+                    slots.Add(new
+                    {
+                        startTime = earliest.ToString("HH:mm"),
+                        endTime = earliest.AddMinutes(request.DurationMinutes).ToString("HH:mm"),
+                        durationMinutes = request.DurationMinutes,
+                        previousActivityTitle = previousTitle,
+                        nextActivityTitle = activity.Title,
+                        explanation = previousTitle is null
+                            ? $"Fits before {activity.Title}, leaving the selected {request.BufferMinutes}-minute buffer."
+                            : $"Fits between {previousTitle} and {activity.Title}, with the selected {request.BufferMinutes}-minute buffers."
+                    });
+            }
+
+            if (activityEnd > cursor) cursor = activityEnd;
+            previousTitle = activity.Title;
+        }
+
+        if (cursor < dayEnd)
+        {
+            var earliest = previousTitle is null ? cursor : cursor.AddMinutes(request.BufferMinutes);
+            if (earliest.AddMinutes(request.DurationMinutes) <= dayEnd)
+                slots.Add(new
+                {
+                    startTime = earliest.ToString("HH:mm"),
+                    endTime = earliest.AddMinutes(request.DurationMinutes).ToString("HH:mm"),
+                    durationMinutes = request.DurationMinutes,
+                    previousActivityTitle = previousTitle,
+                    nextActivityTitle = (string?)null,
+                    explanation = previousTitle is null
+                        ? "Fits inside the planning window you selected."
+                        : $"Fits after {previousTitle}, with the selected {request.BufferMinutes}-minute buffer."
+                });
+        }
+
+        var warnings = new List<string>();
+        if (day.Activities.Any(x => !x.StartTime.HasValue || !x.EndTime.HasValue))
+            warnings.Add("Some saved activities have no time and are not included in gap calculations.");
+        if (conflicts.Count > 0)
+            warnings.Add("The saved itinerary already contains overlapping activities. Resolve those conflicts before relying on the proposed schedule.");
+
+        return Results.Ok(new
+        {
+            tripId,
+            dayNumber = day.DayNumber,
+            activityDate = day.Date,
+            title = request.Title.Trim(),
+            durationMinutes = request.DurationMinutes,
+            planningWindow = new { startTime = dayStart.ToString("HH:mm"), endTime = dayEnd.ToString("HH:mm") },
+            bufferMinutes = request.BufferMinutes,
+            slots = slots.Take(5).ToArray(),
+            conflicts,
+            warnings,
+            disclaimer = "Slots are calculated from saved activity times and the planning window you supplied. Travel time, venue opening hours, availability and live conditions are not verified. Nothing is saved until you explicitly choose a slot."
+        });
+    }
+
+    private sealed record RecommendationScheduleRequest(
+        int DayNumber,
+        string Title,
+        int DurationMinutes,
+        string DayStartTime,
+        string DayEndTime,
+        int BufferMinutes = 30);
 
     private static async Task<IResult> GenerateAsync(
         Guid tripId,
