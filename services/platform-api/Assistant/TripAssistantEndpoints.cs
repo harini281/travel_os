@@ -32,6 +32,7 @@ public static class TripAssistantEndpoints
             x.Id == tripId && (x.OwnerUserId == userId ||
                 db.TripMembers.Any(member => member.TripId == x.Id && member.UserId == userId)), ct);
         if (trip is null) return null;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var itinerary = await db.Itineraries.AsNoTracking()
             .Where(x => x.TripId == tripId)
@@ -49,7 +50,7 @@ public static class TripAssistantEndpoints
         var expenses = await db.TripExpenses.AsNoTracking()
             .Where(x => x.TripId == tripId).Select(x => new ExpenseContext(x.Amount, x.CurrencyCode)).ToListAsync(ct);
         var weather = await db.TripWeatherAssessments.AsNoTracking()
-            .Where(x => x.TripId == tripId && x.ActivityDate >= DateOnly.FromDateTime(DateTime.UtcNow))
+            .Where(x => x.TripId == tripId && x.ActivityDate >= today)
             .OrderByDescending(x => x.ForecastFetchedAt).Take(100)
             .Select(x => new WeatherContext(x.ActivityTitle, x.ActivityDate, x.Severity,
                 x.Summary, x.Recommendation, x.ForecastFetchedAt)).ToListAsync(ct);
