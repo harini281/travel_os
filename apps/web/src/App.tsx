@@ -1437,7 +1437,6 @@ export default function App() {
                     </div>)}
                     {day.timedActivityCount<2 && <p className="schedule-analysis-note">Add times to at least two activities to analyse the break between them.</p>}
                   </article>)}
-                )}
               </div>
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
