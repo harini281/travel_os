@@ -327,3 +327,13 @@ Flights can be assigned to a traveller-defined journey group such as `Outbound` 
 - Terminal, immigration, baggage reclaim, visa, boarding cutoff, ground transport, separate tickets and protected-connection status are not known by this assessment.
 - No airline minimum connection time, guarantee or live operational alert is implied.
 - Migration `015_flight_journey_groups.sql` adds the journey grouping field.
+
+
+## Stage 27 — Smart travel journey timeline
+
+The traveller dashboard now combines saved flights and itinerary activities in one chronological overview.
+
+- Flight ordering uses actual provider times when available, then estimated times, then traveller-entered scheduled times.
+- Itinerary activities are displayed against their day date. The current activity model does not store a start time, so the timeline does not invent one.
+- A same-calendar-day notice highlights days containing both a flight and one or more planned activities. It is a manual-review prompt, not a confirmed conflict.
+- No flight, activity, booking or transfer is modified by the timeline.
