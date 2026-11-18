@@ -100,13 +100,14 @@ public static class ItineraryEndpoints
             // Preserve each activity's duration and move only later activities forward.
             var suggestions = new List<object>();
             TimeOnly? plannedEnd = null;
+            var blockedByUnplaceableActivity = false;
             foreach (var activity in timed)
             {
                 var originalStart = activity.StartTime!.Value;
                 var originalEnd = activity.EndTime!.Value;
                 var durationMinutes = (int)(originalEnd - originalStart).TotalMinutes;
                 var suggestedStart = originalStart;
-                var cannotFit = false;
+                var cannotFit = blockedByUnplaceableActivity;
 
                 if (plannedEnd.HasValue)
                 {
@@ -135,9 +136,11 @@ public static class ItineraryEndpoints
                         suggestedEndTime = (string?)null,
                         shiftMinutes = (int?)null,
                         status = "cannot_fit",
-                        reason = "This activity cannot be moved into a valid same-day slot while preserving its duration and selected buffer. Review the day manually."
+                        reason = blockedByUnplaceableActivity
+                            ? "An earlier activity could not be placed within this day, so this activity cannot be safely positioned in the proposed sequence. Review the remaining day manually."
+                            : "This activity cannot be moved into a valid same-day slot while preserving its duration and selected buffer. Review the day manually."
                     });
-                    plannedEnd = originalEnd;
+                    blockedByUnplaceableActivity = true;
                     continue;
                 }
 
