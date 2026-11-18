@@ -49,7 +49,7 @@ public static class TripAssistantEndpoints
         var expenses = await db.TripExpenses.AsNoTracking()
             .Where(x => x.TripId == tripId).Select(x => new ExpenseContext(x.Amount, x.CurrencyCode)).ToListAsync(ct);
         var weather = await db.TripWeatherAssessments.AsNoTracking()
-            .Where(x => x.TripId == tripId)
+            .Where(x => x.TripId == tripId && x.ActivityDate >= DateOnly.FromDateTime(DateTime.UtcNow))
             .OrderByDescending(x => x.ForecastFetchedAt).Take(100)
             .Select(x => new WeatherContext(x.ActivityTitle, x.ActivityDate, x.Severity,
                 x.Summary, x.Recommendation, x.ForecastFetchedAt)).ToListAsync(ct);
@@ -59,13 +59,18 @@ public static class TripAssistantEndpoints
                 x.DestinationAirportCode, x.Status, x.ProviderStatus,
                 x.DepartureDelayMinutes, x.ScheduledDepartureUtc, x.EstimatedDepartureUtc,
                 x.ActualDepartureUtc)).ToListAsync(ct);
+        var budgetAlerts = await db.TripBudgetAlerts.AsNoTracking()
+            .Where(x => x.TripId == tripId)
+            .OrderByDescending(x => x.TriggeredAt).Take(10)
+            .Select(x => new BudgetAlertContext(x.AlertType, x.ThresholdPercent,
+                x.Message, x.CurrencyCode, x.TriggeredAt)).ToListAsync(ct);
         var notifications = await db.TripNotifications.AsNoTracking()
             .Where(x => x.TripId == tripId && x.UserId == userId && x.DismissedAt == null)
             .OrderByDescending(x => x.CreatedAt).Take(20)
             .Select(x => new NotificationContext(x.Title, x.Message, x.ScheduledForUtc, x.ReadAt)).ToListAsync(ct);
 
         return new TripContext(trip, itinerary, budget is null ? null : new BudgetContext(budget.Amount, budget.CurrencyCode),
-            expenses, weather, flights, notifications);
+            expenses, weather, flights, notifications, budgetAlerts);
     }
 
     private static async Task<IResult> GetBriefingAsync(
@@ -124,8 +129,22 @@ public static class TripAssistantEndpoints
                 $"{item.ActivityDate:yyyy-MM-dd}. {item.Summary} {item.Recommendation}".Trim(), 
                 item.Severity.Equals("high", StringComparison.OrdinalIgnoreCase) ? "warning" : "caution"));
 
-        if (context.Itinerary is not null)
+        if (context.Itinerary is null || context.Itinerary.Days.Count == 0)
+            insights.Add(new("itinerary", "No itinerary saved",
+                "This trip does not have any saved itinerary days yet. Add days and activities to build your plan.", "info"));
+        else
         {
+            var emptyUpcomingDays = context.Itinerary.Days.Count(day =>
+                day.Date >= now && day.Activities.Count == 0);
+            if (emptyUpcomingDays > 0)
+                insights.Add(new("itinerary", "Upcoming days need a plan",
+                    $"{emptyUpcomingDays} upcoming itinerary day(s) have no saved activities.", "info"));
+            var untimed = context.Itinerary.Days.Where(day => day.Date >= now)
+                .SelectMany(day => day.Activities)
+                .Count(activity => !activity.StartTime.HasValue || !activity.EndTime.HasValue);
+            if (untimed > 0)
+                insights.Add(new("schedule", "Some activities are not timed",
+                    $"{untimed} upcoming activity/activities are missing a start or end time and cannot be checked for overlaps.", "info"));
             foreach (var day in context.Itinerary.Days)
             {
                 var timed = day.Activities.Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
@@ -153,6 +172,9 @@ public static class TripAssistantEndpoints
                 insights.Add(new("budget", "Mixed expense currencies",
                     "Some expenses use a different currency from the trip budget and are excluded from this comparison.", "info"));
         }
+
+        foreach (var alert in context.BudgetAlerts.Take(5))
+            insights.Add(new("budget", "Saved budget alert", alert.Message, "caution"));
 
         var dueReminders = context.Notifications.Count(x =>
             x.ScheduledForUtc.HasValue && x.ScheduledForUtc.Value <= DateTimeOffset.UtcNow && x.ReadAt is null);
@@ -212,6 +234,7 @@ public static class TripAssistantEndpoints
                 var spent = matching.Sum(x => x.Amount);
                 facts.Add($"Trip budget: {context.Budget.Amount:N2} {context.Budget.CurrencyCode}.");
                 facts.Add($"Recorded expenses in the same currency: {spent:N2} {context.Budget.CurrencyCode}.");
+                facts.AddRange(context.BudgetAlerts.Take(5).Select(x => $"Budget alert ({x.ThresholdPercent}%): {x.Message}"));
                 var other = context.Expenses.Where(x => !x.CurrencyCode.Equals(context.Budget.CurrencyCode, StringComparison.OrdinalIgnoreCase)).ToList();
                 if (other.Count > 0) facts.Add($"{other.Count} expense(s) in other currencies were excluded; no conversion was assumed.");
                 answer = context.Budget.Amount > 0
@@ -281,7 +304,7 @@ public static class TripAssistantEndpoints
 
     private sealed record TripContext(Trip Trip, ItineraryContext? Itinerary, BudgetContext? Budget,
         List<ExpenseContext> Expenses, List<WeatherContext> Weather, List<FlightContext> Flights,
-        List<NotificationContext> Notifications);
+        List<NotificationContext> Notifications, List<BudgetAlertContext> BudgetAlerts);
     private sealed record ItineraryContext(List<DayContext> Days);
     private sealed record DayContext(int DayNumber, DateOnly Date, List<ActivityContext> Activities);
     private sealed record ActivityContext(string Title, TimeOnly? StartTime, TimeOnly? EndTime,
@@ -294,4 +317,6 @@ public static class TripAssistantEndpoints
         string? ProviderStatus, int? DepartureDelayMinutes, DateTimeOffset ScheduledDepartureUtc,
         DateTimeOffset? EstimatedDepartureUtc, DateTimeOffset? ActualDepartureUtc);
     private sealed record NotificationContext(string Title, string Message, DateTimeOffset? ScheduledForUtc, DateTimeOffset? ReadAt);
+    private sealed record BudgetAlertContext(string AlertType, int ThresholdPercent, string Message,
+        string CurrencyCode, DateTimeOffset TriggeredAt);
 }
