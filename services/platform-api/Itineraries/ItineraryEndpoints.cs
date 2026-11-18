@@ -56,28 +56,23 @@ public static class ItineraryEndpoints
 
         var days = itinerary.Days.OrderBy(x => x.DayNumber).Select(day =>
         {
-            var activities = day.Activities.OrderBy(x => x.SortOrder).ToArray();
+            var activities = day.Activities.ToArray();
             var timed = activities.Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
                 .OrderBy(x => x.StartTime).ToArray();
-            var transitions = new List<object>();
+            var transitions = new List<(Guid FromId, string FromTitle, Guid ToId, string ToTitle, int GapMinutes, string Status, string Recommendation)>();
             for (var index = 1; index < timed.Length; index++)
             {
                 var previous = timed[index - 1];
                 var next = timed[index];
                 var gap = (int)(next.StartTime!.Value - previous.EndTime!.Value).TotalMinutes;
                 var status = gap < 0 ? "overlap" : gap < minimumGap ? "short_gap" : "buffer_met";
-                transitions.Add(new {
-                    fromActivityId = previous.Id, fromTitle = previous.Title,
-                    toActivityId = next.Id, toTitle = next.Title,
-                    gapMinutes = gap, status,
-                    recommendation = status switch {
-                        "overlap" => "These activities overlap. Adjust one of the time windows.",
-                        "short_gap" => "The break is below your selected planning buffer. Review the schedule and allow for travel.",
-                        _ => "The selected planning buffer is available. Actual travel time is not verified."
-                    }
-                });
+                var recommendation = status switch {
+                    "overlap" => "These activities overlap. Adjust one of the time windows.",
+                    "short_gap" => "The break is below your selected planning buffer. Review the schedule and allow for travel.",
+                    _ => "The selected planning buffer is available. Actual travel time is not verified."
+                };
+                transitions.Add((previous.Id, previous.Title, next.Id, next.Title, gap, status, recommendation));
             }
-            var overlaps = transitions.Count(x => x.ToString() is not null); // Count is derived below from explicit windows.
             var overlapCount = 0;
             for (var left = 0; left < timed.Length; left++)
                 for (var right = left + 1; right < timed.Length; right++)
@@ -87,8 +82,12 @@ public static class ItineraryEndpoints
                 activityCount = activities.Length, timedActivityCount = timed.Length,
                 unscheduledActivityCount = activities.Length - timed.Length,
                 overlapCount,
-                shortGapCount = transitions.Count(x => x.ToString() is not null) - overlapCount,
-                transitions
+                shortGapCount = transitions.Count(x => x.Status == "short_gap"),
+                transitions = transitions.Select(x => new {
+                    fromActivityId = x.FromId, fromTitle = x.FromTitle,
+                    toActivityId = x.ToId, toTitle = x.ToTitle,
+                    gapMinutes = x.GapMinutes, status = x.Status, recommendation = x.Recommendation
+                }).ToArray()
             };
         }).ToArray();
 
