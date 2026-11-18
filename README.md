@@ -352,3 +352,9 @@ The traveller dashboard combines saved flights and itinerary activities in a chr
 The itinerary API exposes `GET /api/v1/trips/{tripId}/itinerary/schedule-analysis?minimumGapMinutes=30`. It reviews saved local activity time windows, reports overlapping pairs and breaks shorter than a traveller-selected planning buffer (0–240 minutes), and identifies activities without times. The traveller dashboard supports 15, 30, 45 and 60-minute review buffers.
 
 This is a clock-time heuristic, not a route-duration or live-traffic estimate. It does not check attraction opening hours, transit schedules or airport processing. A gap meeting the selected buffer is not a guarantee that travel is feasible.
+
+## Stage 30 — Complete schedule conflict detection
+
+Schedule analysis now returns every overlapping activity pair, including nested and cascading conflicts, rather than only comparing adjacent activities in start-time order. For each activity it also checks the nearest previously completed activity to assess the planning buffer without generating misleading gap comparisons against every earlier activity. The dashboard presents conflict pairs separately from short-break warnings.
+
+The analysis remains a local clock-time heuristic. It does not calculate route duration, traffic, attraction opening hours or verified transfer times. See [the schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md) for nested and cascading overlap scenarios.
