@@ -21,6 +21,7 @@ using TravelOS.PlatformApi.ExpenseIntelligence;
 using TravelOS.PlatformApi.Currency;
 using TravelOS.PlatformApi.BudgetIntelligence;
 using TravelOS.PlatformApi.BudgetAlerts;
+using TravelOS.PlatformApi.WeatherDisruptions;
 using TravelOS.PlatformApi.Trips;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -131,6 +132,12 @@ builder.Services.AddHttpClient<FrankfurterExchangeRateProvider>(client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 builder.Services.AddHttpClient("ai-receipts", client => { client.Timeout = TimeSpan.FromSeconds(45); });
+builder.Services.AddHttpClient("weather-forecast", client =>
+{
+    client.BaseAddress = new Uri("https://api.open-meteo.com/v1/");
+    client.Timeout = TimeSpan.FromSeconds(15);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TravelOS/1.0 (weather disruption monitoring)");
+});
 builder.Services.AddHttpClient("ai-planner", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(70);
@@ -158,6 +165,7 @@ app.MapExpenseIntelligenceEndpoints();
 app.MapCurrencyEndpoints();
 app.MapBudgetIntelligenceEndpoints();
 app.MapBudgetAlertEndpoints();
+app.MapWeatherDisruptionEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
