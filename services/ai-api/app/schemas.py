@@ -80,11 +80,54 @@ class DraftResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class RecommendationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    destination: str = Field(min_length=2, max_length=160)
+    activityDate: date
+    currency: str = Field(pattern=r"^[A-Z]{3}$")
+    travellerCount: int = Field(ge=1, le=30) = 1
+    interests: list[str] = Field(default_factory=list, max_length=12)
+    travelPace: Literal["relaxed", "balanced", "fast"] = "balanced"
+    dailyBudgetRemaining: Decimal | None = Field(default=None, ge=0)
+    question: str = Field(default="Recommend suitable activities for this day.", min_length=2, max_length=500)
+    existingActivities: list[str] = Field(default_factory=list, max_length=12)
+    weatherContext: list[str] = Field(default_factory=list, max_length=8)
+    planningContext: list[str] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="after")
+    def validate_context(self):
+        for collection in (self.interests, self.existingActivities, self.weatherContext, self.planningContext):
+            if any(len(item) > 240 for item in collection):
+                raise ValueError("Context entries must be 240 characters or fewer")
+        return self
+
+
+class ActivityRecommendation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: str = Field(min_length=2, max_length=180)
+    category: Literal["weather_alternative", "new_activity", "budget_friendly", "group_interest", "schedule_balance"]
+    reason: str = Field(min_length=2, max_length=500)
+    suggestedDurationMinutes: int | None = Field(default=None, ge=15, le=600)
+    estimatedCost: Decimal | None = Field(default=None, ge=0)
+    currencyCode: str | None = Field(default=None, pattern=r"^[A-Z]{3}$")
+    bestFor: str = Field(default="General travellers", max_length=160)
+    verificationNote: str = Field(default="Verify location, opening hours and price before visiting.", max_length=300)
+
+
+class RecommendationResponse(BaseModel):
+    status: Literal["demo_only", "generated"] = "demo_only"
+    provider: str = "demo"
+    model: str | None = None
+    recommendations: list[ActivityRecommendation] = Field(default_factory=list, max_length=6)
+    summary: str
+    warnings: list[str] = Field(default_factory=list)
+
+
 class ReceiptExtractionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     contentType: Literal["image/jpeg", "image/png", "image/webp"]
     imageBase64: str = Field(min_length=100, max_length=12000000)
-    
+
     @model_validator(mode="after")
     def validate_image(self):
         import base64
