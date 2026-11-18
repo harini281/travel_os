@@ -1649,7 +1649,7 @@ export default function App() {
         `/api/v1/trips/${selectedTrip.id}/itinerary/days/${day.id}/activities`, token,
         { method: "POST", body: JSON.stringify({
           title: item.title,
-          description: `${item.reason}\\n\\nAI suggestion — verify before visiting: ${item.verificationNote}`,
+          description: `${item.reason}\n\nAI suggestion — verify before visiting: ${item.verificationNote}`,
           placeName: null, latitude: null, longitude: null,
           durationMinutes: item.suggestedDurationMinutes,
           startTime: null, endTime: null,
@@ -2495,8 +2495,8 @@ export default function App() {
                   <h4>{item.title}</h4><p>{item.reason}</p>
                   <div className="recommendation-meta">{item.suggestedDurationMinutes && <span>◷ {item.suggestedDurationMinutes} min</span>}{item.estimatedCost!==null && <span>≈ {item.estimatedCost.toLocaleString()} {item.currencyCode || selectedTrip.currencyCode}</span>}<span>{item.bestFor}</span></div>
                   <small>{item.verificationNote}</small>
-                  <button type="button" className="btn btn-quiet" onClick={() => addRecommendedActivity(item)} disabled={savingRecommendationTitle !== null || isRecommendationAdded(item) || itinerary.isApproved}>
-                    {savingRecommendationTitle === item.title ? "Adding…" : isRecommendationAdded(item) ? "✓ Added to itinerary" : itinerary.isApproved ? "Itinerary approved" : "＋ Add to itinerary"}
+                  <button type="button" className="btn btn-quiet" onClick={() => addRecommendedActivity(item)} disabled={savingRecommendationTitle !== null || isRecommendationAdded(item) || itinerary?.isApproved === true}>
+                    {savingRecommendationTitle === item.title ? "Adding…" : isRecommendationAdded(item) ? "✓ Added to itinerary" : itinerary?.isApproved ? "Itinerary approved" : "＋ Add to itinerary"}
                   </button>
                 </article>)}</div>
                 {recommendations.warnings.map((warning,i)=><p className="ai-warning" key={i}>ⓘ {warning}</p>)}
