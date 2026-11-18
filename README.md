@@ -327,3 +327,16 @@ Flights can be assigned to a traveller-defined journey group such as `Outbound` 
 - Terminal, immigration, baggage reclaim, visa, boarding cutoff, ground transport, separate tickets and protected-connection status are not known by this assessment.
 - No airline minimum connection time, guarantee or live operational alert is implied.
 - Migration `015_flight_journey_groups.sql` adds the journey grouping field.
+
+
+## Stage 26 — Airport intelligence and ground-transfer estimates
+
+The trip dashboard can request a point-to-point road/cycling estimate from an airport IATA code to a traveller-entered destination.
+
+- API: `POST /api/v1/trips/{tripId}/ground-transfers/estimate`
+- Geocoding: OpenStreetMap Nominatim; routing: OSRM.
+- Returns the resolved airport/place coordinates, route distance, road duration, configurable pickup buffer and a planning departure timestamp when an arrival time is supplied.
+- Estimates are not live traffic ETAs, airport processing estimates, transfer bookings or guaranteed arrival times.
+- Nominatim may resolve ambiguous airport codes; verify the returned airport name before relying on an estimate.
+- Public Nominatim/OSRM endpoints have usage limits and no production SLA. For commercial scale, use a contracted provider or self-hosted services and a verified airport dataset.
+- The API is authenticated. To respect the public Nominatim service policy on a single API instance, route estimates share a global in-process limiter (one estimate every two seconds), and the two geocoding lookups within an estimate are spaced one second apart. This is not a distributed limiter: run a single API instance when using the public Nominatim endpoint, or switch to a contracted/self-hosted geocoder with a shared limiter before horizontal scaling.
