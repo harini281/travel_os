@@ -42,6 +42,13 @@ public static class OpeningHoursEndpoints
                 Array.Empty<OpeningHoursDayResult>(),
                 "Opening hours are sourced from OpenStreetMap community data. Missing or unsupported data is never treated as confirmed open."));
 
+        var allActivities = itinerary.Days.SelectMany(x => x.Activities).ToArray();
+        if (allActivities.Length > 40)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["activities"] = ["Opening-hours analysis supports up to 40 activities per request."]
+            });
+
         var candidates = itinerary.Days
             .OrderBy(x => x.DayNumber)
             .SelectMany(day => day.Activities.Select(activity => new OpeningHoursCandidate(
@@ -219,7 +226,7 @@ internal static class OpeningHoursParser
         closed = false;
         if (expression.Trim() == "24/7")
         {
-            intervals.Add((TimeOnly.MinValue, new TimeOnly(23, 59)));
+            intervals.Add((TimeOnly.MinValue, TimeOnly.MaxValue));
             return true;
         }
 
@@ -229,6 +236,8 @@ internal static class OpeningHoursParser
             DayOfWeek.Thursday => "Th", DayOfWeek.Friday => "Fr", DayOfWeek.Saturday => "Sa", _ => "Su"
         };
         var matchedRule = false;
+        var sawDaySpecificRule = false;
+        var matchingRuleCount = 0;
         foreach (var rawRule in expression.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
         {
             var rule = rawRule.Trim();
@@ -244,6 +253,7 @@ internal static class OpeningHoursParser
             var applies = true;
             if (match.Success)
             {
+                sawDaySpecificRule = true;
                 applies = ExpandDays(match.Groups[1].Value).Contains(dayCode);
                 hours = match.Groups[2].Value.Trim();
             }
@@ -252,6 +262,8 @@ internal static class OpeningHoursParser
                 hours = rule;
             }
             if (!applies) continue;
+            matchingRuleCount++;
+            if (matchingRuleCount > 1) return false;
             matchedRule = true;
             if (hours.Equals("off", StringComparison.OrdinalIgnoreCase)
                 || hours.Equals("closed", StringComparison.OrdinalIgnoreCase))
@@ -271,6 +283,11 @@ internal static class OpeningHoursParser
                     return false;
                 intervals.Add((start, end));
             }
+        }
+        if (!matchedRule && sawDaySpecificRule)
+        {
+            closed = true;
+            return true;
         }
         return matchedRule;
     }
