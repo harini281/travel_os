@@ -1521,7 +1521,7 @@ export default function App() {
   const flightActivityDateKeys = new Set(tripFlights.flatMap(flight => {
     const dep=new Date(flight.actualDepartureUtc ?? flight.estimatedDepartureUtc ?? flight.scheduledDepartureUtc);
     const arr=new Date(flight.actualArrivalUtc ?? flight.estimatedArrivalUtc ?? flight.scheduledArrivalUtc);
-    return [dep.toLocaleDateString(),arr.toLocaleDateString()];
+    return [dateKeyInTimeZone(dep, displayTimeZone),dateKeyInTimeZone(arr, displayTimeZone)];
   }));
   const sameDayActivityCount = journeyTimeline.filter(item=>item.kind==="activity" && flightActivityDateKeys.has(item.dateKey)).length;
   const scheduleConflicts = new Set<string>();
@@ -2246,7 +2246,7 @@ export default function App() {
                             <div className="form-actions wide-field"><button type="button" className="btn btn-quiet" onClick={()=>setEditingActivityId(null)}>Cancel</button><button className="btn btn-primary" disabled={busy}>{busy?"Saving…":"Save changes"}</button></div>
                           </form> :
                           <div className="activity-row" key={activity.id}>
-                            <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)}</span>}{activity.description && <p>{activity.description}</p>}</div>
+                            <span className="activity-dot">•</span><div className="activity-info"><strong>{activity.title}</strong>{activity.placeName && <span>{activity.placeName}</span>}{activity.startTime && activity.endTime && <span className="activity-time">{activity.startTime.slice(0,5)} – {activity.endTime.slice(0,5)} · {displayTimeZone}</span>}{activity.description && <p>{activity.description}</p>}</div>
                             <div className="activity-meta">{activity.durationMinutes && <span>{activity.durationMinutes} min</span>}{activity.estimatedCost !== null && <span>{activity.estimatedCost.toLocaleString()} {activity.currencyCode}</span>}</div>
                             {canEditItinerary && <><button className="delete-link" onClick={()=>beginEditActivity(activity)}>Edit</button><button className="delete-link" onClick={()=>deleteActivity(activity.id)}>Remove</button></>}
                           </div>)}</div>}
