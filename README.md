@@ -2,417 +2,355 @@
 
 **The Intelligent Operating System for Travel**
 
-A greenfield, global travel platform built with React, ASP.NET Core, PostgreSQL, and Python/FastAPI.
+TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-## Stage 2 scope
+> **Current development status:** Stage 39 — AI activity recommendations. This is an active development project, not yet a production-ready booking platform.
 
-This stage adds a PostgreSQL bootstrap schema, EF Core entity relationships, database configuration, PostgreSQL health checks, and fixes discovered by the first CI run. It remains a foundation, not a production-ready application.
+## 1. Features implemented
 
-## Prerequisites
+### Accounts, trips and collaboration
+- Traveller registration/login, JWT authentication and trip ownership/member access.
+- Create, update and manage trips and invitations.
+- Shared traveller profiles, interests, travel preferences, polls and voting.
+- In-app notifications and scheduled reminders.
 
+### Itinerary planning and intelligence
+- Day-by-day itineraries with activities, locations, costs and editable start/end times.
+- AI-generated itinerary drafts with review and explicit owner approval before applying.
+- Daily schedule conflict detection, planning buffers and suggested time adjustments.
+- Route-aware timing estimates, attraction opening-hours checks and interactive Leaflet maps.
+- Flight-aware journey timeline and airport/ground-transfer information.
+- Weather disruption assessments and a contextual Trip Assistant.
+- Stage 39: AI activity ideas for a selected day, focused on weather alternatives, budget, group interests or schedule balance. Suggestions are review-only and do not edit the saved itinerary.
+
+### Budgets and shared expenses
+- Trip budget caps, planned categories, shared expenses and participant split methods.
+- Expense editing with audit history, balance calculations and suggested settlements.
+- Recipient-confirmed repayment tracking; the app does not initiate bank transfers.
+- Receipt upload metadata and optional AI receipt extraction.
+- Currency reference conversions, multi-currency spending reports and budget alerts.
+
+### Travel support
+- Flight records and optional FlightAware status refresh.
+- Airport/connection and ground-transfer estimates.
+- Open-Meteo weather assessments, OpenStreetMap place data, OSRM route estimates.
+- Per-trip timezone display and read-only offline itinerary snapshots.
+
+**Important:** TravelOS does not currently sell tickets, book hotels, guarantee provider availability, or guarantee live route/traffic, opening-hour or price information. Verify important details with the relevant supplier.
+
+## 2. Technology stack
+
+| Layer | Technology |
+|---|---|
+| Web client | React, TypeScript, Vite, Leaflet |
+| Platform API | ASP.NET Core 8, C#, Entity Framework Core |
+| Database | PostgreSQL 16, Npgsql |
+| AI service | Python 3.11+, FastAPI, Pydantic, OpenAI Responses API (optional) |
+| Maps and travel data | OpenStreetMap, OSRM, Open-Meteo, Frankfurter; optional FlightAware |
+| CI | GitHub Actions |
+
+## 3. Prerequisites
+
+Install these before starting:
+
+- Git
 - Node.js 22+
 - .NET 8 SDK
 - Python 3.11+
-- Docker Desktop / Docker Engine with Compose
+- Docker Desktop / Docker Engine with Docker Compose
+- PostgreSQL client tools (`psql`) for applying migrations manually
 
-## Repository layout
+## 4. Configuration files
 
-```text
-apps/web                 React + TypeScript + Vite frontend
-services/platform-api    ASP.NET Core platform API and EF Core model
-services/ai-api          FastAPI AI service boundary
-packages/contracts       Versioned JSON contracts
-database/migrations      PostgreSQL bootstrap schema
-infrastructure           Docker and deployment configuration
-docs                     Product and architecture documentation
-tests                    Cross-service integration test area
+There are **two example environment files** to copy. Do not commit real secrets.
+
+| File | What it configures | Required? |
+|---|---|---|
+| `.env.example` → `.env` (repository root) | Local PostgreSQL container values and reference settings for the API/AI services | Yes for the documented Docker setup |
+| `apps/web/.env.example` → `apps/web/.env.local` | Browser's platform API URL | Yes |
+| `services/platform-api/appsettings.json` | Non-secret .NET logging/default configuration | Already present |
+| `services/platform-api/Properties/launchSettings.json` | Local API profile and port 8080 | Already present |
+| `services/ai-api/requirements.txt` | Python service dependencies | Already present |
+| `docker-compose.yml` | PostgreSQL container, port, volume and initial SQL scripts | Already present |
+| `.github/workflows/ci.yml` | Automated build, test and migration checks | Already present |
+
+### Platform API settings
+
+The API process needs these environment variables. The root `.env` file is read by Docker Compose; it is **not automatically loaded** into a separately started `dotnet run` process.
+
+| Variable | Purpose |
+|---|---|
+| `ConnectionStrings__TravelOS` | PostgreSQL connection string |
+| `Jwt__Issuer` | JWT issuer (local value: `TravelOS`) |
+| `Jwt__Audience` | JWT audience (local value: `TravelOS.Client`) |
+| `Jwt__SigningKey` | Unique secret of at least 32 bytes; mandatory |
+| `Cors__AllowedOrigins__0` | Exact web origin, normally `http://localhost:5173` |
+| `AiService__BaseUrl` | AI service URL, normally `http://localhost:8001` |
+| `Receipts__StoragePath` | Private receipt storage directory |
+| `FLIGHTAWARE_API_KEY` | Optional FlightAware AeroAPI key for live flight refresh |
+
+### AI service settings
+
+Set these in the terminal where Uvicorn is started. The Python service does **not** automatically read the repository root `.env` file.
+
+| Variable | Purpose |
+|---|---|
+| `AI_PROVIDER` | `demo` (default) or `openai` |
+| `OPENAI_API_KEY` | Required only when enabling OpenAI itinerary generation/recommendations |
+| `OPENAI_MODEL` | Optional model override; example: `gpt-4.1-mini` |
+| `AI_RECEIPT_PROVIDER` | Receipt extraction provider; keep `demo` unless deliberately configured |
+
+Stage 39 returns no generated suggestions in demo mode. To use live AI recommendations, configure `AI_PROVIDER=openai` and `OPENAI_API_KEY`. Provider usage may incur charges. Never put an AI or FlightAware key in a `VITE_*` frontend variable.
+
+## 5. Run TravelOS locally
+
+Run each service in its own terminal. The commands below use PowerShell on Windows; equivalent Bash commands are included where environment-variable syntax differs.
+
+### Step 1 — Get the code and configure PostgreSQL
+
+```bash
+git clone https://github.com/harini281/travel_os.git
+cd travel_os
 ```
 
-## Run locally
+PowerShell:
 
-1. Copy `.env.example` to `.env`. The checked-in values are for local development only.
-2. Start PostgreSQL:
+```powershell
+Copy-Item .env.example .env
+docker compose up -d postgres
+docker compose ps
+```
 
-   ```bash
-   docker compose up -d postgres
-   docker compose ps
-   ```
+Bash:
 
-   The SQL bootstrap script creates the initial tables when PostgreSQL initializes a **new empty data volume**. For an existing local database, apply the database migrations in dependency order: `003_itinerary_constraints.sql` (if not already applied), `003_trip_invitations.sql`, `004_trip_member_preferences.sql`, `005_group_polls.sql`, `006_shared_expenses.sql`, `007_trip_repayments.sql`, `008_trip_expense_audits.sql`, `009_trip_receipts.sql`, and `010_currency_conversions.sql`.
+```bash
+cp .env.example .env
+docker compose up -d postgres
+docker compose ps
+```
 
-3. Start the platform API in another terminal:
+The container automatically applies the first three bootstrap scripts to a **new empty volume**: `001_initial_schema.sql`, `002_identity_schema.sql` and `003_itinerary_constraints.sql`.
 
-   ```bash
-   cd services/platform-api
-   dotnet restore
-   dotnet run
-   ```
+Apply the remaining migrations in order. From the repository root, using PowerShell:
 
-   The API reads its connection string from `ConnectionStrings__TravelOS`. The Docker initialization also applies the ASP.NET Core Identity tables from `002_identity_schema.sql` when using a new empty volume.
-
-   Configure the JWT issuer, audience, and a unique signing key before starting the API. The signing key must be at least 32 bytes. For local development, set these environment variables in your shell (the example below is a placeholder only; use a fresh random secret):
-
-   ```powershell
-   $env:Jwt__Issuer = "TravelOS"
-   $env:Jwt__Audience = "TravelOS.Client"
-   $env:Jwt__SigningKey = "replace-with-a-unique-random-secret-at-least-32-bytes"
-   ```
-
-   On macOS/Linux, use `export Jwt__Issuer=TravelOS`, `export Jwt__Audience=TravelOS.Client`, and `export Jwt__SigningKey='replace-with-a-unique-random-secret-at-least-32-bytes'`.
-
-   The API reads its connection string from `ConnectionStrings__TravelOS`. For local development, set it in your shell or user secrets, for example:
-
-   ```text
-   Host=localhost;Port=5432;Database=travelos;Username=travelos;Password=change-me-local-only
-   ```
-
-4. Start the AI API:
-
-   ```bash
-   cd services/ai-api
-   python -m venv .venv
-   # Windows: .venv\Scripts\activate
-   # macOS/Linux: source .venv/bin/activate
-   pip install -r requirements.txt
-   uvicorn app.main:app --reload --port 8001
-   ```
-
-5. Start the web app:
-
-   ```bash
-   cd apps/web
-   npm install
-   npm run dev
-   ```
-
-## Local endpoints
-
-- Web: http://localhost:5173
-- Platform API: http://localhost:8080
-- Platform API health: http://localhost:8080/health
-- AI API: http://localhost:8001
-- AI API docs: http://localhost:8001/docs
-- PostgreSQL: localhost:5432
-
-## Authentication
-
-- `POST /api/v1/auth/register` creates a traveller account and returns a short-lived JWT access token.
-- `POST /api/v1/auth/login` validates credentials and returns a JWT access token.
-- `GET /api/v1/auth/me` requires a valid bearer token and returns the current account.
-- ASP.NET Core Identity manages password hashing, normalized email, role membership, failed-login lockout and password policy.
-- The default `Traveller` role is assigned during registration. Never expose a public role-selection field.
-- Access tokens expire after 15 minutes. Refresh tokens, email verification, password reset, MFA and social login are not implemented yet.
-- Use HTTPS outside local development. Keep the JWT signing key in a secrets manager and rotate it deliberately.
-- The web preview does not yet implement email verification, password reset, MFA or refresh tokens.
-
-## Traveller web app
-
-The Vite app includes account registration, sign-in, a trip dashboard, trip creation/deletion, a day-by-day itinerary workspace, trip budget planning, group invitations and traveller preference profiles and group voting, shared expense tracking with equal, percentage-based and exact participant splits, expense editing and immutable audit history, and suggested repayments calculated from group balances, with recipient-confirmed repayment tracking.
-
-- Copy `apps/web/.env.example` to `apps/web/.env.local` and set `VITE_PLATFORM_API_URL` to the platform API base URL.
-- The local default is `http://localhost:8080`.
-- The browser client keeps the short-lived access token in `sessionStorage` for this preview. This reduces persistence after the browser session but is not a substitute for a production-grade HttpOnly, Secure, SameSite cookie/BFF design.
-- Configure `Cors__AllowedOrigins__0` on the API to the exact deployed frontend origin. The default local origin is `http://localhost:5173`.
-
-## Trip management API
-
-All trip endpoints require `Authorization: Bearer <access-token>`.
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/api/v1/trips` | Create a trip; creator becomes owner and first member |
-| GET | `/api/v1/trips` | List trips the signed-in user owns or belongs to |
-| GET | `/api/v1/trips/{tripId}` | Read a trip when the user is a member |
-| PUT | `/api/v1/trips/{tripId}` | Update trip details (owner only) |
-| DELETE | `/api/v1/trips/{tripId}` | Delete a trip (owner only) |
-
-Trip dates are ISO `YYYY-MM-DD` values. Currency codes must be three letters and are normalized to uppercase. End date cannot be before start date. Non-members receive `404` for trip details to avoid disclosing trip existence.
-
-Example create request:
-
-```json
-{
-  "name": "Summer in Japan",
-  "destination": "Tokyo, Japan",
-  "startDate": "2027-07-10",
-  "endDate": "2027-07-18",
-  "currencyCode": "JPY"
+```powershell
+$migrations = @(
+  "003_trip_invitations.sql",
+  "004_trip_member_preferences.sql",
+  "005_group_polls.sql",
+  "006_shared_expenses.sql",
+  "007_trip_repayments.sql",
+  "008_trip_expense_audits.sql",
+  "009_trip_receipts.sql",
+  "010_currency_conversions.sql",
+  "011_conversion_source_expense_date.sql",
+  "012_trip_budget_alerts.sql",
+  "013_trip_weather_assessments.sql",
+  "014_trip_flights.sql",
+  "015_flight_journey_groups.sql",
+  "016_activity_schedule_times.sql",
+  "017_trip_notifications.sql"
+)
+foreach ($migration in $migrations) {
+  psql -h localhost -p 5432 -U travelos -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+  if ($LASTEXITCODE -ne 0) { throw "Migration failed: $migration" }
 }
 ```
 
-## Itinerary builder API
+Bash:
+
+```bash
+for migration in \
+  003_trip_invitations.sql 004_trip_member_preferences.sql 005_group_polls.sql \
+  006_shared_expenses.sql 007_trip_repayments.sql 008_trip_expense_audits.sql \
+  009_trip_receipts.sql 010_currency_conversions.sql 011_conversion_source_expense_date.sql \
+  012_trip_budget_alerts.sql 013_trip_weather_assessments.sql 014_trip_flights.sql \
+  015_flight_journey_groups.sql 016_activity_schedule_times.sql 017_trip_notifications.sql
+do
+  PGPASSWORD=change-me-local-only psql -h localhost -p 5432 -U travelos -d travelos \
+    -v ON_ERROR_STOP=1 -f "database/migrations/$migration" || exit 1
+done
+```
+
+If you have an older database volume, **do not blindly rerun migrations or delete the volume**. Back up your data first and apply only the migrations that have not already been applied. `docker compose down -v` deletes the local database volume.
 
-An itinerary is created by the trip owner. Trip members can read it; only the owner can edit or approve it.
+### Step 2 — Start the Platform API
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/v1/trips/{tripId}/itinerary` | Read itinerary and all days/activities |
-| POST | `/api/v1/trips/{tripId}/itinerary` | Create the trip's initial itinerary |
-| POST | `/api/v1/trips/{tripId}/itinerary/days` | Add a day within the trip dates |
-| POST | `/api/v1/trips/{tripId}/itinerary/days/{dayId}/activities` | Add an activity |
-| PUT | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Update an activity |
-| DELETE | `/api/v1/trips/{tripId}/itinerary/activities/{activityId}` | Delete an activity |
-| POST | `/api/v1/trips/{tripId}/itinerary/approve` | Approve the itinerary (owner only) |
+Open a new terminal:
 
-Approval requires at least one activity. Once approved, the itinerary becomes read-only; editing an approved plan will require a future versioning workflow. Activity costs are estimates, not live supplier prices. Coordinates are optional and are not independently verified.
+```powershell
+cd services/platform-api
+$env:ConnectionStrings__TravelOS = "Host=localhost;Port=5432;Database=travelos;Username=travelos;Password=change-me-local-only"
+$env:Jwt__Issuer = "TravelOS"
+$env:Jwt__Audience = "TravelOS.Client"
+$env:Jwt__SigningKey = "REPLACE_WITH_A_UNIQUE_RANDOM_SECRET_AT_LEAST_32_BYTES"
+$env:Cors__AllowedOrigins__0 = "http://localhost:5173"
+$env:AiService__BaseUrl = "http://localhost:8001"
+$env:Receipts__StoragePath = "../../data/private-receipts"
+dotnet restore
+dotnet run
+```
 
-## Itinerary workspace
+For macOS/Linux, use `export VARIABLE=value` instead of PowerShell's `$env:VARIABLE = "value"`. The signing key above is a placeholder: replace it with a private random secret before running. Do not use the example key in a deployed environment.
 
-Open a trip from the dashboard to manage its itinerary and budget.
+### Step 3 — Start the AI API
 
-- Trip owners can create the initial itinerary, add trip days and add or remove activities.
-- Trip members can view the itinerary.
-- Owners can approve a plan after at least one activity has been added.
-- Approved plans become read-only.
-- Activity duration, place, notes and estimated cost are optional fields.
-- The itinerary builder does not verify live opening hours, routes, availability or prices.
-- Trip owners can set a budget cap and add planned category amounts; members can view them.
-- Trip owners can invite existing TravelOS accounts, revoke pending invitations and remove members. Invited travellers accept from their invitation inbox. Invitations expire after seven days. Email delivery is not configured in this preview. Trip members can also save their interests, preferred pace, travel style and optional daily budget. Group members see shared preference summaries; personal notes remain private. Group members can also create polls, vote on options and view live results; poll creators or trip owners can close polls.
+Open another terminal from the repository root:
 
-## AI itinerary drafts
+```powershell
+cd services/ai-api
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+$env:AI_PROVIDER = "demo"
+uvicorn app.main:app --reload --port 8001
+```
 
-The trip owner can request an AI-generated itinerary draft from the itinerary workspace. The platform API sends trip dates, destination, traveller count, budget, interests and pace to the isolated FastAPI service.
+To enable real AI generation instead of demo mode, stop/restart Uvicorn after setting:
 
-- The AI service defaults to `AI_PROVIDER=demo`; demo mode deliberately creates no itinerary.
-- To enable real generation locally, set `AI_PROVIDER=openai`, `OPENAI_API_KEY` and optionally `OPENAI_MODEL` in the AI service process environment. The root `.env.example` is a reference template; Python does not automatically load it. For PowerShell, set `$env:AI_PROVIDER="openai"` and `$env:OPENAI_API_KEY="your-key"` in the terminal before starting Uvicorn. On macOS/Linux, use `export AI_PROVIDER=openai` and `export OPENAI_API_KEY='your-key'`.
-- The platform API calls the AI service at `AiService:BaseUrl` (local default `http://localhost:8001`).
-- Never commit provider keys or place them in frontend environment variables.
-- AI output is validated by the AI service and again by the platform API before being saved.
-- Generated plans are stored as `pending_review` drafts and are not approved or applied automatically.
-- The owner must explicitly apply a reviewed draft. Applying it creates a new itinerary version; if a previous itinerary is still a draft, approve it first.
-- AI suggestions may be inaccurate. Verify places, opening hours, routes and costs. Estimates are not live prices.
+```powershell
+$env:AI_PROVIDER = "openai"
+$env:OPENAI_API_KEY = "YOUR_PRIVATE_API_KEY"
+$env:OPENAI_MODEL = "gpt-4.1-mini"
+uvicorn app.main:app --reload --port 8001
+```
 
-## Trip budget API
+macOS/Linux virtual environment activation: `source .venv/bin/activate`. Set the same AI variables with `export`.
 
-The trip owner can set a budget cap and manage planned category items. Trip members can view the budget.
+### Step 4 — Start the web app
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/v1/trips/{tripId}/budget` | View budget and category totals |
-| PUT | `/api/v1/trips/{tripId}/budget` | Create or update budget cap |
-| POST | `/api/v1/trips/{tripId}/budget/items` | Add a planned category item |
-| PUT | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Update a category item |
-| DELETE | `/api/v1/trips/{tripId}/budget/items/{itemId}` | Remove a category item |
+Open another terminal:
 
-Budget items retain their own currency. Totals are grouped by currency; the API does not add different currencies together or claim an exchange-rate conversion. Live foreign-exchange conversion is future work. Receipt uploads, duplicate-image detection and reviewable AI extraction are available in Stage 18. Stage 19 adds currency-aware spending analytics, planned-versus-actual category comparisons, pace-based budget forecasts, receipt/expense mismatch flags and possible duplicate-expense review. Repayment records are user-entered and recipient-confirmed; TravelOS does not initiate or verify bank transfers.
+```powershell
+cd apps/web
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
 
-## Database notes
+The local frontend variable should be:
 
-- Bootstrap schema: `database/migrations/001_initial_schema.sql`.
-- Identity schema extension: `database/migrations/002_identity_schema.sql`.
-- Itinerary version uniqueness: `database/migrations/003_itinerary_constraints.sql`.
-- Group invitations: `database/migrations/003_trip_invitations.sql`.
-- Traveller preferences: `database/migrations/004_trip_member_preferences.sql`.
-- Group polls: `database/migrations/005_group_polls.sql`.
-- Shared expenses: `database/migrations/006_shared_expenses.sql`.
-- Repayment tracking: `database/migrations/007_trip_repayments.sql`.
-- Expense audit history: `database/migrations/008_trip_expense_audits.sql`.
-- Trip receipt metadata: `database/migrations/009_trip_receipts.sql`.
-- Docker executes it only when initializing a new empty PostgreSQL volume.
-- If you already have a volume from an earlier run, the script is not replayed automatically. Back up data before resetting volumes; do not run `docker compose down -v` if you need to keep existing data.
-- The EF Core model is configured for PostgreSQL through Npgsql. A generated, versioned EF Core migration and migration deployment step are still outstanding.
-- The API health endpoint includes PostgreSQL connectivity when a connection string is configured.
+```env
+VITE_PLATFORM_API_URL=http://localhost:8080
+```
 
-## Important boundaries
+### Step 5 — Open the services
 
-- PostgreSQL is the source of truth for platform data.
-- The platform API owns authorization and persistence.
-- The AI API produces untrusted suggestions; it does not write to the platform database.
-- Generated itinerary drafts remain separate from approved itinerary records.
-- No booking, supplier availability, verification, or live price claims are made by this scaffold.
-- Secrets belong in environment variables or a secrets manager, never in frontend code or source control.
+| Service | Local URL |
+|---|---|
+| TravelOS web app | http://localhost:5173 |
+| Platform API | http://localhost:8080 |
+| Platform API health | http://localhost:8080/health |
+| AI API | http://localhost:8001 |
+| AI API Swagger docs | http://localhost:8001/docs |
+| PostgreSQL | localhost:5432 |
 
-See `docs/` for the architecture, schema, and API conventions.
+Register an account in the web app, sign in, create a trip and open its itinerary workspace. For Stage 39, create an itinerary with at least one day, then use **Improve a day in your itinerary** to request recommendations. In demo mode, the service deliberately explains that AI generation is not enabled.
 
+## 6. Run the tests and builds
 
-## Stage 20 — Global currency intelligence
+Run these from the repository root unless stated otherwise.
 
-TravelOS uses the Frankfurter v2 reference-rate API through the platform backend. The API requires no key and returns blended reference rates from central banks and official sources. These are not guaranteed bank, card-network, cash-exchange or real-time trading rates.
+### Web typecheck and production build
 
-- Supported ISO currency catalogue: `GET /api/v1/trips/{tripId}/currency-conversions/currencies`
-- Convert a recorded expense into a selected target currency: `POST /api/v1/trips/{tripId}/currency-conversions`
-- List immutable conversion snapshots: `GET /api/v1/trips/{tripId}/currency-conversions`
+```bash
+cd apps/web
+npm install
+npm run build
+```
 
-A conversion uses the historical reference rate for the expense date. The provider's effective publication date is stored, which may be earlier than the expense date on weekends or holidays. Original expense values and settlement balances are never changed. Conversion snapshots preserve the original amount/currency, converted amount/currency, rate, effective date and provider attribution.
+### Platform API build
 
-The API is called from the backend, not the browser. If the provider is unavailable or cannot supply the requested currency pair/date, the conversion fails safely and the expense remains unchanged.
+```bash
+dotnet restore services/platform-api/TravelOS.PlatformApi.csproj
+dotnet build services/platform-api/TravelOS.PlatformApi.csproj --configuration Release
+```
 
+### AI API tests
 
-## Stage 21 — Multi-currency budget intelligence
+```bash
+python -m pip install -r services/ai-api/requirements.txt
+python -m pytest -q
+```
 
-The traveller budget dashboard can report spending in a selected ISO 4217 currency. The platform API combines expenses already recorded in that currency with matching, saved historical conversion snapshots for other currencies.
+### Database migration validation
 
-- API: `GET /api/v1/trips/{tripId}/budget-intelligence?reportingCurrencyCode=LKR`
-- Original expense values, expense shares, repayments and settlement balances are never modified.
-- A snapshot is accepted only when its source amount, source currency and source expense date still match the current expense.
-- If no matching snapshot exists, the expense remains in the unconverted list and is excluded from the converted total.
-- The budget cap is compared only when its currency matches the selected reporting currency. TravelOS does not silently convert budget caps or planned category amounts.
-- The response includes converted category totals, matching planned category amounts, unconverted amounts grouped by source currency and a pace-based projection.
+The GitHub Actions workflow starts a clean PostgreSQL 16 service and applies migrations 001–017 in order. To reproduce this locally, use a fresh disposable database and apply the same migration list. Do not use a production or data-bearing database for this check.
 
-Apply `011_conversion_source_expense_date.sql` after `010_currency_conversions.sql`. It records the original expense date on conversion snapshots so a snapshot cannot be reused after the source expense date changes.
+### Latest verified CI result
 
+<badge color="success">All 4 CI jobs passed</badge>
 
-## Stage 22 — Smart budget guardrails and alerts
+GitHub Actions run **#136** for the Stage 39 pull request completed successfully on 19 November 2026:
 
-TravelOS records shared trip budget alerts at 50%, 75%, 90% and 100% of the budget, and a projected-overspending alert when the current pace indicates a possible budget overrun.
+| Check | Result |
+|---|---|
+| Web TypeScript check and Vite build | PASS |
+| ASP.NET Core Platform API build | PASS |
+| AI API automated tests | PASS — 18 passed, 1 warning |
+| PostgreSQL migrations 001–017 | PASS |
 
-- Alerts are shared by trip members; each member has their own read/unread state.
-- Threshold evaluation runs after budget and expense changes, and can also be triggered manually.
-- Alerts are idempotent for a given trip, budget, threshold and budget amount; repeat checks do not create duplicate notifications.
-- When expenses in other currencies do not have matching saved conversion snapshots, evaluation is paused and the missing count is returned. Partial totals never trigger false threshold alerts.
-- Alert records preserve the budget amount, currency, actual spend and projection at the time of evaluation.
-- Changing the budget amount establishes a new alert baseline.
-- The feature does not send email, SMS or push notifications; alerts are currently in-app history.
+These are the checks currently automated in CI. They do **not** mean every user journey, external provider integration, deployed environment or production security scenario has been end-to-end tested.
 
-API:
-- `GET /api/v1/trips/{tripId}/budget-alerts`
-- `POST /api/v1/trips/{tripId}/budget-alerts/evaluate`
-- `POST /api/v1/trips/{tripId}/budget-alerts/{alertId}/read`
+## 7. Stage 39 — AI activity recommendations
 
-Apply `012_trip_budget_alerts.sql` after migration 011.
+The itinerary workspace can request up to six contextual activity ideas for a selected itinerary day. The request includes trip destination/date, saved activities, group interests and travel preferences, saved weather assessments and same-currency budget context.
 
+Recommendation focus options:
+- All planning factors
+- Weather alternatives
+- Budget-friendly ideas
+- Group interests
+- Schedule balance
 
-## Stage 23 — Weather disruption intelligence (initial release)
+Each suggestion includes a reason, category, indicative duration/cost, who it may suit and a verification note. The AI provider uses a structured response schema. Requests are authenticated, trip membership is checked and generation is rate limited.
 
-TravelOS can scan itinerary activities against the Open-Meteo daily forecast and save a timestamped assessment for each activity with coordinates and a matching forecast date.
+**Review-only behaviour:** suggestions are not saved, booked, or automatically inserted into the itinerary. Check venue details, accessibility, opening hours and prices yourself.
 
-- The scan uses activity latitude/longitude, not the trip destination text or the user's current location.
-- Up to 40 activities and 12 distinct coordinate locations are accepted per scan.
-- Forecast requests use a short-range window (up to 16 forecast days, plus one past day); dates outside the provider response are explicitly skipped.
-- Weather condition codes, precipitation probability/amount and maximum wind speed are used to create low, moderate or high disruption signals.
-- Assessments preserve the provider name, forecast retrieval time and metric snapshots.
-- Activities without coordinates, unavailable forecasts and out-of-window dates are reported as skipped.
-- The API is rate-limited. Weather assessment is informational and is not an official warning or guarantee.
-- No itinerary changes are made. Flight status, official warning feeds, alternative place discovery and approval-based itinerary replacement are not included in this initial release.
+Verification checklist: [docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
 
-API:
-- `GET /api/v1/trips/{tripId}/weather-disruptions`
-- `POST /api/v1/trips/{tripId}/weather-disruptions/scan`
+## 8. What is still left?
 
-Weather data is provided by [Open-Meteo](https://open-meteo.com/) (CC BY 4.0). Include attribution when redistributing weather data or screenshots.
+TravelOS has a substantial feature set, but a successful CI run is not a production launch. The main remaining work is:
 
-Apply `013_trip_weather_assessments.sql` after migration 012.
+1. **Merge and release Stage 39:** review and merge [PR #41](https://github.com/harini281/travel_os/pull/41) into the intended integration branch after review.
+2. **End-to-end testing:** add automated API/integration tests for authentication, trip permissions, itinerary edits, group expenses, recommendations and provider failure cases; manually test the full browser workflows.
+3. **Live AI verification:** test Stage 39 with a real configured provider key, check cost/latency, rate limits, malformed responses and user-facing errors. Current CI tests use a mocked provider; they do not call OpenAI.
+4. **Production deployment:** configure HTTPS, managed PostgreSQL, persistent private receipt storage, secrets management, backups, logging, monitoring and a deployment pipeline.
+5. **Authentication hardening:** email verification, password reset, refresh-token/session management and MFA are not implemented.
+6. **External service readiness:** replace or contractually approve public/demo map, routing, geocoding and opening-hours services for production scale; configure FlightAware only if needed and review its usage charges.
+7. **Notifications delivery:** the current reminder inbox is in-app; server scheduling and push/email/SMS delivery remain future work.
+8. **Booking integrations:** live inventory, supplier confirmations, payments and actual flight/hotel/activity booking are not implemented.
 
+**Remaining work count:** 8 major workstreams above. This is a practical release checklist, not eight small coding tasks; some contain multiple implementation and review tasks.
 
-## Stage 24 — Flight and journey disruption intelligence (initial release)
+## 9. Security and operational notes
 
-Travellers can save flight numbers, IATA airport codes and scheduled departure/arrival timestamps to a trip. Saved details are available to all trip members. The initial release includes a server-side FlightAware AeroAPI v4 provider adapter and a manual refresh action.
+- Never commit `.env`, API keys, database passwords or JWT signing keys.
+- Keep OpenAI and FlightAware credentials on the server only.
+- Use a unique JWT signing secret (32+ bytes) and HTTPS outside local development.
+- Back up PostgreSQL before applying migrations or resetting local volumes.
+- Keep uploaded receipts in private persistent storage, outside the web root.
+- Public OpenStreetMap/OSRM/Nominatim/Overpass services have usage policies and no production SLA; use an appropriate provider for commercial scale.
+- AI output, weather assessments, route estimates and opening-hours data are advisory. Verify important travel decisions with providers.
 
-- Configure `FLIGHTAWARE_API_KEY` only in the platform API's server environment to enable live refresh. Never expose this key to the browser or commit it.
-- Without the key, flight details can still be saved and displayed; status remains `not_checked` and refresh explains that provider access is not configured.
-- Provider responses are normalized to scheduled, delayed, active, landed, cancelled, diverted or unknown.
-- A delayed/cancelled/diverted status returns a coarse same-day itinerary review signal for departure and arrival dates. Activity times and airport transfer durations are not yet modelled.
-- Refresh is user-triggered and rate-limited to four requests per user per minute. AeroAPI calls may incur usage charges; check your FlightAware plan and usage before enabling.
-- No tickets are purchased, no airline reservations are changed, and no itinerary activities are automatically moved or cancelled.
+## 10. Repository structure
 
-API:
-- `GET /api/v1/trips/{tripId}/flights`
-- `POST /api/v1/trips/{tripId}/flights`
-- `POST /api/v1/trips/{tripId}/flights/{flightId}/refresh`
+```text
+apps/web                  React + TypeScript + Vite frontend
+services/platform-api     ASP.NET Core 8 platform API
+services/ai-api           FastAPI AI service
+database/migrations       Ordered PostgreSQL SQL migrations
+docs                      Architecture and feature test plans
+packages/contracts        Shared/versioned API contracts
+tests                     AI API automated test suite
+infrastructure            Deployment and infrastructure assets
+.github/workflows         GitHub Actions CI
+```
 
-Provider: [FlightAware AeroAPI](https://www.flightaware.com/commercial/aeroapi/). See its [API usage and pricing](https://www.flightaware.com/commercial/aeroapi/) before connecting a key.
+## Links
 
-Apply `014_trip_flights.sql` after migration 013.
-
-
-## Stage 25 — Airport and connection intelligence
-
-Flights can be assigned to a traveller-defined journey group such as `Outbound` or `Return`. The connection assessment pairs only consecutive scheduled legs within the same group; it never pairs the final outbound leg with the first return leg simply because they are chronologically adjacent.
-
-- `GET /api/v1/trips/{tripId}/flights/connections` returns a read-only heuristic assessment.
-- The effective arrival/departure uses provider actual time, then provider estimate, then scheduled time.
-- It identifies airport-code changes, overlapping legs, very tight (<60 min), tight (60–119 min), moderate (120–179 min) and longer (180+ min) schedule gaps.
-- Cancelled/diverted legs are marked unassessable rather than assigned a false safe/unsafe connection result.
-- The default 120-minute reference is a UI/explanation heuristic only, not an airline minimum connection time.
-- Terminal, immigration, baggage reclaim, visa, boarding cutoff, ground transport, separate tickets and protected-connection status are not known by this assessment.
-- No airline minimum connection time, guarantee or live operational alert is implied.
-- Migration `015_flight_journey_groups.sql` adds the journey grouping field.
-
-
-## Stage 26 — Airport intelligence and ground-transfer estimates
-
-The trip dashboard can request a point-to-point road/cycling estimate from an airport IATA code to a traveller-entered destination.
-
-- API: `POST /api/v1/trips/{tripId}/ground-transfers/estimate`
-- Geocoding: OpenStreetMap Nominatim; routing: OSRM.
-- Returns the resolved airport/place coordinates, route distance, road duration, configurable pickup buffer and a planning departure timestamp when an arrival time is supplied.
-- Estimates are not live traffic ETAs, airport processing estimates, transfer bookings or guaranteed arrival times.
-- Nominatim may resolve ambiguous airport codes; verify the returned airport name before relying on an estimate.
-- Public Nominatim/OSRM endpoints have usage limits and no production SLA. For commercial scale, use a contracted provider or self-hosted services and a verified airport dataset.
-- The API is authenticated. To respect the public Nominatim service policy on a single API instance, route estimates share a global in-process limiter (one estimate every two seconds), and the two geocoding lookups within an estimate are spaced one second apart. This is not a distributed limiter: run a single API instance when using the public Nominatim endpoint, or switch to a contracted/self-hosted geocoder with a shared limiter before horizontal scaling.
-
-
-## Journey timeline and activity scheduling
-
-The traveller dashboard combines saved flights and itinerary activities in a chronological timeline. Flight events use actual, estimated, then scheduled provider times. Activities support optional local start/end times; existing date-only activities remain valid. Overlapping activity windows are flagged for manual review, including nested overlaps. Flights contribute both departure and arrival calendar dates to the same-day activity review. Activity time values are local itinerary wall-clock times and are not converted between time zones. The timeline is read-only and does not change bookings.
-
-
-## Stage 29 — Daily schedule intelligence
-
-The itinerary API exposes `GET /api/v1/trips/{tripId}/itinerary/schedule-analysis?minimumGapMinutes=30`. It reviews saved local activity time windows, reports overlapping pairs and breaks shorter than a traveller-selected planning buffer (0–240 minutes), and identifies activities without times. The traveller dashboard supports 15, 30, 45 and 60-minute review buffers.
-
-This is a clock-time heuristic, not a route-duration or live-traffic estimate. It does not check attraction opening hours, transit schedules or airport processing. A gap meeting the selected buffer is not a guarantee that travel is feasible.
-
-## Stage 30 — Complete schedule conflict detection
-
-Schedule analysis now returns every overlapping activity pair, including nested and cascading conflicts, rather than only comparing adjacent activities in start-time order. For each activity it also checks the nearest previously completed activity to assess the planning buffer without generating misleading gap comparisons against every earlier activity. The dashboard presents conflict pairs separately from short-break warnings.
-
-The analysis remains a local clock-time heuristic. It does not calculate route duration, traffic, attraction opening hours or verified transfer times. See [the schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md) for nested and cascading overlap scenarios.
-
-## Stage 31 — Intelligent itinerary optimization
-
-Daily schedule review now proposes same-day time adjustments for overlaps and breaks shorter than the selected planning buffer. Suggestions preserve each activity's duration, move activities forward in chronological order, and flag activities that cannot fit before the day ends. Suggestions are returned alongside the analysis and displayed as proposals only; the saved itinerary is not changed. Travellers retain control of edits and approval.
-
-The optimizer uses local wall-clock times and a simple earliest-safe-slot heuristic. It does not calculate routes, traffic, venue opening hours, transit schedules or actual transfer durations. A proposed slot is not a guarantee of feasibility. See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md).
-
-## Stage 32 — Traveller-approved schedule adjustments
-
-Trip owners can now apply an individual proposed time adjustment from the schedule review panel. The action updates only the selected activity's start and end times, preserving its other saved fields, and then reloads the itinerary and schedule analysis. Suggestions are checked against the original saved times before applying so stale recommendations are rejected. Approved itineraries remain read-only, and suggestions are never applied automatically.
-
-See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md) for permission, stale-suggestion, field-preservation and refresh scenarios.
-
-## Stage 33 — Route-aware itinerary analysis
-
-Travellers can request road-route estimates between consecutive timed itinerary activities when both stops have saved map coordinates. The API uses the OSRM driving table service to estimate distance and duration, compares the route plus a configurable planning buffer with the saved time gap, and labels each leg feasible, tight, conflicting or unavailable. The dashboard presents route distance, road duration, available time and the required buffer.
-
-This analysis is read-only. It does not move activities, book transport or guarantee arrival times. The public OSRM service has no live traffic and excludes parking, queues, venue opening hours and public transport. Replace the public demo service with a contracted or self-hosted routing provider before production launch. See [the route-aware itinerary verification plan](docs/ROUTE_AWARE_ITINERARY_TEST_PLAN.md).
-
-## Stage 34 — Attraction opening-hours intelligence
-
-The itinerary dashboard can check scheduled activities against nearby OpenStreetMap place records and their published `opening_hours` tags. The checker matches the saved place name and coordinates, evaluates a deliberately limited subset of weekly opening-hours expressions, and reports open-during-activity, outside-opening-hours, closed, no-data, unavailable, missing-location, missing-schedule or manual-review outcomes.
-
-Only simple weekly schedules are interpreted. Public holidays, school holidays, seasonal exceptions, overnight hours and unsupported expressions are not guessed. Results are read-only and do not move activities or guarantee admission. OpenStreetMap community data can be incomplete or outdated; verify important visits with the venue. See [the opening-hours verification plan](docs/OPENING_HOURS_TEST_PLAN.md).
-
-## Stage 35 — Interactive itinerary map
-
-The itinerary workspace now includes a Leaflet map that plots saved activity coordinates as numbered, day-coloured markers. Travellers can filter by itinerary day, inspect activity details in marker popups and open the saved location in OpenStreetMap. Dotted connectors visualise the saved stop sequence within each day; they are explicitly not road routes. Activities without valid coordinates are excluded and counted rather than assigned guessed locations.
-
-The map uses OpenStreetMap tiles and attribution. Public tile infrastructure is suitable for development, not a guaranteed production service; select an appropriate hosted or self-managed tile provider before launch. See [the interactive map verification plan](docs/INTERACTIVE_ITINERARY_MAP_TEST_PLAN.md).
-
-## Stage 36 — Time-zone and offline travel support
-
-TravelOS now lets each trip select an IANA display timezone for UTC flight timestamps, including flight departure, arrival and last-checked times. The selected timezone is retained per trip in the current browser. Activity start/end values remain local clock values and are intentionally not converted: the current API stores time-only values without a trip/day timezone identifier.
-
-The web app adds a progressive web app manifest and production service worker for the app shell, plus IndexedDB storage for an explicitly saved itinerary snapshot and the trip list/profile. When the server is unavailable, travellers can reopen a previously cached itinerary in read-only mode. API data and third-party map tiles are not cached as fresh data. Offline copies are stored locally without application-level encryption; avoid using this feature for sensitive trip information on shared devices. See [the Stage 36 verification plan](docs/TIMEZONE_AND_OFFLINE_TEST_PLAN.md).
-
-
-## Stage 37 — Smart travel notifications and reminders
-
-The authenticated notification inbox gives each traveller a personal view of trip reminders and updates. Notifications are scoped to the signed-in user, can be marked read or dismissed, and can be scheduled for a future UTC instant. The workspace refreshes the inbox while visible so due reminders appear without a manual page reload.
-
-Reminder date/time fields entered in the web form are interpreted in the device's local timezone and converted to UTC for storage.\n\nThe current implementation is an **in-app reminder inbox**. It does not send push, email, SMS or browser notifications; reminders become visible when due while the workspace is open. A server-side scheduler and external delivery channels are future work. See [the Stage 37 verification plan](docs/NOTIFICATIONS_TEST_PLAN.md).
-
-
-## Stage 38 — Contextual Trip Assistant
-
-The Trip Assistant prepares a rule-based briefing from saved trip data: itinerary completeness, activity timing, budget and expense totals, flight schedules and disruption statuses, weather assessments, budget alerts, and the signed-in traveller's due notifications. The workspace refreshes the briefing when a trip is opened and offers a manual refresh action. Travellers can ask typed questions about flights, weather, budget, itinerary timing and reminders; answers are routed to the relevant saved trip data and include supporting facts.
-
-The briefing is decision support, not a generative AI chat or a live travel guarantee. It does not modify bookings or itineraries, convert currencies, or contact travel providers. See [the Stage 38 verification plan](docs/TRIP_ASSISTANT_TEST_PLAN.md).
-
-
-## Stage 39 — AI activity recommendations
-
-The itinerary workspace can request contextual activity ideas for a selected day. The platform API supplies the destination, saved activities, group interests and pace, latest saved weather assessments for that date, and same-currency remaining trip budget context to the AI service. Travellers can focus suggestions on weather alternatives, budget, group interests, schedule balance, or all planning factors.
-
-Recommendations are returned for review only. They are not saved automatically, and the feature does not replace or edit existing activities. Venue details, accessibility, opening hours and indicative costs must be verified. The AI provider must be configured; demo mode explicitly returns no generated recommendations. See [the Stage 39 verification plan](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
-
+- Repository: https://github.com/harini281/travel_os
+- Stage 39 pull request: https://github.com/harini281/travel_os/pull/41
+- CI workflow: [TravelOS CI](.github/workflows/ci.yml)
+- AI recommendation test plan: [AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md)
