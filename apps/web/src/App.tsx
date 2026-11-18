@@ -1605,11 +1605,11 @@ export default function App() {
 
             <section className="travel-context-panel">
               <div className="section-heading">
-                <div><p className="eyebrow">STAGE 36 · TIME & OFFLINE</p><h2>Travel time settings</h2><small>Choose the timezone used to display UTC flight timestamps</small></div>
+                <div><p className="eyebrow">STAGE 36 · TIME & OFFLINE</p><h2>Travel time settings</h2><small>Choose the timezone used to interpret this trip's local schedule and display UTC flights</small></div>
                 <span className={isOnline?"travel-connectivity online":"travel-connectivity offline"}>{isOnline?"● Online":"● Offline"}</span>
               </div>
               <div className="travel-context-grid">
-                <label>Flight display time zone
+                <label>Trip display time zone
                   <input list="travelos-timezones" value={displayTimeZone} onChange={event=>setDisplayTimeZone(event.target.value)} aria-invalid={!isValidTimeZone(displayTimeZone)} />
                   <datalist id="travelos-timezones">
                     <option value="Asia/Colombo"/><option value="Asia/Kolkata"/><option value="Asia/Dubai"/>
@@ -1624,7 +1624,7 @@ export default function App() {
                 </div>
               </div>
               {!isValidTimeZone(displayTimeZone) && <p className="travel-context-warning">Enter a valid IANA timezone, such as Asia/Colombo or Europe/London.</p>}
-              <p className="travel-context-note">Flight timestamps are stored in UTC and displayed in the selected timezone. Activity start/end values are interpreted in the selected trip timezone for the combined timeline; the selected timezone is a browser-side trip setting and is not written to the server.</p>
+              <p className="travel-context-note">Flight timestamps are stored in UTC and displayed in the selected timezone. Activity start/end clock values are interpreted in this selected trip timezone for the combined timeline. This setting is stored only in this browser, not on the server, so set it again on another device.</p>
               <p className="travel-context-note">Offline copies are stored in this browser on this device, without application-level encryption. Avoid saving sensitive trip details on shared devices and remove the copy when finished.</p>
               {offlineCachedAt && <p className="travel-context-note">{isOfflineSnapshot?"Viewing cached snapshot":"Offline copy saved"} · {new Date(offlineCachedAt).toLocaleString()}</p>}
               {isOfflineSnapshot && <p className="travel-context-warning">Read-only offline snapshot. Reconnect to refresh live data or make changes.</p>}
