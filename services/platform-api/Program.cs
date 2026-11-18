@@ -25,6 +25,7 @@ using TravelOS.PlatformApi.BudgetAlerts;
 using TravelOS.PlatformApi.WeatherDisruptions;
 using TravelOS.PlatformApi.Trips;
 using TravelOS.PlatformApi.GroundTransfers;
+using TravelOS.PlatformApi.Notifications;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
@@ -254,6 +255,7 @@ app.MapBudgetIntelligenceEndpoints();
 app.MapBudgetAlertEndpoints();
 app.MapWeatherDisruptionEndpoints();
 app.MapFlightEndpoints();
+app.MapTripNotificationEndpoints();
 
 app.MapGet("/", () => Results.Ok(new
 {
