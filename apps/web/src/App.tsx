@@ -48,6 +48,10 @@ type FlightConnection = {
   sameAirport:boolean; riskLevel:string; heuristicBufferMinutes:number|null;
   timeSource:string; explanation:string;
 };
+type JourneyTimelineItem = {
+  id:string; kind:"flight"|"activity"; sortAt:number; dateKey:string;
+  title:string; subtitle:string; timeLabel:string; status:string;
+};
 type FlightConnectionsResponse = {
   tripId:string; assessedAt:string; connections:FlightConnection[]; disclaimer:string;
 };
@@ -1212,6 +1216,30 @@ export default function App() {
     );
   }
 
+  const journeyTimeline:JourneyTimelineItem[] = [
+    ...tripFlights.map(flight => {
+      const departure = flight.actualDepartureUtc ?? flight.estimatedDepartureUtc ?? flight.scheduledDepartureUtc;
+      const arrival = flight.actualArrivalUtc ?? flight.estimatedArrivalUtc ?? flight.scheduledArrivalUtc;
+      const departureDate = new Date(departure);
+      const arrivalDate = new Date(arrival);
+      return {
+        id:flight.id, kind:"flight" as const, sortAt:departureDate.getTime(),
+        dateKey:departureDate.toLocaleDateString(), title:`${flight.flightIdentifier} · ${flight.originAirportCode} → ${flight.destinationAirportCode}`,
+        subtitle:`${flight.journeyGroup} · Arrives ${arrivalDate.toLocaleString()}`,
+        timeLabel:`Departs ${departureDate.toLocaleString()}`, status:flight.status.replaceAll("_"," ")
+      };
+    }),
+    ...(itinerary?.days.flatMap(day => day.activities.map(activity => ({
+      id:activity.id, kind:"activity" as const,
+      sortAt:new Date(day.date + "T00:00:00").getTime(),
+      dateKey:new Date(day.date + "T12:00:00").toLocaleDateString(),
+      title:activity.title, subtitle:activity.placeName ?? "Location not specified",
+      timeLabel:`Day ${day.dayNumber} · ${formatDate(day.date)} · Time not specified`, status:"planned"
+    }))) ?? [])
+  ].sort((left,right) => left.sortAt - right.sortAt);
+  const flightActivityDateKeys = new Set(journeyTimeline.filter(item => item.kind === "flight").map(item => item.dateKey));
+  const sameDayActivityCount = journeyTimeline.filter(item => item.kind === "activity" && flightActivityDateKeys.has(item.dateKey)).length;
+
   const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved;
 
   return (
@@ -1284,6 +1312,22 @@ export default function App() {
 
 
 
+            <section className="journey-timeline-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 27 · JOURNEY OVERVIEW</p><h2>Smart travel timeline</h2><small>Flights and planned activities in chronological order</small></div>
+                <span className="timeline-count">{journeyTimeline.length} items</span>
+              </div>
+              <p className="timeline-intro">Flight times use actual, then estimated, then scheduled provider times. Activities have dates but no saved start times, so they are shown as date-only plans.</p>
+              {sameDayActivityCount > 0 && <div className="timeline-review-note">⚠ {sameDayActivityCount} planned {sameDayActivityCount === 1 ? "activity shares" : "activities share"} a calendar date with a flight. Review the day manually; this is not a confirmed timing conflict.</div>}
+              {journeyTimeline.length === 0 ? <p className="budget-empty">Add flights or itinerary activities to build your journey timeline.</p> :
+                <div className="journey-timeline-list">{journeyTimeline.map(item => <article className="journey-timeline-item" key={item.kind + item.id}>
+                  <span className={`journey-timeline-marker ${item.kind}`}>{item.kind === "flight" ? "✈" : "◆"}</span>
+                  <div className="journey-timeline-content">
+                    <div className="journey-timeline-heading"><strong>{item.title}</strong><span className={item.kind === "flight" ? "flight-status flight-status-" + item.status.replaceAll(" ","_") : "timeline-kind"}>{item.status}</span></div>
+                    <p>{item.timeLabel}</p><small>{item.subtitle}</small>
+                  </div>
+                </article>)}</div>}
+            </section>
             <section className="flight-operations-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 24 · JOURNEY OPERATIONS</p><h2>Flight tracking</h2><small>Keep flight details alongside your trip itinerary</small></div>
