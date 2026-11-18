@@ -53,20 +53,33 @@ public static class ItineraryRecommendationEndpoints
             message = "Create an itinerary before requesting activity recommendations."
         });
 
-        var day = itinerary.Days.FirstOrDefault(x => x.Date == request.ActivityDate);
+        if (request.DayNumber < 1 || request.TravellerCount is < 1 or > 30 ||
+            request.Focus is not ("all" or "weather" or "budget" or "group" or "schedule") ||
+            request.Question?.Length > 500)
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["request"] = ["Choose a valid itinerary day, focus, traveller count and question."]
+            });
+
+        var day = itinerary.Days.FirstOrDefault(x => x.DayNumber == request.DayNumber);
         if (day is null) return Results.ValidationProblem(new Dictionary<string, string[]>
         {
             ["activityDate"] = ["Choose a date that belongs to the current itinerary."]
         });
 
-        var travellerCount = await db.TripMembers.CountAsync(x => x.TripId == tripId, ct);
-        travellerCount = Math.Clamp(travellerCount, 1, 30);
+        var travellerCount = request.TravellerCount;
 
         var preference = await db.TripMemberPreferences.AsNoTracking()
             .FirstOrDefaultAsync(x => x.TripId == tripId && x.UserId == userId, ct);
-        var interests = preference is null
-            ? Array.Empty<string>()
-            : System.Text.Json.JsonSerializer.Deserialize<string[]>(preference.InterestsJson) ?? [];
+        var groupPreferences = await db.TripMemberPreferences.AsNoTracking()
+            .Where(x => x.TripId == tripId)
+            .Select(x => x.InterestsJson)
+            .ToListAsync(ct);
+        var interests = groupPreferences
+            .SelectMany(json => System.Text.Json.JsonSerializer.Deserialize<string[]>(json) ?? [])
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(12)
+            .ToArray();
 
         var existingActivities = day.Activities.OrderBy(x => x.SortOrder)
             .Select(x => x.Title).Where(x => !string.IsNullOrWhiteSpace(x))
@@ -112,13 +125,17 @@ public static class ItineraryRecommendationEndpoints
                 interests = interests.Take(12).ToArray(),
                 travelPace = preference?.Pace is "relaxed" or "fast" ? preference.Pace : "balanced",
                 dailyBudgetRemaining,
-                question = request.Question,
+                question = string.IsNullOrWhiteSpace(request.Question)
+                    ? "Recommend suitable activities for this day."
+                    : request.Question,
+                focus = request.Focus,
                 existingActivities,
                 weatherContext,
                 planningContext = new[]
                 {
                     $"Trip dates: {trip.StartDate:yyyy-MM-dd} to {trip.EndDate:yyyy-MM-dd}.",
                     $"Day {day.DayNumber} currently contains {day.Activities.Count} saved activities.",
+                    $"Recommendation focus: {request.Focus}.",
                     $"Traveller travel style: {preference?.TravelStyle ?? "mixed"}."
                 }
             };
@@ -152,8 +169,9 @@ public static class ItineraryRecommendationEndpoints
                 tripId,
                 dayNumber = day.DayNumber,
                 activityDate = day.Date,
-                generated.Provider,
-                generated.Model,
+                provider = generated.Provider,
+                model = generated.Model,
+                generatedAtUtc = DateTimeOffset.UtcNow,
                 generated.Summary,
                 generated.Recommendations,
                 generated.Warnings,
@@ -176,7 +194,11 @@ public static class ItineraryRecommendationEndpoints
         }
     }
 
-    private sealed record RecommendationRequest(string Question = "Recommend suitable activities for this day.");
+    private sealed record RecommendationRequest(
+        int DayNumber,
+        string Focus,
+        int TravellerCount = 1,
+        string? Question = null);
     private sealed record RecommendationResponse(
         string Status,
         string Provider,
