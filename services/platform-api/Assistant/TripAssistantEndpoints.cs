@@ -131,7 +131,7 @@ public static class TripAssistantEndpoints
                 var timed = day.Activities.Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
                     .OrderBy(x => x.StartTime).ToList();
                 for (var i = 1; i < timed.Count; i++)
-                    if (timed[i].StartTime < timed[i - 1].EndTime)
+                    if (timed[i].StartTime!.Value < timed[i - 1].EndTime!.Value)
                         insights.Add(new("schedule", $"Possible overlap on day {day.DayNumber}",
                             $"{timed[i - 1].Title} and {timed[i].Title} have overlapping saved times.", "warning"));
             }
