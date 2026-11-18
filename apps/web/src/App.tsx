@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import { readOfflineItinerary, removeOfflineItinerary, saveOfflineItinerary } from "./offlineItinerary";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
 
@@ -164,6 +165,13 @@ function formatDate(value: string) {
     day: "numeric", month: "short", year: "numeric",
   });
 }
+function formatFlightTime(value: string, timeZone: string) {
+  try { return new Intl.DateTimeFormat(undefined, { timeZone, dateStyle: "medium", timeStyle: "short", timeZoneName: "short" }).format(new Date(value)); }
+  catch { return new Date(value).toLocaleString(); }
+}
+function isValidTimeZone(value: string) {
+  try { new Intl.DateTimeFormat("en", { timeZone: value }); return true; } catch { return false; }
+}
 function initials(name: string) {
   return name.trim().split(/\s+/).slice(0, 2).map(part => part[0]?.toUpperCase()).join("");
 }
@@ -189,6 +197,15 @@ export default function App() {
   const [currencyCode, setCurrencyCode] = useState("USD");
 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [displayTimeZone, setDisplayTimeZone] = useState(() => {
+    const saved = localStorage.getItem("travelos.displayTimeZone");
+    return saved && isValidTimeZone(saved) ? saved : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  });
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [offlineCachedAt, setOfflineCachedAt] = useState<string | null>(null);
+  const [isOfflineSnapshot, setIsOfflineSnapshot] = useState(false);
+  const [offlineBusy, setOfflineBusy] = useState(false);
+
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [scheduleAnalysis, setScheduleAnalysis] = useState<ScheduleAnalysis | null>(null);
   const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
@@ -315,6 +332,15 @@ export default function App() {
   }, [loadTrips]);
 
   useEffect(() => {
+    const updateOnline = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateOnline);
+    window.addEventListener("offline", updateOnline);
+    return () => { window.removeEventListener("online", updateOnline); window.removeEventListener("offline", updateOnline); };
+  }, []);
+
+  useEffect(() => { localStorage.setItem("travelos.displayTimeZone", displayTimeZone); }, [displayTimeZone]);
+
+  useEffect(() => {
     if (!token) return;
     loadProfile(token).catch(() => {
       sessionStorage.removeItem("travelos.accessToken");
@@ -325,21 +351,52 @@ export default function App() {
 
   async function loadItinerary(trip: Trip, accessToken = token) {
     if (!accessToken) return;
-    setLoadingItinerary(true); setError("");
+    setLoadingItinerary(true); setError(""); setIsOfflineSnapshot(false); setOfflineCachedAt(null);
     try {
-      const result = await api<Itinerary | undefined>(
-        `/api/v1/trips/${trip.id}/itinerary`, accessToken,
-      );
+      const result = await api<Itinerary | undefined>(`/api/v1/trips/${trip.id}/itinerary`, accessToken);
       setItinerary(result ?? null);
+      try {
+        await saveOfflineItinerary(trip.id, result ?? null, trip.name, trip.destination);
+        setOfflineCachedAt(new Date().toISOString());
+      } catch { /* Offline saving is optional if browser storage is unavailable. */ }
       const analysis = await api<ScheduleAnalysis>(
         `/api/v1/trips/${trip.id}/itinerary/schedule-analysis?minimumGapMinutes=${scheduleBuffer}`, accessToken,
       );
       setScheduleAnalysis(analysis);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to load itinerary.");
-    } finally {
-      setLoadingItinerary(false);
-    }
+      try {
+        const cached = await readOfflineItinerary(trip.id);
+        if (cached) {
+          setItinerary(cached.itinerary);
+          setOfflineCachedAt(cached.cachedAt);
+          setIsOfflineSnapshot(true);
+          setScheduleAnalysis(null);
+          setError("You're viewing a saved offline snapshot. Editing and live analysis are unavailable until you reconnect.");
+        } else setError(err instanceof Error ? err.message : "Unable to load itinerary.");
+      } catch { setError(err instanceof Error ? err.message : "Unable to load itinerary."); }
+    } finally { setLoadingItinerary(false); }
+  }
+
+  async function cacheCurrentItinerary() {
+    if (!selectedTrip) return;
+    setOfflineBusy(true);
+    try {
+      await saveOfflineItinerary(selectedTrip.id, itinerary, selectedTrip.name, selectedTrip.destination);
+      setOfflineCachedAt(new Date().toISOString());
+      setNotice("This itinerary is saved on this device for offline viewing.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to save an offline copy."); }
+    finally { setOfflineBusy(false); }
+  }
+
+  async function clearOfflineItinerary() {
+    if (!selectedTrip) return;
+    setOfflineBusy(true);
+    try {
+      await removeOfflineItinerary(selectedTrip.id);
+      setOfflineCachedAt(null);
+      setNotice("The saved offline copy was removed from this device.");
+    } catch (err) { setError(err instanceof Error ? err.message : "Unable to remove the offline copy."); }
+    finally { setOfflineBusy(false); }
   }
 
   async function applyScheduleSuggestion(suggestion: ScheduleSuggestion) {
@@ -1623,14 +1680,14 @@ export default function App() {
                       <span className={`flight-status flight-status-${flight.status}`}>{flight.status.replaceAll("_"," ")}</span>
                     </div>
                     <div className="flight-route">
-                      <div><strong>{flight.originAirportCode}</strong><small>{new Date(flight.scheduledDepartureUtc).toLocaleString()}</small></div>
+                      <div><strong>{flight.originAirportCode}</strong><small>{formatFlightTime(flight.scheduledDepartureUtc, displayTimeZone)}</small></div>
                       <span>→</span>
-                      <div><strong>{flight.destinationAirportCode}</strong><small>{new Date(flight.scheduledArrivalUtc).toLocaleString()}</small></div>
+                      <div><strong>{flight.destinationAirportCode}</strong><small>{formatFlightTime(flight.scheduledArrivalUtc, displayTimeZone)}</small></div>
                     </div>
                     {flight.departureDelayMinutes !== null && <p className="flight-provider-detail">Departure delay: {flight.departureDelayMinutes} minutes</p>}
                     {flight.providerStatus && <p className="flight-provider-detail">Provider status: {flight.providerStatus}</p>}
                     <div className="flight-card-footer">
-                      <small>{flight.lastCheckedAt ? `Last checked ${new Date(flight.lastCheckedAt).toLocaleString()}` : "Live status not checked"}</small>
+                      <small>{flight.lastCheckedAt ? `Last checked ${formatFlightTime(flight.lastCheckedAt, displayTimeZone)}` : "Live status not checked"}</small>
                       <button type="button" className="expense-edit" disabled={refreshingFlightId === flight.id} onClick={() => refreshFlightStatus(flight)}>{refreshingFlightId === flight.id ? "Checking…" : "Refresh status"}</button>
                     </div>
                   </article>)}</div>}
