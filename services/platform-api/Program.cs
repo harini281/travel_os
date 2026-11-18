@@ -25,6 +25,7 @@ using TravelOS.PlatformApi.BudgetAlerts;
 using TravelOS.PlatformApi.WeatherDisruptions;
 using TravelOS.PlatformApi.Trips;
 using TravelOS.PlatformApi.GroundTransfers;
+using TravelOS.PlatformApi.JourneyTimeline;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
@@ -210,6 +211,7 @@ app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapTripEndpoints();
 app.MapGroundTransferEndpoints();
+app.MapJourneyTimelineEndpoints();
 app.MapItineraryEndpoints();
 app.MapBudgetEndpoints();
 app.MapGroupEndpoints();
