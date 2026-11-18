@@ -2,6 +2,7 @@ from datetime import date
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
+import pytest
 
 from app.main import app, provider
 from app.provider import PlannerProvider
@@ -307,3 +308,26 @@ def test_recommendation_provider_requires_api_key(monkeypatch):
     response = client.post("/api/v1/planner/recommendations", json=recommendation_payload())
     assert response.status_code == 503
 
+
+
+def test_recommendation_request_defaults_traveller_count():
+    from app.schemas import RecommendationRequest
+    request = RecommendationRequest(
+        destination="Lisbon",
+        activityDate="2027-05-01",
+        currency="EUR",
+    )
+    assert request.travellerCount == 1
+    assert request.existingActivities == []
+    assert request.weatherContext == []
+
+
+def test_recommendation_request_rejects_oversized_context():
+    from app.schemas import RecommendationRequest
+    with pytest.raises(ValidationError):
+        RecommendationRequest(
+            destination="Lisbon",
+            activityDate="2027-05-01",
+            currency="EUR",
+            existingActivities=["x" * 241],
+        )
