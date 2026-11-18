@@ -122,6 +122,17 @@ builder.Services.AddRateLimiter(options =>
             {
                 PermitLimit = 1, Window = TimeSpan.FromSeconds(2), QueueLimit = 0, AutoReplenishment = true
             }));
+    options.AddPolicy("itinerary-routing", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirst("sub")?.Value
+                ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
     options.AddPolicy("flight-refresh", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.User.FindFirst("sub")?.Value
@@ -211,6 +222,7 @@ app.MapAuthEndpoints();
 app.MapTripEndpoints();
 app.MapGroundTransferEndpoints();
 app.MapItineraryEndpoints();
+app.MapRouteAnalysisEndpoints();
 app.MapBudgetEndpoints();
 app.MapGroupEndpoints();
 app.MapPreferenceEndpoints();

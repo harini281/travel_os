@@ -370,3 +370,9 @@ The optimizer uses local wall-clock times and a simple earliest-safe-slot heuris
 Trip owners can now apply an individual proposed time adjustment from the schedule review panel. The action updates only the selected activity's start and end times, preserving its other saved fields, and then reloads the itinerary and schedule analysis. Suggestions are checked against the original saved times before applying so stale recommendations are rejected. Approved itineraries remain read-only, and suggestions are never applied automatically.
 
 See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.md) for permission, stale-suggestion, field-preservation and refresh scenarios.
+
+## Stage 33 — Route-aware itinerary analysis
+
+Travellers can request road-route estimates between consecutive timed itinerary activities when both stops have saved map coordinates. The API uses the OSRM driving table service to estimate distance and duration, compares the route plus a configurable planning buffer with the saved time gap, and labels each leg feasible, tight, conflicting or unavailable. The dashboard presents route distance, road duration, available time and the required buffer.
+
+This analysis is read-only. It does not move activities, book transport or guarantee arrival times. The public OSRM service has no live traffic and excludes parking, queues, venue opening hours and public transport. Replace the public demo service with a contracted or self-hosted routing provider before production launch. See [the route-aware itinerary verification plan](docs/ROUTE_AWARE_ITINERARY_TEST_PLAN.md).

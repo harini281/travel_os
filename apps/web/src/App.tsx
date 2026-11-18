@@ -55,6 +55,9 @@ type GroundTransferEstimate = {
   distanceKm:number; roadDurationMinutes:number; pickupBufferMinutes:number; totalPlanningMinutes:number;
   arrivalUtc:string|null; recommendedDepartureUtc:string|null; provider:string; estimatedAt:string; disclaimer:string;
 };
+type ActivityRouteLeg = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; distanceKm:number|null; roadDurationMinutes:number|null; requiredMinutes:number|null; status:"feasible"|"tight"|"schedule_conflict"|"unavailable"; explanation:string; };
+type RouteDayAnalysis = { dayId:string; dayNumber:number; date:string; legs:ActivityRouteLeg[]; message:string|null; };
+type RouteAnalysis = { tripId:string; travelMode:string; bufferMinutes:number; days:RouteDayAnalysis[]; disclaimer:string; };
 type JourneyTimelineItem = { id:string; kind:"flight"|"activity"; sortAt:number; dateKey:string; title:string; subtitle:string; timeLabel:string; status:string; };
 type ScheduleTransition = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; status:"overlap"|"short_gap"|"buffer_met"; recommendation:string; };
 type ScheduleSuggestion = { activityId:string; activityTitle:string; originalStartTime:string; originalEndTime:string; suggestedStartTime:string|null; suggestedEndTime:string|null; shiftMinutes:number|null; status:"suggested"|"cannot_fit"; reason:string; };
@@ -184,6 +187,9 @@ export default function App() {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [scheduleAnalysis, setScheduleAnalysis] = useState<ScheduleAnalysis | null>(null);
+  const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
+  const [routeBuffer, setRouteBuffer] = useState("15");
+  const [loadingRouteAnalysis, setLoadingRouteAnalysis] = useState(false);
   const [scheduleBuffer, setScheduleBuffer] = useState("30");
   const [loadingScheduleAnalysis, setLoadingScheduleAnalysis] = useState(false);
   const [applyingScheduleSuggestionId, setApplyingScheduleSuggestionId] = useState<string | null>(null);
@@ -449,6 +455,19 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to refresh flight status.");
     } finally { setRefreshingFlightId(null); }
+  }
+
+  async function analyzeItineraryRoutes() {
+    if (!token || !selectedTrip) return;
+    setLoadingRouteAnalysis(true); setError(""); setRouteAnalysis(null);
+    try {
+      const result = await api<RouteAnalysis>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/route-analysis?bufferMinutes=${routeBuffer}`, token
+      );
+      setRouteAnalysis(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to analyse itinerary road routes.");
+    } finally { setLoadingRouteAnalysis(false); }
   }
 
   async function estimateGroundTransfer(event: FormEvent<HTMLFormElement>) {
@@ -1496,6 +1515,38 @@ export default function App() {
               </div>
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
+            <section className="route-analysis-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 33 · ROUTE-AWARE PLANNING</p><h2>Check travel between activities</h2><small>Compare road-route estimates with the time available between stops</small></div>
+                <div className="schedule-analysis-controls">
+                  <label>Extra planning buffer
+                    <select value={routeBuffer} onChange={e=>setRouteBuffer(e.target.value)}>
+                      <option value="0">No extra buffer</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option><option value="60">60 minutes</option>
+                    </select>
+                  </label>
+                  <button type="button" className="btn btn-primary" onClick={analyzeItineraryRoutes} disabled={loadingRouteAnalysis}>{loadingRouteAnalysis?"Estimating…":"Analyse road routes"}</button>
+                </div>
+              </div>
+              <p className="flight-operations-intro">Uses saved activity coordinates and road routes. Activities without coordinates cannot be routed. No itinerary times are changed.</p>
+              {routeAnalysis && <div className="route-analysis-days">
+                {routeAnalysis.days.length===0 ? <p className="budget-empty">No itinerary days are available for route analysis.</p> :
+                  routeAnalysis.days.map(day=><article className="route-analysis-day" key={day.dayId}>
+                    <div className="schedule-analysis-day-heading"><strong>Day {day.dayNumber} · {formatDate(day.date)}</strong><span>{day.legs.length} route leg(s)</span></div>
+                    {day.message && <p className="schedule-analysis-note">{day.message}</p>}
+                    {day.legs.map(leg=><div className="route-analysis-leg" key={leg.fromActivityId+leg.toActivityId}>
+                      <div className="route-analysis-leg-heading"><strong>{leg.fromTitle} → {leg.toTitle}</strong><span className={"schedule-transition-status "+(leg.status==="feasible"?"buffer_met":leg.status==="unavailable"?"short_gap":"overlap")}>{leg.status.replace("_"," ")}</span></div>
+                      <div className="route-analysis-metrics">
+                        <span>{leg.distanceKm===null?"Route unavailable":leg.distanceKm+" km"}</span>
+                        <span>{leg.roadDurationMinutes===null?"—":leg.roadDurationMinutes+" min road estimate"}</span>
+                        <span>{leg.gapMinutes+" min available"}</span>
+                        <span>{leg.requiredMinutes===null?"":leg.requiredMinutes+" min incl. buffer"}</span>
+                      </div>
+                      <p>{leg.explanation}</p>
+                    </div>)}
+                  </article>)}
+              </div>}
+              {routeAnalysis && <p className="schedule-analysis-disclaimer">{routeAnalysis.disclaimer}</p>}
+            </section>
             <section className="journey-timeline-panel">
               <div className="section-heading"><div><p className="eyebrow">STAGE 27 · JOURNEY OVERVIEW</p><h2>Smart travel timeline</h2><small>Flights and planned activities in chronological order</small></div><span className="timeline-count">{journeyTimeline.length} items</span></div>
               <p className="timeline-intro">Flight times use actual, then estimated, then scheduled provider times. Activity times are local itinerary times; unscheduled activities are date-only.</p>

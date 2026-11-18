@@ -611,3 +611,15 @@
 
 .schedule-apply-button{justify-self:start;margin-top:4px;min-height:32px;padding:6px 10px;font-size:10px}
 .schedule-apply-button:disabled{opacity:.6;cursor:wait}
+
+.route-analysis-panel{margin-top:22px;padding:22px;border:1px solid #e7ece7;border-radius:16px;background:#fff}
+.route-analysis-days{display:grid;gap:12px;margin-top:16px}
+.route-analysis-day{padding:14px;border:1px solid #edf0ed;border-radius:12px}
+.route-analysis-leg{padding:13px 0;border-bottom:1px solid #edf0ed}
+.route-analysis-leg:last-child{border-bottom:0}
+.route-analysis-leg-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.route-analysis-leg-heading strong{font-size:12px;color:#405344}
+.route-analysis-metrics{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.route-analysis-metrics span{padding:5px 8px;border-radius:7px;background:#f4f7f4;color:#59675c;font-size:10px}
+.route-analysis-leg>p{margin:9px 0 0;color:#718074;font-size:10px;line-height:1.55}
+@media(max-width:680px){.route-analysis-panel{padding:16px}.route-analysis-leg-heading{align-items:flex-start;flex-direction:column}}
