@@ -327,7 +327,7 @@ public static class ItineraryEndpoints
         return Results.Ok(new ActivityResponse(
             activity.Id, activity.Title, activity.Description, activity.PlaceName,
             activity.Latitude, activity.Longitude, activity.DurationMinutes,
-            activity.EstimatedCost, activity.CurrencyCode, activity.SortOrder));
+            activity.EstimatedCost, activity.CurrencyCode, activity.SortOrder, activity.StartTime, activity.EndTime));
     }
 
     private static async Task<IResult> DeleteActivityAsync(
