@@ -623,3 +623,20 @@
 .route-analysis-metrics span{padding:5px 8px;border-radius:7px;background:#f4f7f4;color:#59675c;font-size:10px}
 .route-analysis-leg>p{margin:9px 0 0;color:#718074;font-size:10px;line-height:1.55}
 @media(max-width:680px){.route-analysis-panel{padding:16px}.route-analysis-leg-heading{align-items:flex-start;flex-direction:column}}
+
+.opening-hours-panel{margin-top:22px;padding:22px;border:1px solid #e7ece7;border-radius:16px;background:#fff}
+.opening-hours-days{display:grid;gap:12px;margin-top:16px}
+.opening-hours-day{padding:14px;border:1px solid #edf0ed;border-radius:12px}
+.opening-hours-item{padding:13px 0;border-bottom:1px solid #edf0ed}
+.opening-hours-item:last-child{border-bottom:0}
+.opening-hours-item-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.opening-hours-item-heading>div{display:grid;gap:4px}
+.opening-hours-item-heading strong{font-size:12px;color:#405344}
+.opening-hours-item-heading small,.opening-hours-matched,.opening-hours-raw{font-size:10px;color:#849187}
+.opening-hours-matched,.opening-hours-raw{display:block;margin-top:6px}
+.opening-hours-item>p{margin:8px 0 0;font-size:10px;line-height:1.55;color:#718074}
+.opening-hours-status{padding:5px 8px;border-radius:7px;background:#f3f5f3;color:#657268;font-size:9px;text-transform:capitalize;white-space:nowrap}
+.opening-hours-status.open_during_activity{background:#e8f5ec;color:#277342}
+.opening-hours-status.closed,.opening-hours-status.outside_opening_hours{background:#fff0ed;color:#a34b3c}
+.opening-hours-status.manual_review,.opening-hours-status.no_hours_data,.opening-hours-status.unavailable,.opening-hours-status.missing_location,.opening-hours-status.missing_schedule{background:#fff5e6;color:#94611c}
+@media(max-width:680px){.opening-hours-panel{padding:16px}.opening-hours-item-heading{align-items:flex-start;flex-direction:column}}
