@@ -55,6 +55,9 @@ type GroundTransferEstimate = {
   distanceKm:number; roadDurationMinutes:number; pickupBufferMinutes:number; totalPlanningMinutes:number;
   arrivalUtc:string|null; recommendedDepartureUtc:string|null; provider:string; estimatedAt:string; disclaimer:string;
 };
+type OpeningHoursActivity = { activityId:string; activityTitle:string; placeName:string|null; activityDate:string; startTime:string|null; endTime:string|null; status:string; matchedPlace:string|null; publishedOpeningHours:string|null; recommendation:string; };
+type OpeningHoursDay = { dayId:string; dayNumber:number; date:string; activities:OpeningHoursActivity[]; };
+type OpeningHoursAnalysis = { tripId:string; checkedAt:string; days:OpeningHoursDay[]; disclaimer:string; };
 type ActivityRouteLeg = { fromActivityId:string; fromTitle:string; toActivityId:string; toTitle:string; gapMinutes:number; distanceKm:number|null; roadDurationMinutes:number|null; requiredMinutes:number|null; status:"feasible"|"tight"|"schedule_conflict"|"unavailable"; explanation:string; };
 type RouteDayAnalysis = { dayId:string; dayNumber:number; date:string; legs:ActivityRouteLeg[]; message:string|null; };
 type RouteAnalysis = { tripId:string; travelMode:string; bufferMinutes:number; days:RouteDayAnalysis[]; disclaimer:string; };
@@ -188,6 +191,8 @@ export default function App() {
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [scheduleAnalysis, setScheduleAnalysis] = useState<ScheduleAnalysis | null>(null);
   const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
+  const [openingHoursAnalysis, setOpeningHoursAnalysis] = useState<OpeningHoursAnalysis | null>(null);
+  const [loadingOpeningHours, setLoadingOpeningHours] = useState(false);
   const [routeBuffer, setRouteBuffer] = useState("15");
   const [loadingRouteAnalysis, setLoadingRouteAnalysis] = useState(false);
   const [scheduleBuffer, setScheduleBuffer] = useState("30");
@@ -455,6 +460,19 @@ export default function App() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to refresh flight status.");
     } finally { setRefreshingFlightId(null); }
+  }
+
+  async function analyzeOpeningHours() {
+    if (!token || !selectedTrip) return;
+    setLoadingOpeningHours(true); setError(""); setOpeningHoursAnalysis(null);
+    try {
+      const result = await api<OpeningHoursAnalysis>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/opening-hours-analysis`, token
+      );
+      setOpeningHoursAnalysis(result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to check attraction opening hours.");
+    } finally { setLoadingOpeningHours(false); }
   }
 
   async function analyzeItineraryRoutes() {
@@ -1515,6 +1533,29 @@ export default function App() {
               </div>
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
+            <section className="opening-hours-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 34 · ATTRACTION INTELLIGENCE</p><h2>Check attraction opening hours</h2><small>Compare scheduled visits with published weekly opening times</small></div>
+                <button type="button" className="btn btn-primary" onClick={analyzeOpeningHours} disabled={loadingOpeningHours}>{loadingOpeningHours?"Checking places…":"Check opening hours"}</button>
+              </div>
+              <p className="flight-operations-intro">Uses nearby OpenStreetMap place data and published opening_hours tags. A missing or unsupported schedule is never treated as confirmed open.</p>
+              {openingHoursAnalysis && <div className="opening-hours-days">
+                {openingHoursAnalysis.days.map(day=><article className="opening-hours-day" key={day.dayId}>
+                  <div className="schedule-analysis-day-heading"><strong>Day {day.dayNumber} · {formatDate(day.date)}</strong><span>{day.activities.length} activities</span></div>
+                  {day.activities.length===0 ? <p className="schedule-analysis-note">No activities planned for this day.</p> :
+                    day.activities.map(item=><div className="opening-hours-item" key={item.activityId}>
+                      <div className="opening-hours-item-heading">
+                        <div><strong>{item.activityTitle}</strong><small>{item.placeName || "No place name"} · {item.startTime && item.endTime ? item.startTime+"–"+item.endTime : "Time not set"}</small></div>
+                        <span className={"opening-hours-status "+item.status}>{item.status.replaceAll("_"," ")}</span>
+                      </div>
+                      {item.matchedPlace && <small className="opening-hours-matched">Matched place: {item.matchedPlace}</small>}
+                      {item.publishedOpeningHours && <small className="opening-hours-raw">Published hours: {item.publishedOpeningHours}</small>}
+                      <p>{item.recommendation}</p>
+                    </div>)}
+                </article>)}
+              </div>}
+              {openingHoursAnalysis && <p className="schedule-analysis-disclaimer">{openingHoursAnalysis.disclaimer}</p>}
+            </section>
             <section className="route-analysis-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 33 · ROUTE-AWARE PLANNING</p><h2>Check travel between activities</h2><small>Compare road-route estimates with the time available between stops</small></div>
