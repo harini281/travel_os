@@ -427,3 +427,23 @@
 .multi-currency-warning>small{font-size:8px;line-height:1.5;color:#8c7b60}
 @media(max-width:760px){.multi-currency-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.multi-currency-budget-panel .section-heading{align-items:flex-start;flex-direction:column}.reporting-currency-field{width:100%}}
 @media(max-width:420px){.multi-currency-summary{grid-template-columns:1fr 1fr}.multi-currency-summary strong{font-size:13px}}
+
+
+/* Stage 22 — proactive budget alerts */
+.budget-alerts-panel{display:grid;gap:12px;margin:16px 0;padding:18px;border:1px solid #e4eae2;border-radius:11px;background:#fff}
+.budget-alerts-panel .section-heading{align-items:center;gap:14px}
+.budget-alerts-panel .section-heading h3{margin:3px 0;font-size:17px;color:#334a38}
+.budget-alerts-panel .section-heading small{font-size:9px;color:#849084}
+.budget-alerts-help{margin:0;color:#7d897e;font-size:9px;line-height:1.6}
+.budget-alert-list{display:grid;gap:8px}
+.budget-alert-row{display:flex;align-items:flex-start;gap:11px;padding:12px;border:1px solid #e9eee7;border-radius:9px;background:#fbfcfa}
+.budget-alert-row.is-unread{border-color:#e3d8bd;background:#fffaf1}
+.budget-alert-marker{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:50%;background:#edf2e9;color:#4d684e;font-size:10px;font-weight:800}
+.budget-alert-row.is-unread .budget-alert-marker{background:#f5ead3;color:#88652f}
+.budget-alert-content{display:grid;gap:5px;flex:1;min-width:0}
+.budget-alert-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.budget-alert-title strong{font-size:10px;color:#405342}
+.budget-alert-title small,.budget-alert-content>small{font-size:8px;color:#879287}
+.budget-alert-content p{margin:0;font-size:9px;line-height:1.5;color:#69766a}
+.budget-alert-read{font-size:8px;color:#8b968b}
+@media(max-width:520px){.budget-alerts-panel .section-heading{align-items:flex-start;flex-direction:column}.budget-alert-title{align-items:flex-start;flex-direction:column}}
