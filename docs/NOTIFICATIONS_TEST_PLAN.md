@@ -36,5 +36,5 @@
 ## Explicit limitations
 - No background worker or server-side scheduler currently pushes due notifications to a closed browser.
 - No browser push permission, email, SMS or mobile push delivery is implemented.
-- Reminder preferences and per-user channel controls are not yet implemented.
+- Reminder preferences and per-user channel controls are not yet implemented.\n- A scheduled reminder is stored as UTC after the browser interprets the datetime-local value in the device's local timezone.
 - Scheduled reminders use UTC for storage; the client currently interprets the datetime-local input in the device's local timezone.
