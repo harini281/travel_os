@@ -27,6 +27,7 @@ using TravelOS.PlatformApi.WeatherDisruptions;
 using TravelOS.PlatformApi.Trips;
 using TravelOS.PlatformApi.GroundTransfers;
 using TravelOS.PlatformApi.Notifications;
+using TravelOS.PlatformApi.Recommendations;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
