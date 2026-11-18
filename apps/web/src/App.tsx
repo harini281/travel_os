@@ -1414,7 +1414,7 @@ export default function App() {
 
             {scheduleAnalysis && <section className="schedule-analysis-panel">
               <div className="section-heading">
-                <div><p className="eyebrow">STAGE 29 · DAILY SCHEDULE INTELLIGENCE</p><h2>Daily schedule review</h2><small>Check overlaps and the breaks between timed activities</small></div>
+                <div><p className="eyebrow">STAGE 29 · DAILY SCHEDULE INTELLIGENCE</p><h2>Daily schedule review</h2><small>Detect every conflicting activity pair, including nested overlaps, and review short breaks</small></div>
                 <div className="schedule-analysis-controls">
                   <label>Minimum planning buffer
                     <select value={scheduleBuffer} onChange={e=>setScheduleBuffer(e.target.value)}>

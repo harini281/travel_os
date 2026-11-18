@@ -58,25 +58,45 @@ public static class ItineraryEndpoints
         {
             var activities = day.Activities.ToArray();
             var timed = activities.Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
-                .OrderBy(x => x.StartTime).ToArray();
+                .OrderBy(x => x.StartTime).ThenBy(x => x.EndTime).ThenBy(x => x.Id).ToArray();
             var transitions = new List<(Guid FromId, string FromTitle, Guid ToId, string ToTitle, int GapMinutes, string Status, string Recommendation)>();
-            for (var index = 1; index < timed.Length; index++)
+
+            // Report every overlapping pair, including nested and cascading conflicts.
+            for (var currentIndex = 0; currentIndex < timed.Length; currentIndex++)
             {
-                var previous = timed[index - 1];
-                var next = timed[index];
-                var gap = (int)(next.StartTime!.Value - previous.EndTime!.Value).TotalMinutes;
-                var status = gap < 0 ? "overlap" : gap < minimumGap ? "short_gap" : "buffer_met";
-                var recommendation = status switch {
-                    "overlap" => "These activities overlap. Adjust one of the time windows.",
-                    "short_gap" => "The break is below your selected planning buffer. Review the schedule and allow for travel.",
-                    _ => "The selected planning buffer is available. Actual travel time is not verified."
-                };
-                transitions.Add((previous.Id, previous.Title, next.Id, next.Title, gap, status, recommendation));
+                var current = timed[currentIndex];
+                for (var previousIndex = 0; previousIndex < currentIndex; previousIndex++)
+                {
+                    var previous = timed[previousIndex];
+                    if (previous.EndTime!.Value <= current.StartTime!.Value) continue;
+
+                    var overlapMinutes = (int)(current.StartTime.Value - previous.EndTime.Value).TotalMinutes;
+                    transitions.Add((previous.Id, previous.Title, current.Id, current.Title,
+                        overlapMinutes, "overlap",
+                        $"These activities overlap by {Math.Abs(overlapMinutes)} minutes. Adjust one of the time windows."));
+                }
+
+                // Compare against the most recently completed activity, avoiding misleading
+                // gap reports against every earlier activity in the day.
+                var previousCompleted = timed.Take(currentIndex)
+                    .Where(x => x.EndTime!.Value <= current.StartTime!.Value)
+                    .OrderByDescending(x => x.EndTime)
+                    .ThenByDescending(x => x.StartTime)
+                    .FirstOrDefault();
+
+                if (previousCompleted is not null)
+                {
+                    var gap = (int)(current.StartTime!.Value - previousCompleted.EndTime!.Value).TotalMinutes;
+                    var status = gap < minimumGap ? "short_gap" : "buffer_met";
+                    var recommendation = status == "short_gap"
+                        ? "The break is below your selected planning buffer. Review the schedule and allow for travel."
+                        : "The selected planning buffer is available. Actual travel time is not verified.";
+                    transitions.Add((previousCompleted.Id, previousCompleted.Title, current.Id, current.Title,
+                        gap, status, recommendation));
+                }
             }
-            var overlapCount = 0;
-            for (var left = 0; left < timed.Length; left++)
-                for (var right = left + 1; right < timed.Length; right++)
-                    if (timed[left].EndTime!.Value > timed[right].StartTime!.Value) overlapCount++;
+
+            var overlapCount = transitions.Count(x => x.Status == "overlap");
             return new {
                 dayId = day.Id, dayNumber = day.DayNumber, date = day.Date,
                 activityCount = activities.Length, timedActivityCount = timed.Length,
@@ -93,7 +113,7 @@ public static class ItineraryEndpoints
 
         return Results.Ok(new {
             tripId, minimumGapMinutes = minimumGap, days,
-            disclaimer = "Heuristic schedule review only. Gaps are clock-time differences, not route or traffic estimates. Attraction opening hours and transfer durations are not included."
+            disclaimer = "Heuristic schedule review only. Every overlapping activity pair is reported. Breaks are clock-time differences, not route or traffic estimates. Attraction opening hours and transfer durations are not included."
         });
     }
 
