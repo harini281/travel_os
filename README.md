@@ -388,3 +388,9 @@ Only simple weekly schedules are interpreted. Public holidays, school holidays, 
 The itinerary workspace now includes a Leaflet map that plots saved activity coordinates as numbered, day-coloured markers. Travellers can filter by itinerary day, inspect activity details in marker popups and open the saved location in OpenStreetMap. Dotted connectors visualise the saved stop sequence within each day; they are explicitly not road routes. Activities without valid coordinates are excluded and counted rather than assigned guessed locations.
 
 The map uses OpenStreetMap tiles and attribution. Public tile infrastructure is suitable for development, not a guaranteed production service; select an appropriate hosted or self-managed tile provider before launch. See [the interactive map verification plan](docs/INTERACTIVE_ITINERARY_MAP_TEST_PLAN.md).
+
+## Stage 36 — Time-zone and offline travel support
+
+TravelOS now lets each trip select an IANA display timezone for UTC flight timestamps, including flight departure, arrival and last-checked times. The selected timezone is retained per trip in the current browser. Activity start/end values remain local clock values and are intentionally not converted: the current API stores time-only values without a trip/day timezone identifier.
+
+The web app adds a progressive web app manifest and production service worker for the app shell, plus IndexedDB storage for an explicitly saved itinerary snapshot and the trip list/profile. When the server is unavailable, travellers can reopen a previously cached itinerary in read-only mode. API data and third-party map tiles are not cached as fresh data. Offline copies are stored locally without application-level encryption; avoid using this feature for sensitive trip information on shared devices. See [the Stage 36 verification plan](docs/TIMEZONE_AND_OFFLINE_TEST_PLAN.md).
