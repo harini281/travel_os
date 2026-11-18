@@ -19,6 +19,18 @@ type Itinerary = {
   id: string; tripId: string; version: number; isApproved: boolean;
   approvedAt: string | null; days: ItineraryDay[];
 };
+type WeatherAssessment = {
+  id:string; activityId:string; activityTitle:string; placeName:string|null; activityDate:string;
+  weatherCode:number; precipitationProbabilityMax:number|null; precipitationSumMm:number|null;
+  windSpeedMaxKmh:number|null; temperatureMaxC:number|null; severity:"low"|"moderate"|"high";
+  summary:string; recommendation:string; source:string; forecastFetchedAt:string;
+};
+type WeatherSkippedActivity = {activityId:string;activityTitle:string;activityDate:string;reason:string};
+type WeatherScanResponse = {
+  tripId:string; scannedAt:string; status:string; assessments:WeatherAssessment[];
+  skippedActivities:WeatherSkippedActivity[]; highSeverityCount:number;
+  moderateSeverityCount:number; message:string;
+};
 type SuggestedActivity = Omit<Activity, "id">;
 type AiDraftDay = { dayNumber: number; date: string; theme: string; activities: SuggestedActivity[] };
 type AiDraft = {
@@ -136,6 +148,11 @@ export default function App() {
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
   const [itinerary, setItinerary] = useState<Itinerary | null>(null);
   const [loadingItinerary, setLoadingItinerary] = useState(false);
+  const [weatherAssessments, setWeatherAssessments] = useState<WeatherAssessment[]>([]);
+  const [weatherSkipped, setWeatherSkipped] = useState<WeatherSkippedActivity[]>([]);
+  const [weatherScanStatus, setWeatherScanStatus] = useState("");
+  const [weatherScannedAt, setWeatherScannedAt] = useState<string | null>(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
   const [showAddDay, setShowAddDay] = useState(false);
   const [newDayDate, setNewDayDate] = useState("");
   const [activeDayId, setActiveDayId] = useState<string | null>(null);
@@ -244,6 +261,34 @@ export default function App() {
     } finally {
       setLoadingItinerary(false);
     }
+  }
+
+  async function loadWeatherAssessments(trip: Trip, accessToken = token) {
+    if (!accessToken) return;
+    try {
+      const data = await api<WeatherAssessment[]>(`/api/v1/trips/${trip.id}/weather-disruptions`, accessToken);
+      setWeatherAssessments(data);
+      setWeatherScannedAt(data[0]?.forecastFetchedAt ?? null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to load weather assessments.");
+    }
+  }
+
+  async function scanTripWeather() {
+    if (!token || !selectedTrip) return;
+    setLoadingWeather(true); setError("");
+    try {
+      const result = await api<WeatherScanResponse>(
+        `/api/v1/trips/${selectedTrip.id}/weather-disruptions/scan`, token, { method:"POST" }
+      );
+      setWeatherAssessments(result.assessments);
+      setWeatherSkipped(result.skippedActivities);
+      setWeatherScanStatus(result.status);
+      setWeatherScannedAt(result.scannedAt);
+      setNotice(result.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to scan trip weather.");
+    } finally { setLoadingWeather(false); }
   }
 
   async function loadDrafts(trip: Trip, accessToken = token) {
@@ -765,11 +810,11 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
+    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
   }
 
   function closeTrip() {
@@ -1136,6 +1181,45 @@ export default function App() {
 
 
 
+            <section className="weather-disruption-panel">
+              <div className="section-heading">
+                <div><p className="eyebrow">STAGE 23 · TRAVEL OPERATIONS</p><h2>Weather disruption watch</h2><small>Forecast evidence for your scheduled activities</small></div>
+                <button type="button" className="btn btn-primary" disabled={loadingWeather || !itinerary || itinerary.days.every(day => day.activities.length === 0)} onClick={scanTripWeather}>
+                  {loadingWeather ? "Scanning forecast…" : "Scan trip weather"}
+                </button>
+              </div>
+              <p className="weather-disruption-intro">Uses Open-Meteo daily forecasts for activities with saved coordinates. Short-range forecasts are not official weather warnings and cannot guarantee conditions on the day.</p>
+              {weatherScannedAt && <div className="weather-scan-meta"><span>Last scan: {new Date(weatherScannedAt).toLocaleString()}</span><span>{weatherAssessments.length} activities assessed</span></div>}
+              {weatherAssessments.length > 0 && <>
+                <div className="weather-summary-stats">
+                  <div><strong>{weatherAssessments.length}</strong><span>ASSESSED</span></div>
+                  <div><strong>{weatherAssessments.filter(item => item.severity === "high").length}</strong><span>HIGH SIGNAL</span></div>
+                  <div><strong>{weatherAssessments.filter(item => item.severity === "moderate").length}</strong><span>MODERATE</span></div>
+                </div>
+                <div className="weather-assessment-list">
+                  {weatherAssessments.map(item => <article className={`weather-assessment-card severity-${item.severity}`} key={item.id}>
+                    <div className="weather-assessment-heading">
+                      <div><strong>{item.activityTitle}</strong><small>{item.placeName || "Location not named"} · {formatDate(item.activityDate)}</small></div>
+                      <span className={`weather-severity severity-${item.severity}`}>{item.severity}</span>
+                    </div>
+                    <p>{item.summary}</p>
+                    <div className="weather-metrics">
+                      {item.precipitationProbabilityMax !== null && <span>Rain chance <b>{item.precipitationProbabilityMax}%</b></span>}
+                      {item.precipitationSumMm !== null && <span>Rain <b>{item.precipitationSumMm} mm</b></span>}
+                      {item.windSpeedMaxKmh !== null && <span>Wind <b>{item.windSpeedMaxKmh} km/h</b></span>}
+                      {item.temperatureMaxC !== null && <span>Max temp <b>{item.temperatureMaxC}°C</b></span>}
+                    </div>
+                    <p className="weather-recommendation">{item.recommendation}</p>
+                    <small className="weather-source">Forecast source: {item.source} · Retrieved {new Date(item.forecastFetchedAt).toLocaleString()}</small>
+                  </article>)}
+                </div>
+              </>}
+              {weatherSkipped.length > 0 && <div className="weather-skipped-list">
+                <strong>Activities not assessed ({weatherSkipped.length})</strong>
+                {weatherSkipped.map(item => <div key={item.activityId}><b>{item.activityTitle}</b><span>{formatDate(item.activityDate)} · {item.reason}</span></div>)}
+              </div>}
+              {!weatherAssessments.length && !weatherSkipped.length && <p className="budget-empty">{itinerary ? "No weather scan has been run yet. Add coordinates to outdoor activities, then scan the trip." : "Create an itinerary before scanning weather."}</p>}
+            </section>
             <section className="group-workspace">
               <div className="section-heading"><div><p className="eyebrow">TRAVEL TOGETHER</p><h2>Trip members</h2></div><span className="count-label">{tripMembers.length} TRAVELLERS</span></div>
               <div className="member-list">{tripMembers.map(member => <div className="member-row" key={member.userId}>
