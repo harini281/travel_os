@@ -24,6 +24,7 @@ using TravelOS.PlatformApi.BudgetIntelligence;
 using TravelOS.PlatformApi.BudgetAlerts;
 using TravelOS.PlatformApi.WeatherDisruptions;
 using TravelOS.PlatformApi.Trips;
+using TravelOS.PlatformApi.GroundTransfers;
 
 var builder = WebApplication.CreateBuilder(args);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
@@ -114,6 +115,13 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true
             }));
+    options.AddPolicy("ground-transfer", context =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: context.User.FindFirst("sub")?.Value ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5, Window = TimeSpan.FromMinutes(1), QueueLimit = 0, AutoReplenishment = true
+            }));
     options.AddPolicy("flight-refresh", context =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: context.User.FindFirst("sub")?.Value
@@ -173,6 +181,20 @@ builder.Services.AddHttpClient("weather-forecast", client =>
     client.Timeout = TimeSpan.FromSeconds(15);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("TravelOS/1.0 (weather disruption monitoring)");
 });
+builder.Services.AddHttpClient("nominatim", client =>
+{
+    client.BaseAddress = new Uri("https://nominatim.openstreetmap.org/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TravelOS/1.0 (airport ground transfer estimates)");
+});
+builder.Services.AddHttpClient("osrm", client =>
+{
+    client.BaseAddress = new Uri("https://router.project-osrm.org/");
+    client.Timeout = TimeSpan.FromSeconds(12);
+});
+builder.Services.AddScoped<IAirportTransferRouter>(services => new OpenStreetMapTransferRouter(
+    services.GetRequiredService<IHttpClientFactory>().CreateClient("nominatim"),
+    services.GetRequiredService<IHttpClientFactory>().CreateClient("osrm")));
 builder.Services.AddHttpClient("ai-planner", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(70);
@@ -187,6 +209,7 @@ app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
 app.MapTripEndpoints();
+app.MapGroundTransferEndpoints();
 app.MapItineraryEndpoints();
 app.MapBudgetEndpoints();
 app.MapGroupEndpoints();
