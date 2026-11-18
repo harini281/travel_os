@@ -376,3 +376,9 @@ See the [schedule verification plan](docs/DAILY_SCHEDULE_INTELLIGENCE_TEST_PLAN.
 Travellers can request road-route estimates between consecutive timed itinerary activities when both stops have saved map coordinates. The API uses the OSRM driving table service to estimate distance and duration, compares the route plus a configurable planning buffer with the saved time gap, and labels each leg feasible, tight, conflicting or unavailable. The dashboard presents route distance, road duration, available time and the required buffer.
 
 This analysis is read-only. It does not move activities, book transport or guarantee arrival times. The public OSRM service has no live traffic and excludes parking, queues, venue opening hours and public transport. Replace the public demo service with a contracted or self-hosted routing provider before production launch. See [the route-aware itinerary verification plan](docs/ROUTE_AWARE_ITINERARY_TEST_PLAN.md).
+
+## Stage 34 — Attraction opening-hours intelligence
+
+The itinerary dashboard can check scheduled activities against nearby OpenStreetMap place records and their published `opening_hours` tags. The checker matches the saved place name and coordinates, evaluates a deliberately limited subset of weekly opening-hours expressions, and reports open-during-activity, outside-opening-hours, closed, no-data, unavailable, missing-location, missing-schedule or manual-review outcomes.
+
+Only simple weekly schedules are interpreted. Public holidays, school holidays, seasonal exceptions, overnight hours and unsupported expressions are not guessed. Results are read-only and do not move activities or guarantee admission. OpenStreetMap community data can be incomplete or outdated; verify important visits with the venue. See [the opening-hours verification plan](docs/OPENING_HOURS_TEST_PLAN.md).
