@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 39 — AI activity recommendations. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 41 — AI recommendation scheduling. Stages 40 and 41 are under review in separate draft pull requests. This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -308,6 +308,15 @@ Each suggestion includes a reason, category, indicative duration/cost, who it ma
 **Review-only behaviour:** suggestions are not saved, booked, or automatically inserted into the itinerary. Check venue details, accessibility, opening hours and prices yourself.
 
 Verification checklist: [docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
+
+
+### Stage 41 — AI recommendation scheduling
+
+Trip owners can request suitable time slots for a generated activity recommendation. The owner supplies a planning-day window and buffer; TravelOS compares the recommendation duration with saved, timed activities and returns available gaps with explanations. Existing overlaps and activities without times are disclosed.
+
+The owner reviews the proposed slot and explicitly chooses **Save with this time** to add the recommendation with start/end times, or chooses the separate **Add without a time** action. The suggestion endpoint is read-only; it never inserts or changes activities automatically. Approved itineraries remain read-only and the scheduling endpoint is owner-only.
+
+Slots are advisory calculations from saved times and the supplied planning window. They do not verify travel time, traffic, venue opening hours, availability or live conditions. See [Stage 41 verification scenarios](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md#stage-41--ai-recommendation-scheduling).
 
 ### Stage 40 — Traveller-approved AI recommendations
 
