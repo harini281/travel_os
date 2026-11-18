@@ -69,7 +69,7 @@ public static class ItineraryEndpoints
                         activity.Id, activity.Title, activity.Description,
                         activity.PlaceName, activity.Latitude, activity.Longitude,
                         activity.DurationMinutes, activity.EstimatedCost,
-                        activity.CurrencyCode, activity.SortOrder))
+                        activity.CurrencyCode, activity.SortOrder, activity.StartTime, activity.EndTime))
                     .ToArray()))
             .ToArray();
 
@@ -99,6 +99,12 @@ public static class ItineraryEndpoints
 
         if (request.Longitude is < -180 or > 180)
             errors["longitude"] = ["Longitude must be between -180 and 180."];
+
+        if (request.StartTime.HasValue != request.EndTime.HasValue)
+            errors["schedule"] = ["Start and end times must be supplied together."];
+
+        if (request.StartTime.HasValue && request.EndTime.HasValue && request.EndTime.Value <= request.StartTime.Value)
+            errors["endTime"] = ["End time must be later than start time on the same day."];
 
         if (request.DurationMinutes is <= 0)
             errors["durationMinutes"] = ["Duration must be greater than zero."];
@@ -254,6 +260,8 @@ public static class ItineraryEndpoints
             Latitude = request.Latitude,
             Longitude = request.Longitude,
             DurationMinutes = request.DurationMinutes,
+            StartTime = request.StartTime,
+            EndTime = request.EndTime,
             EstimatedCost = request.EstimatedCost,
             CurrencyCode = request.EstimatedCost.HasValue
                 ? (request.CurrencyCode?.ToUpperInvariant() ?? trip.CurrencyCode)
@@ -270,7 +278,7 @@ public static class ItineraryEndpoints
             new ActivityResponse(
                 activity.Id, activity.Title, activity.Description, activity.PlaceName,
                 activity.Latitude, activity.Longitude, activity.DurationMinutes,
-                activity.EstimatedCost, activity.CurrencyCode, activity.SortOrder));
+                activity.EstimatedCost, activity.CurrencyCode, activity.SortOrder, activity.StartTime, activity.EndTime));
     }
 
     private static async Task<IResult> UpdateActivityAsync(
@@ -308,6 +316,8 @@ public static class ItineraryEndpoints
         activity.Latitude = request.Latitude;
         activity.Longitude = request.Longitude;
         activity.DurationMinutes = request.DurationMinutes;
+        activity.StartTime = request.StartTime;
+        activity.EndTime = request.EndTime;
         activity.EstimatedCost = request.EstimatedCost;
         activity.CurrencyCode = request.EstimatedCost.HasValue
             ? (request.CurrencyCode?.ToUpperInvariant() ?? trip.CurrencyCode)
@@ -318,7 +328,7 @@ public static class ItineraryEndpoints
         return Results.Ok(new ActivityResponse(
             activity.Id, activity.Title, activity.Description, activity.PlaceName,
             activity.Latitude, activity.Longitude, activity.DurationMinutes,
-            activity.EstimatedCost, activity.CurrencyCode, activity.SortOrder));
+            activity.EstimatedCost, activity.CurrencyCode, activity.SortOrder, activity.StartTime, activity.EndTime));
     }
 
     private static async Task<IResult> DeleteActivityAsync(
