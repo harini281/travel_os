@@ -416,3 +416,14 @@ For delayed, cancelled or diverted flights, the response counts itinerary activi
 Refresh is rate-limited to four requests per user per minute. FlightAware AeroAPI usage is metered; administrators should review the provider's current pricing and account usage before enabling it. No booking, ticket change or itinerary mutation is performed.
 
 Migration `014_trip_flights.sql` creates the flight records.
+
+
+## Airport and connection intelligence
+
+`GET /api/v1/trips/{tripId}/flights/connections` (authenticated trip member) returns a read-only assessment of consecutive flights grouped by the traveller-supplied `JourneyGroup`. Use separate group names for separate directions or unrelated travel sequences (for example `Outbound`, `Return`, `Side trip`).
+
+Effective inbound arrival and outbound departure use actual provider times first, estimated provider times second, and saved schedule times otherwise. The response includes the effective time source, airport code match, time gap and a heuristic risk label.
+
+Heuristic labels: overlap (<0 min), very_tight (0–59 min), tight (60–119 min), moderate (120–179 min), more_time (180+ min), airport_change (different IATA codes), and unassessable (cancelled/diverted leg). These thresholds are product heuristics only. They are not official minimum connection times and do not verify ticket protection, terminal transfers, immigration, baggage, visa rules, boarding cutoff or ground transport. Airport code changes are flagged without estimating transfer feasibility. No automatic flight or itinerary changes are performed.
+
+Migration `015_flight_journey_groups.sql` adds the JourneyGroup field to TripFlights.
