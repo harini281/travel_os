@@ -339,4 +339,4 @@ The trip dashboard can request a point-to-point road/cycling estimate from an ai
 - Estimates are not live traffic ETAs, airport processing estimates, transfer bookings or guaranteed arrival times.
 - Nominatim may resolve ambiguous airport codes; verify the returned airport name before relying on an estimate.
 - Public Nominatim/OSRM endpoints have usage limits and no production SLA. For commercial scale, use a contracted provider or self-hosted services and a verified airport dataset.
-- The API is authenticated and rate-limited to five estimates per user per minute.
+- The API is authenticated. To respect the public Nominatim service policy on a single API instance, route estimates share a global in-process limiter (one estimate every two seconds), and the two geocoding lookups within an estimate are spaced one second apart. This is not a distributed limiter: run a single API instance when using the public Nominatim endpoint, or switch to a contracted/self-hosted geocoder with a shared limiter before horizontal scaling.
