@@ -91,7 +91,7 @@ export default function ItineraryMap({ days }: Props) {
       const marker = L.marker([activity.latitude!, activity.longitude!], {
         icon: L.divIcon({
           className: "itinerary-map-marker",
-          html: String(daySequence),
+          html: `<span style="background:${color}">${daySequence}</span>`,
           iconSize: [28, 28],
           iconAnchor: [14, 14]
         })
