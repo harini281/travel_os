@@ -64,3 +64,31 @@ Recommendations are advisory, not verified venue listings. Weather assessments c
 10. Simulate a failed API request and confirm an error is shown and the recommendation remains available for retry.
 
 The action is an explicit owner choice. It does not book a venue, verify provider data, assign coordinates or times, or approve the itinerary.
+
+
+## Stage 41 — AI recommendation scheduling
+
+### Scheduling API
+1. Confirm unauthenticated schedule requests return 401.
+2. Confirm only the trip owner can request recommendation slots; trip members and unrelated users cannot.
+3. Confirm a missing itinerary or approved itinerary is rejected without changes.
+4. Confirm an invalid day number, missing title, duration outside 15–720 minutes, invalid time window, or buffer outside 0–240 minutes is rejected.
+5. Confirm candidate slots are generated only inside the owner-supplied planning window.
+6. Confirm slots do not overlap saved timed activities and include the selected buffer around adjacent activities.
+7. Confirm nested/overlapping existing activities are reported as conflicts and a warning is returned.
+8. Confirm untimed saved activities are explicitly disclosed as excluded from time calculations.
+9. Confirm the endpoint is read-only: no activity is inserted and no itinerary state changes.
+
+### Workspace
+1. As the trip owner, generate Stage 39 recommendations for an editable itinerary day.
+2. Set the planning window and buffer; request a suitable time for a recommendation with a suggested duration.
+3. Confirm the slot list displays start/end time and the reason it fits between existing activities.
+4. Select a slot and explicitly choose **Save with this time**.
+5. Confirm the new activity stores the selected start/end times and suggested duration, and the itinerary refreshes.
+6. Confirm **Add without a time** remains a separate explicit action.
+7. Confirm no suitable slot is shown as such when the planning window has insufficient capacity.
+8. Confirm approved itineraries cannot be scheduled or edited.
+9. Confirm members do not see owner scheduling controls and cannot call the endpoint successfully.
+10. Confirm existing Stage 39 recommendation generation and Stage 40 save behaviour still work.
+
+Slots use saved activity times plus the owner-entered planning window and buffer. They do not verify travel duration, traffic, venue opening hours, provider availability or live conditions. No changes are persisted by the suggestion endpoint.
