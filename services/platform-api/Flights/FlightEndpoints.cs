@@ -16,6 +16,7 @@ public static class FlightEndpoints
             .WithTags("Flight and journey disruptions")
             .RequireAuthorization();
         group.MapGet("/", ListAsync).WithName("ListTripFlights");
+        group.MapGet("/connections", ConnectionsAsync).WithName("AssessFlightConnections");
         group.MapPost("/", CreateAsync).WithName("CreateTripFlight");
         group.MapPost("/{flightId:guid}/refresh", RefreshAsync)
             .RequireRateLimiting("flight-refresh")
@@ -45,6 +46,98 @@ public static class FlightEndpoints
         return Results.Ok(flights.Select(ToResponse).ToArray());
     }
 
+    private static async Task<IResult> ConnectionsAsync(
+        Guid tripId, ClaimsPrincipal principal, TravelOsDbContext db, CancellationToken ct)
+    {
+        if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
+        if (!await IsMemberAsync(tripId, userId, db, ct)) return Results.NotFound();
+
+        var flights = await db.TripFlights.AsNoTracking()
+            .Where(x => x.TripId == tripId)
+            .OrderBy(x => x.ScheduledDepartureUtc)
+            .ToListAsync(ct);
+
+        var connections = flights
+            .GroupBy(x => x.JourneyGroup, StringComparer.OrdinalIgnoreCase)
+            .SelectMany(group =>
+            {
+                var legs = group.OrderBy(x => x.ScheduledDepartureUtc).ToArray();
+                return Enumerable.Range(0, Math.Max(0, legs.Length - 1))
+                    .Select(index => AssessConnection(legs[index], legs[index + 1]));
+            })
+            .OrderBy(x => x.InboundScheduledArrivalUtc)
+            .ToArray();
+
+        return Results.Ok(new FlightConnectionsResponse(
+            tripId, DateTimeOffset.UtcNow, connections,
+            "Connections are heuristic schedule checks, not airline minimum connection times or protected-connection guarantees. Confirm airport, terminal, immigration, baggage and transfer requirements with the airline and airport."));
+    }
+
+    private static FlightConnectionAssessment AssessConnection(TripFlight inbound, TripFlight outbound)
+    {
+        var arrival = inbound.ActualArrivalUtc ?? inbound.EstimatedArrivalUtc ?? inbound.ScheduledArrivalUtc;
+        var departure = outbound.ActualDepartureUtc ?? outbound.EstimatedDepartureUtc ?? outbound.ScheduledDepartureUtc;
+        var gap = (int)Math.Round((departure - arrival).TotalMinutes);
+        var sameAirport = string.Equals(inbound.DestinationAirportCode, outbound.OriginAirportCode, StringComparison.OrdinalIgnoreCase);
+        var disrupted = inbound.Status is "cancelled" or "diverted" || outbound.Status is "cancelled" or "diverted";
+        var timeSource = inbound.ActualArrivalUtc.HasValue || inbound.EstimatedArrivalUtc.HasValue
+            || outbound.ActualDepartureUtc.HasValue || outbound.EstimatedDepartureUtc.HasValue
+            ? "provider_estimate_or_actual" : "scheduled_only";
+
+        string risk;
+        string explanation;
+        int? heuristicBuffer = null;
+        if (disrupted)
+        {
+            risk = "unassessable";
+            explanation = "One of these flights is reported cancelled or diverted. The planned connection cannot be assessed from the saved schedule.";
+        }
+        else if (!sameAirport)
+        {
+            risk = "airport_change";
+            explanation = $"Airport change required: arrive at {inbound.DestinationAirportCode}, depart from {outbound.OriginAirportCode}. Ground transfer time and feasibility are unknown.";
+        }
+        else if (gap < 0)
+        {
+            risk = "overlap";
+            explanation = "The next departure is scheduled before the previous arrival (or provider-updated times overlap). Treat this as an infeasible connection until verified.";
+            heuristicBuffer = 120;
+        }
+        else
+        {
+            heuristicBuffer = 120;
+            if (gap < 60)
+            {
+                risk = "very_tight";
+                explanation = "Less than 60 minutes between flights. This is a high-risk schedule signal; terminal, immigration and boarding requirements are not included.";
+            }
+            else if (gap < 120)
+            {
+                risk = "tight";
+                explanation = "Between 60 and 119 minutes between flights. This may be insufficient depending on airport, terminals, immigration and airline rules.";
+            }
+            else if (gap < 180)
+            {
+                risk = "moderate";
+                explanation = "Between 2 and 3 hours are scheduled. Verify the airline's minimum connection time and airport procedures.";
+            }
+            else
+            {
+                risk = "more_time";
+                explanation = "At least 3 hours are scheduled. This is more time than shorter connections, but does not guarantee feasibility.";
+            }
+        }
+
+        return new FlightConnectionAssessment(
+            inbound.Id, inbound.JourneyGroup, inbound.FlightIdentifier,
+            inbound.OriginAirportCode, inbound.DestinationAirportCode,
+            inbound.ScheduledArrivalUtc, arrival, inbound.Status,
+            outbound.Id, outbound.FlightIdentifier, outbound.OriginAirportCode,
+            outbound.DestinationAirportCode, outbound.ScheduledDepartureUtc,
+            departure, outbound.Status, gap, sameAirport, risk,
+            heuristicBuffer, timeSource, explanation);
+    }
+
     private static async Task<IResult> CreateAsync(
         Guid tripId, CreateTripFlightRequest request, ClaimsPrincipal principal,
         TravelOsDbContext db, CancellationToken ct)
@@ -54,10 +147,13 @@ public static class FlightEndpoints
 
         var errors = new Dictionary<string, string[]>();
         var identifier = request.FlightIdentifier?.Trim().ToUpperInvariant().Replace(" ", "") ?? "";
+        var journeyGroup = string.IsNullOrWhiteSpace(request.JourneyGroup) ? "Main journey" : request.JourneyGroup.Trim();
         var origin = request.OriginAirportCode?.Trim().ToUpperInvariant() ?? "";
         var destination = request.DestinationAirportCode?.Trim().ToUpperInvariant() ?? "";
         if (identifier.Length is < 2 or > 24 || !System.Text.RegularExpressions.Regex.IsMatch(identifier, "^[A-Z0-9-]+$"))
             errors["flightIdentifier"] = ["Enter a valid flight number, for example UL 503 or SQ 468."];
+        if (journeyGroup.Length > 80)
+            errors["journeyGroup"] = ["Journey group must be at most 80 characters. Use a label such as Outbound or Return."];
         if (!System.Text.RegularExpressions.Regex.IsMatch(origin, "^[A-Z]{3}$"))
             errors["originAirportCode"] = ["Use a three-letter IATA airport code."];
         if (!System.Text.RegularExpressions.Regex.IsMatch(destination, "^[A-Z]{3}$"))
@@ -75,6 +171,7 @@ public static class FlightEndpoints
             TripId = tripId,
             CreatedByUserId = userId,
             FlightIdentifier = identifier.Replace(" ", ""),
+            JourneyGroup = journeyGroup,
             OriginAirportCode = origin,
             DestinationAirportCode = destination,
             ScheduledDepartureUtc = request.ScheduledDepartureUtc.ToUniversalTime(),
@@ -166,7 +263,7 @@ public static class FlightEndpoints
     }
 
     private static TripFlightResponse ToResponse(TripFlight x) => new(
-        x.Id, x.TripId, x.FlightIdentifier, x.OriginAirportCode, x.DestinationAirportCode,
+        x.Id, x.TripId, x.FlightIdentifier, x.JourneyGroup, x.OriginAirportCode, x.DestinationAirportCode,
         x.ScheduledDepartureUtc, x.ScheduledArrivalUtc, x.Status, x.Provider,
         x.ProviderFlightId, x.ProviderStatus, x.EstimatedDepartureUtc, x.ActualDepartureUtc,
         x.EstimatedArrivalUtc, x.ActualArrivalUtc, x.DepartureDelayMinutes,
@@ -277,10 +374,11 @@ public sealed class FlightAwareAeroApiProvider(HttpClient client, IConfiguration
 
 public sealed record CreateTripFlightRequest(
     string FlightIdentifier, string OriginAirportCode, string DestinationAirportCode,
-    DateTimeOffset ScheduledDepartureUtc, DateTimeOffset ScheduledArrivalUtc);
+    DateTimeOffset ScheduledDepartureUtc, DateTimeOffset ScheduledArrivalUtc,
+    string? JourneyGroup = null);
 
 public sealed record TripFlightResponse(
-    Guid Id, Guid TripId, string FlightIdentifier, string OriginAirportCode,
+    Guid Id, Guid TripId, string FlightIdentifier, string JourneyGroup, string OriginAirportCode,
     string DestinationAirportCode, DateTimeOffset ScheduledDepartureUtc,
     DateTimeOffset ScheduledArrivalUtc, string Status, string Provider,
     string? ProviderFlightId, string? ProviderStatus, DateTimeOffset? EstimatedDepartureUtc,
@@ -291,3 +389,18 @@ public sealed record TripFlightResponse(
 public sealed record FlightRefreshResponse(
     TripFlightResponse Flight, bool HasDisruptionSignal, int DepartureDateActivityCount,
     int ArrivalDateActivityCount, string ItineraryImpactSummary);
+
+
+public sealed record FlightConnectionsResponse(
+    Guid TripId, DateTimeOffset AssessedAt,
+    IReadOnlyList<FlightConnectionAssessment> Connections, string Disclaimer);
+
+public sealed record FlightConnectionAssessment(
+    Guid InboundFlightId, string JourneyGroup, string InboundFlightIdentifier,
+    string InboundOriginAirportCode, string InboundDestinationAirportCode,
+    DateTimeOffset InboundScheduledArrivalUtc, DateTimeOffset InboundEffectiveArrivalUtc,
+    string InboundStatus, Guid OutboundFlightId, string OutboundFlightIdentifier,
+    string OutboundOriginAirportCode, string OutboundDestinationAirportCode,
+    DateTimeOffset OutboundScheduledDepartureUtc, DateTimeOffset OutboundEffectiveDepartureUtc,
+    string OutboundStatus, int GapMinutes, bool SameAirport,
+    string RiskLevel, int? HeuristicBufferMinutes, string TimeSource, string Explanation);

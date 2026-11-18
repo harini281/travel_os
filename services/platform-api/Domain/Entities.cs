@@ -306,6 +306,7 @@ public sealed class TripFlight
     public Guid TripId { get; set; }
     public Guid CreatedByUserId { get; set; }
     public string FlightIdentifier { get; set; } = "";
+    public string JourneyGroup { get; set; } = "Main journey";
     public string OriginAirportCode { get; set; } = "";
     public string DestinationAirportCode { get; set; } = "";
     public DateTimeOffset ScheduledDepartureUtc { get; set; }
