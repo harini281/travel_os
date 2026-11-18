@@ -322,6 +322,7 @@ export default function App() {
   const [recommendationDay, setRecommendationDay] = useState(1);
   const [recommendationFocus, setRecommendationFocus] = useState<"all" | "weather" | "budget" | "group" | "schedule">("all");
   const [recommendationQuestion, setRecommendationQuestion] = useState("");
+  const [savingRecommendationTitle, setSavingRecommendationTitle] = useState<string | null>(null);
   const [travellerCount, setTravellerCount] = useState(1);
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
@@ -1621,6 +1622,49 @@ export default function App() {
     } finally { setLoadingRecommendations(false); }
   }
 
+  function isRecommendationAdded(item: ActivityRecommendation) {
+    const day = itinerary?.days.find(candidate => candidate.dayNumber === recommendations?.dayNumber);
+    return day?.activities.some(activity => activity.title.trim().toLocaleLowerCase() === item.title.trim().toLocaleLowerCase()) ?? false;
+  }
+
+  async function addRecommendedActivity(item: ActivityRecommendation) {
+    if (!token || !selectedTrip || !itinerary || selectedTrip.currentUserRole !== "owner") return;
+    if (itinerary.isApproved) {
+      setError("This itinerary is approved and read-only. Create a new itinerary version before adding activities.");
+      return;
+    }
+    const day = itinerary.days.find(candidate => candidate.dayNumber === recommendations?.dayNumber);
+    if (!day) {
+      setError("The recommendation day is no longer available. Generate fresh recommendations.");
+      return;
+    }
+    if (day.activities.some(activity => activity.title.trim().toLocaleLowerCase() === item.title.trim().toLocaleLowerCase())) {
+      setNotice("This activity is already in the selected itinerary day.");
+      return;
+    }
+
+    setSavingRecommendationTitle(item.title); setError("");
+    try {
+      await api<Activity>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/days/${day.id}/activities`, token,
+        { method: "POST", body: JSON.stringify({
+          title: item.title,
+          description: `${item.reason}\\n\\nAI suggestion — verify before visiting: ${item.verificationNote}`,
+          placeName: null, latitude: null, longitude: null,
+          durationMinutes: item.suggestedDurationMinutes,
+          startTime: null, endTime: null,
+          estimatedCost: item.estimatedCost,
+          currencyCode: item.estimatedCost !== null ? (item.currencyCode || selectedTrip.currencyCode) : null,
+          sortOrder: 0,
+        }) },
+      );
+      await loadItinerary(selectedTrip);
+      setNotice(`Added "${item.title}" to Day ${day.dayNumber}. Set its location and time before relying on the schedule.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to add this recommendation.");
+    } finally { setSavingRecommendationTitle(null); }
+  }
+
   async function generateAiDraft(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!token || !selectedTrip) return;
@@ -2436,7 +2480,7 @@ export default function App() {
                 <button className="btn btn-primary" disabled={busy}>{busy ? "Generating…" : "✳ Generate AI draft"}</button>
               </form>
               <form className="recommendation-request" onSubmit={getActivityRecommendations}>
-                <div className="recommendation-title"><div><p className="eyebrow">STAGE 39 · SMART ACTIVITY IDEAS</p><h3>Improve a day in your itinerary</h3><p>Get contextual suggestions based on the destination, group interests, saved activities, weather and budget.</p></div><span>✦</span></div>
+                <div className="recommendation-title"><div><p className="eyebrow">STAGE 39–40 · AI IDEAS & TRAVELLER APPROVAL</p><h3>Improve a day in your itinerary</h3><p>Get contextual suggestions based on the destination, group interests, saved activities, weather and budget.</p></div><span>✦</span></div>
                 <div className="recommendation-controls">
                   <label>Itinerary day<select value={recommendationDay} onChange={e=>setRecommendationDay(Number(e.target.value))}>{itinerary?.days.map(day=><option key={day.id} value={day.dayNumber}>Day {day.dayNumber} · {formatDate(day.date)}</option>)}</select></label>
                   <label>Recommendation focus<select value={recommendationFocus} onChange={e=>setRecommendationFocus(e.target.value as typeof recommendationFocus)}><option value="all">All planning factors</option><option value="weather">Weather alternatives</option><option value="budget">Budget-friendly ideas</option><option value="group">Group interests</option><option value="schedule">Fill schedule gaps</option></select></label>
@@ -2451,10 +2495,13 @@ export default function App() {
                   <h4>{item.title}</h4><p>{item.reason}</p>
                   <div className="recommendation-meta">{item.suggestedDurationMinutes && <span>◷ {item.suggestedDurationMinutes} min</span>}{item.estimatedCost!==null && <span>≈ {item.estimatedCost.toLocaleString()} {item.currencyCode || selectedTrip.currencyCode}</span>}<span>{item.bestFor}</span></div>
                   <small>{item.verificationNote}</small>
+                  <button type="button" className="btn btn-quiet" onClick={() => addRecommendedActivity(item)} disabled={savingRecommendationTitle !== null || isRecommendationAdded(item) || itinerary.isApproved}>
+                    {savingRecommendationTitle === item.title ? "Adding…" : isRecommendationAdded(item) ? "✓ Added to itinerary" : itinerary.isApproved ? "Itinerary approved" : "＋ Add to itinerary"}
+                  </button>
                 </article>)}</div>
                 {recommendations.warnings.map((warning,i)=><p className="ai-warning" key={i}>ⓘ {warning}</p>)}
                 <p className="trip-assistant-disclaimer">{recommendations.disclaimer}</p>
-                <p className="recommendation-updated">Generated {new Date(recommendations.generatedAtUtc).toLocaleString()}. Nothing has been added to your itinerary.</p>
+                <p className="recommendation-updated">Generated {new Date(recommendations.generatedAtUtc).toLocaleString()}. Select “Add to itinerary” to save an idea to this day. Added activities have no verified location or schedule until you complete those details.</p>
               </section>}
               <p className="ai-disclaimer">AI suggestions can be inaccurate. Verify places, hours, routes and costs. Generation requires a configured AI provider.</p>
             </section>}
