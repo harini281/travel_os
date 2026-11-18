@@ -171,6 +171,7 @@ public static class FlightEndpoints
             TripId = tripId,
             CreatedByUserId = userId,
             FlightIdentifier = identifier.Replace(" ", ""),
+            JourneyGroup = journeyGroup,
             OriginAirportCode = origin,
             DestinationAirportCode = destination,
             ScheduledDepartureUtc = request.ScheduledDepartureUtc.ToUniversalTime(),
