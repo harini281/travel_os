@@ -209,3 +209,101 @@ def test_receipt_provider_openai_mode_requires_key(monkeypatch):
     })
     assert response.status_code == 503
     assert "OPENAI_API_KEY" in response.json()["detail"]
+
+
+def recommendation_payload():
+    return {
+        "destination": "Lisbon",
+        "activityDate": "2027-05-01",
+        "currency": "EUR",
+        "travellerCount": 2,
+        "interests": ["food", "architecture"],
+        "travelPace": "balanced",
+        "dailyBudgetRemaining": 120,
+        "question": "Suggest an indoor alternative because rain is forecast.",
+        "existingActivities": ["Walk around Alfama"],
+        "weatherContext": ["High precipitation probability; outdoor walking may be uncomfortable."],
+        "planningContext": ["One afternoon slot is free."],
+    }
+
+
+def test_recommendations_are_explicitly_demo_only_without_ai_provider():
+    response = client.post("/api/v1/planner/recommendations", json=recommendation_payload())
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "demo_only"
+    assert body["recommendations"] == []
+    assert "demo mode" in body["summary"]
+
+
+def test_recommendation_request_rejects_invalid_currency_and_long_context():
+    payload = recommendation_payload()
+    payload["currency"] = "EURO"
+    assert client.post("/api/v1/planner/recommendations", json=payload).status_code == 422
+    payload = recommendation_payload()
+    payload["existingActivities"] = ["x" * 241]
+    assert client.post("/api/v1/planner/recommendations", json=payload).status_code == 422
+
+
+def test_openai_recommendations_return_structured_unapplied_suggestions(monkeypatch):
+    import json
+    import app.provider as provider_module
+
+    generated = {
+        "summary": "A few indoor options that fit the group's interests and remaining budget.",
+        "recommendations": [{
+            "title": "Visit a local tile museum",
+            "category": "weather_alternative",
+            "reason": "An indoor cultural activity that suits the architecture interest.",
+            "suggestedDurationMinutes": 90,
+            "estimatedCost": 12,
+            "currencyCode": "EUR",
+            "bestFor": "Culture and architecture",
+            "verificationNote": "Check opening hours and ticket prices before visiting."
+        }]
+    }
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"output": [{
+                "type": "message",
+                "content": [{"type": "output_text", "text": json.dumps(generated)}]
+            }]}
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, traceback):
+            return False
+
+        async def post(self, url, headers, json):
+            assert url.endswith("/responses")
+            assert json["text"]["format"]["name"] == "travelos_activity_recommendations"
+            assert json["text"]["format"]["strict"] is True
+            return FakeResponse()
+
+    monkeypatch.setattr(provider, "mode", "openai")
+    monkeypatch.setattr(provider, "api_key", "test-key")
+    monkeypatch.setattr(provider, "model", "test-model")
+    monkeypatch.setattr(provider_module.httpx, "AsyncClient", lambda **kwargs: FakeClient())
+
+    response = client.post("/api/v1/planner/recommendations", json=recommendation_payload())
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "generated"
+    assert body["provider"] == "openai"
+    assert body["recommendations"][0]["category"] == "weather_alternative"
+    assert body["recommendations"][0]["currencyCode"] == "EUR"
+    assert "Nothing is added" in body["warnings"][1]
+
+
+def test_recommendation_provider_requires_api_key(monkeypatch):
+    monkeypatch.setattr(provider, "mode", "openai")
+    monkeypatch.setattr(provider, "api_key", "")
+    response = client.post("/api/v1/planner/recommendations", json=recommendation_payload())
+    assert response.status_code == 503
+
