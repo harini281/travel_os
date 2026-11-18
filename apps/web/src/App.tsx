@@ -142,7 +142,23 @@ type CurrencyOption = { isoCode:string; name:string; symbol:string|null };
 type CurrencyConversion = { id:string; expenseId:string; originalAmount:number; originalCurrencyCode:string; convertedAmount:number; convertedCurrencyCode:string; exchangeRate:number; rateDate:string; provider:string; createdAt:string };
 type TripNotification = { id:string; tripId:string; type:string; title:string; message:string; scheduledForUtc:string|null; createdAt:string; readAt:string|null; dismissedAt:string|null; };
 type NotificationInbox = { items:TripNotification[]; unreadCount:number; };
-type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
+
+type TripAssistantInsight = { category:string; title:string; summary:string; suggestedAction:string };
+type TripAssistantBriefing = {
+  tripId:string; tripName:string; destination:string; startDate:string; endDate:string;
+  currencyCode:string; generatedAtUtc:string;
+  itinerary:{version:number;approvedAt:string|null;activityCount:number}|null;
+  budget:{amount:number;currencyCode:string;plannedCategoryTotal:number;categoryCurrencyCount:number}|null;
+  expenses:{currencyCode:string;totalAmount:number;expenseCount:number}[];
+  flights:{id:string;flightIdentifier:string;originAirportCode:string;destinationAirportCode:string;
+    scheduledDepartureUtc:string;scheduledArrivalUtc:string;status:string;
+    effectiveDepartureUtc:string|null;effectiveArrivalUtc:string|null}[];
+  weather:{activityTitle:string;activityDate:string;severity:string;summary:string;recommendation:string;forecastFetchedAt:string}[];
+  budgetAlerts:{alertType:string;thresholdPercent:number;message:string;triggeredAt:string;currencyCode:string}[];
+  notifications:{id:string;type:string;title:string;message:string;scheduledForUtc:string|null;readAt:string|null;createdAt:string}[];
+  insights:TripAssistantInsight[]; disclaimer:string;
+};
+\ntype ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
@@ -223,7 +239,7 @@ export default function App() {
   const [reminderTitle, setReminderTitle] = useState("");
   const [reminderMessage, setReminderMessage] = useState("");
   const [reminderAt, setReminderAt] = useState("");
-  const [savingReminder, setSavingReminder] = useState(false);
+  const [savingReminder, setSavingReminder] = useState(false);\n  const [assistantBriefing, setAssistantBriefing] = useState<TripAssistantBriefing | null>(null);\n  const [loadingAssistantBriefing, setLoadingAssistantBriefing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState("");
   const [destination, setDestination] = useState("");
@@ -608,6 +624,18 @@ export default function App() {
       setScheduleAnalysis(analysis);
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to analyse the daily schedule."); }
     finally { setLoadingScheduleAnalysis(false); }
+  }
+
+
+  async function loadTripAssistantBriefing(trip: Trip, accessToken = token) {
+    if (!accessToken || !navigator.onLine) return;
+    setLoadingAssistantBriefing(true);
+    try {
+      const briefing = await api<TripAssistantBriefing>(`/api/v1/trips/${trip.id}/assistant/briefing`, accessToken);
+      setAssistantBriefing(briefing);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to prepare the trip briefing.");
+    } finally { setLoadingAssistantBriefing(false); }
   }
 
   async function loadTripFlights(trip: Trip, accessToken = token) {
@@ -1271,7 +1299,7 @@ export default function App() {
   async function openTrip(trip: Trip) {
     const savedZone = localStorage.getItem(`travelos.tripTimeZone.${trip.id}`);
     setDisplayTimeZone(savedZone && isValidTimeZone(savedZone) ? savedZone : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
-    setSelectedTrip(trip); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
+    setSelectedTrip(trip); setAssistantBriefing(null); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripRepayments([]); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setBudgetIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]); setConversionTargetCurrency(trip.currencyCode); setRepaymentTarget(null);
     setExpensePaidBy(""); setExpenseParticipants([]);
     setShowAddDay(false); setActiveDayId(null);
@@ -1279,11 +1307,11 @@ export default function App() {
       await loadItinerary(trip);
       return;
     }
-    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadTripFlights(trip), loadFlightConnections(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip)]);
+    await Promise.all([loadItinerary(trip), loadDrafts(trip), loadWeatherAssessments(trip), loadTripFlights(trip), loadFlightConnections(trip), loadBudget(trip), loadBudgetAlerts(trip), loadGroupMembers(trip), loadPreferences(trip), loadGroupPolls(trip), loadTripExpenses(trip), loadTripSettlement(trip), loadTripRepayments(trip), loadTripReceipts(trip), loadExpenseIntelligence(trip), loadCurrencyIntelligence(trip), loadTripAssistantBriefing(trip)]);
   }
 
   function closeTrip() {
-    setSelectedTrip(null); setItinerary(null); setAiDrafts([]); setBudget(null);
+    setSelectedTrip(null); setAssistantBriefing(null); setItinerary(null); setAiDrafts([]); setBudget(null);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
   }
@@ -1714,6 +1742,37 @@ export default function App() {
             </section>
 
 
+
+
+            <section className="trip-assistant-panel">
+              <div className="trip-assistant-heading">
+                <div><p className="eyebrow">STAGE 38 · CONTEXTUAL TRIP ASSISTANT</p><h2>Your trip briefing</h2><p>One place to spot what needs attention across your saved itinerary, budget, flights, weather and reminders.</p></div>
+                <button type="button" className="btn btn-primary" onClick={() => loadTripAssistantBriefing(selectedTrip)} disabled={loadingAssistantBriefing || !isOnline}>{loadingAssistantBriefing ? "Reviewing trip…" : "Refresh briefing"}</button>
+              </div>
+              {!isOnline ? <p className="trip-assistant-empty">Connect to the internet to prepare a fresh trip briefing.</p> :
+                loadingAssistantBriefing && !assistantBriefing ? <p className="trip-assistant-empty">Reviewing your saved trip details…</p> :
+                assistantBriefing ? <>
+                  <div className="trip-assistant-stats">
+                    <article><span>ITINERARY</span><strong>{assistantBriefing.itinerary?.activityCount ?? 0}</strong><small>saved activities</small></article>
+                    <article><span>FLIGHTS</span><strong>{assistantBriefing.flights.length}</strong><small>saved flight legs</small></article>
+                    <article><span>WEATHER</span><strong>{assistantBriefing.weather.length}</strong><small>upcoming assessments</small></article>
+                    <article><span>UPDATES</span><strong>{assistantBriefing.notifications.filter(x => !x.readAt).length}</strong><small>unread notifications</small></article>
+                  </div>
+                  <div className="trip-assistant-insights">
+                    {assistantBriefing.insights.map((insight,index) => <article className={"trip-assistant-insight "+insight.category} key={insight.category+insight.title+index}>
+                      <div className="trip-assistant-insight-icon">{insight.category==="flight"?"✈":insight.category==="weather"?"☁":insight.category==="budget"?"◉":insight.category==="reminder"?"♧":insight.category==="schedule"?"◷":"✳"}</div>
+                      <div><span>{insight.category}</span><h3>{insight.title}</h3><p>{insight.summary}</p><small>{insight.suggestedAction}</small></div>
+                    </article>)}
+                  </div>
+                  <div className="trip-assistant-details">
+                    <div><strong>Budget snapshot</strong>{assistantBriefing.budget ? <p>{assistantBriefing.budget.currencyCode} {assistantBriefing.budget.amount.toLocaleString()} overall budget · {assistantBriefing.expenses.map(x=>x.currencyCode+" "+x.totalAmount.toLocaleString()+" recorded ("+x.expenseCount+")").join(" · ") || "No recorded expenses yet"}</p> : <p>No trip budget has been saved.</p>}</div>
+                    <div><strong>Next flight</strong>{assistantBriefing.flights.filter(x=>new Date(x.scheduledDepartureUtc).getTime()>=Date.now()).sort((a,b)=>a.scheduledDepartureUtc.localeCompare(b.scheduledDepartureUtc)).slice(0,1).map(f=><p key={f.id}>{f.flightIdentifier} · {f.originAirportCode} → {f.destinationAirportCode} · {formatFlightTime(f.scheduledDepartureUtc,displayTimeZone)}</p>)[0] ?? <p>No upcoming saved flight.</p>}</div>
+                    {assistantBriefing.weather.length>0 && <div><strong>Weather checks</strong><p>{assistantBriefing.weather.slice(0,3).map(x=>x.activityTitle+" ("+x.severity+") · "+formatDate(x.activityDate)).join(" · ")}</p></div>}
+                  </div>
+                  <p className="trip-assistant-disclaimer">{assistantBriefing.disclaimer}</p>
+                  <p className="trip-assistant-updated">Briefing prepared {new Date(assistantBriefing.generatedAtUtc).toLocaleString()} · Based on saved trip data</p>
+                </> : <p className="trip-assistant-empty">Your trip briefing will appear here when you open this journey.</p>}
+            </section>
 
             <section className="travel-context-panel">
               <div className="section-heading">
