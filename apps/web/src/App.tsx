@@ -82,6 +82,8 @@ type ActivityRecommendation = {
   reason:string; suggestedDurationMinutes:number|null; estimatedCost:number|null;
   currencyCode:string|null; bestFor:string; verificationNote:string;
 };
+type RecommendationScheduleSlot = { startTime:string; endTime:string; durationMinutes:number; previousActivityTitle:string|null; nextActivityTitle:string|null; explanation:string; };
+type RecommendationSchedule = { tripId:string; dayNumber:number; activityDate:string; title:string; durationMinutes:number; planningWindow:{startTime:string;endTime:string}; bufferMinutes:number; slots:RecommendationScheduleSlot[]; conflicts:{firstActivity:string;secondActivity:string;overlapMinutes:number}[]; warnings:string[]; disclaimer:string; };
 type ItineraryRecommendations = {
   tripId:string; dayNumber:number; activityDate:string; provider:string; model:string|null;
   summary:string; recommendations:ActivityRecommendation[]; warnings:string[];
@@ -323,6 +325,12 @@ export default function App() {
   const [recommendationFocus, setRecommendationFocus] = useState<"all" | "weather" | "budget" | "group" | "schedule">("all");
   const [recommendationQuestion, setRecommendationQuestion] = useState("");
   const [savingRecommendationTitle, setSavingRecommendationTitle] = useState<string | null>(null);
+  const [scheduleRecommendationTitle, setScheduleRecommendationTitle] = useState<string | null>(null);
+  const [recommendationSchedule, setRecommendationSchedule] = useState<RecommendationSchedule | null>(null);
+  const [selectedRecommendationSlot, setSelectedRecommendationSlot] = useState<string>("");
+  const [scheduleWindowStart, setScheduleWindowStart] = useState("08:00");
+  const [scheduleWindowEnd, setScheduleWindowEnd] = useState("20:00");
+  const [scheduleBufferMinutes, setScheduleBufferMinutes] = useState(30);
   const [travellerCount, setTravellerCount] = useState(1);
   const [interestsText, setInterestsText] = useState("");
   const [travelPace, setTravelPace] = useState<"relaxed" | "balanced" | "fast">("balanced");
@@ -1627,7 +1635,34 @@ export default function App() {
     return day?.activities.some(activity => activity.title.trim().toLocaleLowerCase() === item.title.trim().toLocaleLowerCase()) ?? false;
   }
 
-  async function addRecommendedActivity(item: ActivityRecommendation) {
+  async function suggestRecommendationSchedule(item: ActivityRecommendation) {
+    if (!token || !selectedTrip || !itinerary || selectedTrip.currentUserRole !== "owner") return;
+    if (itinerary.isApproved) { setError("Approved itineraries are read-only."); return; }
+    if (!item.suggestedDurationMinutes || item.suggestedDurationMinutes < 15) {
+      setError("This recommendation has no reliable duration. Add a duration before requesting a time slot.");
+      return;
+    }
+    setScheduleRecommendationTitle(item.title); setRecommendationSchedule(null); setSelectedRecommendationSlot(""); setError("");
+    try {
+      const result = await api<RecommendationSchedule>(
+        `/api/v1/trips/${selectedTrip.id}/itinerary/recommendations/schedule`, token,
+        { method:"POST", body:JSON.stringify({
+          dayNumber: recommendations?.dayNumber,
+          title:item.title,
+          durationMinutes:item.suggestedDurationMinutes,
+          dayStartTime:scheduleWindowStart,
+          dayEndTime:scheduleWindowEnd,
+          bufferMinutes:scheduleBufferMinutes,
+        }) },
+      );
+      setRecommendationSchedule(result);
+      if (result.slots.length) setSelectedRecommendationSlot(result.slots[0].startTime);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to suggest a suitable time.");
+    } finally { setScheduleRecommendationTitle(null); }
+  }
+
+  async function addRecommendedActivity(item: ActivityRecommendation, selectedSlot?: RecommendationScheduleSlot) {
     if (!token || !selectedTrip || !itinerary || selectedTrip.currentUserRole !== "owner") return;
     if (itinerary.isApproved) {
       setError("This itinerary is approved and read-only. Create a new itinerary version before adding activities.");
@@ -1652,14 +1687,15 @@ export default function App() {
           description: `${item.reason}\n\nAI suggestion — verify before visiting: ${item.verificationNote}`,
           placeName: null, latitude: null, longitude: null,
           durationMinutes: item.suggestedDurationMinutes,
-          startTime: null, endTime: null,
+          startTime: selectedSlot?.startTime ?? null, endTime: selectedSlot?.endTime ?? null,
           estimatedCost: item.estimatedCost,
           currencyCode: item.estimatedCost !== null ? (item.currencyCode || selectedTrip.currencyCode) : null,
           sortOrder: 0,
         }) },
       );
       await loadItinerary(selectedTrip);
-      setNotice(`Added "${item.title}" to Day ${day.dayNumber}. Set its location and time before relying on the schedule.`);
+      setNotice(selectedSlot ? `Added "${item.title}" to Day ${day.dayNumber} at ${selectedSlot.startTime}–${selectedSlot.endTime}.` : `Added "${item.title}" to Day ${day.dayNumber}. Set its location and time before relying on the schedule.`);
+      setRecommendationSchedule(null); setSelectedRecommendationSlot("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to add this recommendation.");
     } finally { setSavingRecommendationTitle(null); }
@@ -2490,14 +2526,44 @@ export default function App() {
               </form>
               {recommendations && <section className="recommendation-results">
                 <div className="recommendation-result-heading"><div><p className="eyebrow">SUGGESTIONS FOR DAY {recommendations.dayNumber} · {formatDate(recommendations.activityDate)}</p><h3>{recommendations.summary}</h3></div><span>{recommendations.provider}{recommendations.model ? " · "+recommendations.model : ""}</span></div>
+                <div className="recommendation-schedule-settings">
+                  <label>Planning day starts<input type="time" value={scheduleWindowStart} onChange={event=>setScheduleWindowStart(event.target.value)} /></label>
+                  <label>Planning day ends<input type="time" value={scheduleWindowEnd} onChange={event=>setScheduleWindowEnd(event.target.value)} /></label>
+                  <label>Buffer between activities<select value={scheduleBufferMinutes} onChange={event=>setScheduleBufferMinutes(Number(event.target.value))}><option value={0}>No buffer</option><option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={45}>45 minutes</option><option value={60}>60 minutes</option></select></label>
+                </div>
                 <div className="recommendation-list">{recommendations.recommendations.map((item,index)=><article className="recommendation-card" key={item.title+index}>
                   <div className="recommendation-card-top"><span>{item.category.replaceAll("_"," ")}</span><span>OPTION {index+1}</span></div>
                   <h4>{item.title}</h4><p>{item.reason}</p>
                   <div className="recommendation-meta">{item.suggestedDurationMinutes && <span>◷ {item.suggestedDurationMinutes} min</span>}{item.estimatedCost!==null && <span>≈ {item.estimatedCost.toLocaleString()} {item.currencyCode || selectedTrip.currencyCode}</span>}<span>{item.bestFor}</span></div>
                   <small>{item.verificationNote}</small>
-                  <button type="button" className="btn btn-quiet" onClick={() => addRecommendedActivity(item)} disabled={savingRecommendationTitle !== null || isRecommendationAdded(item) || itinerary?.isApproved === true}>
-                    {savingRecommendationTitle === item.title ? "Adding…" : isRecommendationAdded(item) ? "✓ Added to itinerary" : itinerary?.isApproved ? "Itinerary approved" : "＋ Add to itinerary"}
-                  </button>
+                  {selectedTrip.currentUserRole === "owner" && !isRecommendationAdded(item) && !itinerary?.isApproved && <>
+                    <button type="button" className="btn btn-quiet" onClick={() => suggestRecommendationSchedule(item)} disabled={scheduleRecommendationTitle !== null || !item.suggestedDurationMinutes}>
+                      {scheduleRecommendationTitle === item.title ? "Finding a slot…" : "Find a suitable time"}
+                    </button>
+                    {recommendationSchedule?.title === item.title && <div className="recommendation-schedule">
+                      <strong>Suggested schedule · Day {recommendationSchedule.dayNumber}</strong>
+                      <p>Planning window {recommendationSchedule.planningWindow.startTime}–{recommendationSchedule.planningWindow.endTime}; {recommendationSchedule.bufferMinutes}-minute buffer.</p>
+                      {recommendationSchedule.slots.length > 0 ? <>
+                        <label>Choose a time slot
+                          <select value={selectedRecommendationSlot} onChange={event => setSelectedRecommendationSlot(event.target.value)}>
+                            {recommendationSchedule.slots.map(slot => <option key={slot.startTime} value={slot.startTime}>{slot.startTime}–{slot.endTime} · {slot.explanation}</option>)}
+                          </select>
+                        </label>
+                        {recommendationSchedule.slots.find(slot => slot.startTime === selectedRecommendationSlot)?.explanation && <small>{recommendationSchedule.slots.find(slot => slot.startTime === selectedRecommendationSlot)?.explanation}</small>}
+                        <button type="button" className="btn btn-primary" disabled={!selectedRecommendationSlot || savingRecommendationTitle !== null} onClick={() => {
+                          const slot = recommendationSchedule.slots.find(candidate => candidate.startTime === selectedRecommendationSlot);
+                          if (slot) addRecommendedActivity(item, slot);
+                        }}>{savingRecommendationTitle === item.title ? "Saving…" : "Save with this time"}</button>
+                      </> : <p>No suitable slot was found in this planning window. Adjust the window or existing activity times.</p>}
+                      {recommendationSchedule.conflicts.length > 0 && <p className="ai-warning">Existing schedule conflicts detected. Resolve them before relying on these suggestions.</p>}
+                      {recommendationSchedule.warnings.map((warning,index)=><small key={index}>{warning}</small>)}
+                      <small>{recommendationSchedule.disclaimer}</small>
+                    </div>}
+                    <button type="button" className="btn btn-quiet" onClick={() => addRecommendedActivity(item)} disabled={savingRecommendationTitle !== null}>
+                      {savingRecommendationTitle === item.title ? "Adding…" : "Add without a time"}
+                    </button>
+                  </>}
+                  {isRecommendationAdded(item) && <span className="recommendation-added">✓ Added to itinerary</span>}
                 </article>)}</div>
                 {recommendations.warnings.map((warning,i)=><p className="ai-warning" key={i}>ⓘ {warning}</p>)}
                 <p className="trip-assistant-disclaimer">{recommendations.disclaimer}</p>
