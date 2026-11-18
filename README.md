@@ -250,3 +250,23 @@ The traveller budget dashboard can report spending in a selected ISO 4217 curren
 - The response includes converted category totals, matching planned category amounts, unconverted amounts grouped by source currency and a pace-based projection.
 
 Apply `011_conversion_source_expense_date.sql` after `010_currency_conversions.sql`. It records the original expense date on conversion snapshots so a snapshot cannot be reused after the source expense date changes.
+
+
+## Stage 22 — Smart budget guardrails and alerts
+
+TravelOS records shared trip budget alerts at 50%, 75%, 90% and 100% of the budget, and a projected-overspending alert when the current pace indicates a possible budget overrun.
+
+- Alerts are shared by trip members; each member has their own read/unread state.
+- Threshold evaluation runs after budget and expense changes, and can also be triggered manually.
+- Alerts are idempotent for a given trip, budget, threshold and budget amount; repeat checks do not create duplicate notifications.
+- When expenses in other currencies do not have matching saved conversion snapshots, evaluation is paused and the missing count is returned. Partial totals never trigger false threshold alerts.
+- Alert records preserve the budget amount, currency, actual spend and projection at the time of evaluation.
+- Changing the budget amount establishes a new alert baseline.
+- The feature does not send email, SMS or push notifications; alerts are currently in-app history.
+
+API:
+- `GET /api/v1/trips/{tripId}/budget-alerts`
+- `POST /api/v1/trips/{tripId}/budget-alerts/evaluate`
+- `POST /api/v1/trips/{tripId}/budget-alerts/{alertId}/read`
+
+Apply `012_trip_budget_alerts.sql` after migration 011.
