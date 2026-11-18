@@ -85,7 +85,7 @@ class RecommendationRequest(BaseModel):
     destination: str = Field(min_length=2, max_length=160)
     activityDate: date
     currency: str = Field(pattern=r"^[A-Z]{3}$")
-    travellerCount: int = Field(ge=1, le=30) = 1
+    travellerCount: int = Field(default=1, ge=1, le=30)
     interests: list[str] = Field(default_factory=list, max_length=12)
     travelPace: Literal["relaxed", "balanced", "fast"] = "balanced"
     dailyBudgetRemaining: Decimal | None = Field(default=None, ge=0)
