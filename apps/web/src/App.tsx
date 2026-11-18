@@ -140,6 +140,8 @@ type BudgetAlertEvaluation = {
 };
 type CurrencyOption = { isoCode:string; name:string; symbol:string|null };
 type CurrencyConversion = { id:string; expenseId:string; originalAmount:number; originalCurrencyCode:string; convertedAmount:number; convertedCurrencyCode:string; exchangeRate:number; rateDate:string; provider:string; createdAt:string };
+type TripNotification = { id:string; tripId:string; type:string; title:string; message:string; scheduledForUtc:string|null; createdAt:string; readAt:string|null; dismissedAt:string|null; };
+type NotificationInbox = { items:TripNotification[]; unreadCount:number; };
 type ApiError = { message?: string; title?: string; errors?: Record<string, string[]> };
 
 async function api<T>(path: string, token?: string, init: RequestInit = {}): Promise<T> {
