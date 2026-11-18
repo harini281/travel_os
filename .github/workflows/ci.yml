@@ -2,9 +2,9 @@ name: TravelOS CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'stage*']
   pull_request:
-    branches: [main]
+    branches: [main, 'stage*']
   workflow_dispatch:
 
 permissions:

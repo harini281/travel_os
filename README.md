@@ -401,3 +401,10 @@ The web app adds a progressive web app manifest and production service worker fo
 The authenticated notification inbox gives each traveller a personal view of trip reminders and updates. Notifications are scoped to the signed-in user, can be marked read or dismissed, and can be scheduled for a future UTC instant. The workspace refreshes the inbox while visible so due reminders appear without a manual page reload.
 
 Reminder date/time fields entered in the web form are interpreted in the device's local timezone and converted to UTC for storage.\n\nThe current implementation is an **in-app reminder inbox**. It does not send push, email, SMS or browser notifications; reminders become visible when due while the workspace is open. A server-side scheduler and external delivery channels are future work. See [the Stage 37 verification plan](docs/NOTIFICATIONS_TEST_PLAN.md).
+
+
+## Stage 38 — Contextual Trip Assistant
+
+The Trip Assistant prepares a rule-based briefing from saved trip data: itinerary completeness, activity timing, budget and expense totals, flight schedules and disruption statuses, weather assessments, budget alerts, and the signed-in traveller's due notifications. The workspace refreshes the briefing when a trip is opened and offers a manual refresh action. Travellers can ask typed questions about flights, weather, budget, itinerary timing and reminders; answers are routed to the relevant saved trip data and include supporting facts.
+
+The briefing is decision support, not a generative AI chat or a live travel guarantee. It does not modify bookings or itineraries, convert currencies, or contact travel providers. See [the Stage 38 verification plan](docs/TRIP_ASSISTANT_TEST_PLAN.md).
