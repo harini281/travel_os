@@ -415,3 +415,17 @@ The briefing is decision support, not a generative AI chat or a live travel guar
 The itinerary workspace can request contextual activity ideas for a selected day. The platform API supplies the destination, saved activities, group interests and pace, latest saved weather assessments for that date, and same-currency remaining trip budget context to the AI service. Travellers can focus suggestions on weather alternatives, budget, group interests, schedule balance, or all planning factors.
 
 Recommendations are returned for review only. They are not saved automatically, and the feature does not replace or edit existing activities. Venue details, accessibility, opening hours and indicative costs must be verified. The AI provider must be configured; demo mode explicitly returns no generated recommendations. See [the Stage 39 verification plan](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
+
+
+## Stage 39 — Contextual AI activity recommendations
+
+The itinerary workspace includes a recommendation panel for a selected itinerary day. Travellers can choose an all-factor, weather, budget, group-interest or schedule-balance focus and optionally describe what they want to improve. The authenticated platform API gathers the selected day's activities, shared traveller interests, saved weather assessments and matching-currency budget context before calling the AI service.
+
+- `POST /api/v1/trips/{tripId}/itinerary/recommendations` accepts `dayNumber`, `focus`, `travellerCount` and an optional `question`.
+- The endpoint is available to trip members, validates the selected day against the current itinerary, and applies the existing AI-generation rate limit.
+- The AI service returns structured recommendations with category, reason, indicative duration/cost, best-for context and a verification note.
+- The response is advisory only. It does not add activities, change schedules, approve itineraries or create bookings.
+- Demo mode and missing AI configuration do not fabricate recommendations; the API returns a service-unavailable response.
+- Recommendations use saved context. Weather assessments may be stale, mixed-currency expenses are not converted, and venue details, accessibility, opening hours and prices must be checked before travel.
+
+See [the Stage 39 recommendation verification plan](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
