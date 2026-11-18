@@ -394,3 +394,10 @@ The map uses OpenStreetMap tiles and attribution. Public tile infrastructure is 
 TravelOS now lets each trip select an IANA display timezone for UTC flight timestamps, including flight departure, arrival and last-checked times. The selected timezone is retained per trip in the current browser. Activity start/end values remain local clock values and are intentionally not converted: the current API stores time-only values without a trip/day timezone identifier.
 
 The web app adds a progressive web app manifest and production service worker for the app shell, plus IndexedDB storage for an explicitly saved itinerary snapshot and the trip list/profile. When the server is unavailable, travellers can reopen a previously cached itinerary in read-only mode. API data and third-party map tiles are not cached as fresh data. Offline copies are stored locally without application-level encryption; avoid using this feature for sensitive trip information on shared devices. See [the Stage 36 verification plan](docs/TIMEZONE_AND_OFFLINE_TEST_PLAN.md).
+
+
+## Stage 37 — Smart travel notifications and reminders
+
+The authenticated notification inbox gives each traveller a personal view of trip reminders and updates. Notifications are scoped to the signed-in user, can be marked read or dismissed, and can be scheduled for a future UTC instant. The workspace refreshes the inbox while visible so due reminders appear without a manual page reload.
+
+Reminder date/time fields entered in the web form are interpreted in the device's local timezone and converted to UTC for storage.\n\nThe current implementation is an **in-app reminder inbox**. It does not send push, email, SMS or browser notifications; reminders become visible when due while the workspace is open. A server-side scheduler and external delivery channels are future work. See [the Stage 37 verification plan](docs/NOTIFICATIONS_TEST_PLAN.md).

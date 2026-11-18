@@ -31,6 +31,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
     public DbSet<TripBudgetAlertRead> TripBudgetAlertReads => Set<TripBudgetAlertRead>();
     public DbSet<TripWeatherAssessment> TripWeatherAssessments => Set<TripWeatherAssessment>();
     public DbSet<TripFlight> TripFlights => Set<TripFlight>();
+    public DbSet<TripNotification> TripNotifications => Set<TripNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -343,6 +344,22 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasIndex(x => new { x.TripId, x.ForecastFetchedAt });
             entity.HasIndex(x => new { x.ActivityId, x.ActivityDate, x.ForecastFetchedAt });
+        });
+
+
+        modelBuilder.Entity<TripNotification>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type).HasMaxLength(32).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.Message).HasMaxLength(500).IsRequired();
+            entity.Property(x => x.DedupeKey).HasMaxLength(240);
+            entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedByUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.UserId, x.ScheduledForUtc, x.DismissedAt });
+            entity.HasIndex(x => new { x.TripId, x.CreatedAt });
+            entity.HasIndex(x => x.DedupeKey).IsUnique();
         });
 
         modelBuilder.Entity<TripFlight>(entity =>
