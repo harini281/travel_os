@@ -340,3 +340,8 @@ The trip dashboard can request a point-to-point road/cycling estimate from an ai
 - Nominatim may resolve ambiguous airport codes; verify the returned airport name before relying on an estimate.
 - Public Nominatim/OSRM endpoints have usage limits and no production SLA. For commercial scale, use a contracted provider or self-hosted services and a verified airport dataset.
 - The API is authenticated. To respect the public Nominatim service policy on a single API instance, route estimates share a global in-process limiter (one estimate every two seconds), and the two geocoding lookups within an estimate are spaced one second apart. This is not a distributed limiter: run a single API instance when using the public Nominatim endpoint, or switch to a contracted/self-hosted geocoder with a shared limiter before horizontal scaling.
+
+
+## Journey timeline and activity scheduling
+
+The traveller dashboard combines saved flights and itinerary activities in a chronological timeline. Flight events use actual, estimated, then scheduled provider times. Activities support optional local start/end times; existing date-only activities remain valid. Overlapping activity windows are flagged for manual review, including nested overlaps. Flights contribute both departure and arrival calendar dates to the same-day activity review. Activity time values are local itinerary wall-clock times and are not converted between time zones. The timeline is read-only and does not change bookings.
