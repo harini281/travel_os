@@ -53,7 +53,7 @@ public static class FlightEndpoints
         if (!await IsMemberAsync(tripId, userId, db, ct)) return Results.NotFound();
 
         var errors = new Dictionary<string, string[]>();
-        var identifier = request.FlightIdentifier?.Trim().ToUpperInvariant() ?? "";
+        var identifier = request.FlightIdentifier?.Trim().ToUpperInvariant().Replace(" ", "") ?? "";
         var origin = request.OriginAirportCode?.Trim().ToUpperInvariant() ?? "";
         var destination = request.DestinationAirportCode?.Trim().ToUpperInvariant() ?? "";
         if (identifier.Length is < 2 or > 24 || !System.Text.RegularExpressions.Regex.IsMatch(identifier, "^[A-Z0-9-]+$"))
@@ -237,10 +237,10 @@ public sealed class FlightAwareAeroApiProvider(HttpClient client, IConfiguration
         var rawStatus = ReadString(item, "status");
         var scheduledOut = ReadDate(item, "scheduled_out");
         var estimatedOut = ReadDate(item, "estimated_out");
-        var actualOut = ReadDate(item, "actual_out");
-        var scheduledIn = ReadDate(item, "scheduled_in");
-        var estimatedIn = ReadDate(item, "estimated_in");
-        var actualIn = ReadDate(item, "actual_in");
+        var actualOut = ReadDate(item, "actual_out") ?? ReadDate(item, "actual_off");
+        var scheduledIn = ReadDate(item, "scheduled_in") ?? ReadDate(item, "scheduled_on");
+        var estimatedIn = ReadDate(item, "estimated_in") ?? ReadDate(item, "estimated_on");
+        var actualIn = ReadDate(item, "actual_in") ?? ReadDate(item, "actual_on");
         var departureReference = actualOut ?? estimatedOut;
         var delay = scheduledOut.HasValue && departureReference.HasValue
             ? (int?)Math.Round((departureReference.Value - scheduledOut.Value).TotalMinutes)
