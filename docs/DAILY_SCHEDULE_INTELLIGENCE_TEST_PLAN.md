@@ -25,3 +25,9 @@
 22. Verify end times earlier than or equal to start times are rejected by the activity API and cannot enter optimization.
 23. Verify an activity already meeting the selected buffer is left at its original time.
 24. Verify the optimizer never proposes an earlier start time than the saved activity time.
+
+25. Verify only the trip owner can apply a schedule suggestion and approved itineraries expose no apply action.
+26. Verify applying a suggestion updates only that activity's start and end times and preserves title, place, coordinates, duration, cost, currency and sort order.
+27. Verify stale suggestions are rejected when an activity's saved times no longer match the original times used by the analysis.
+28. Verify the schedule analysis is reloaded after an approved adjustment and reflects any remaining conflicts.
+29. Verify only one apply action can run at a time and the UI reports success or failure.
