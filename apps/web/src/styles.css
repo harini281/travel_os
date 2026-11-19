@@ -814,3 +814,15 @@
 .auth-card .btn-primary{background:#80512f;color:#fff}
 .auth-card .btn-primary:hover{background:#694126}
 .auth-card .auth-legal{color:#5d685f}
+
+
+/* Stage 46 accessibility audit follow-up: keep authentication text contrast robust
+   against user-agent and inherited colour rules. */
+.auth-card > .eyebrow,
+.auth-card > .muted,
+.auth-tabs button,
+.auth-card .field-hint,
+.auth-card .auth-legal{color:#1f2b27!important}
+.auth-tabs button.active{color:#111b15!important}
+.auth-card .btn-primary{background:#24342d!important;color:#fff!important}
+.auth-card .btn-primary:hover{background:#17251e!important;color:#fff!important}
