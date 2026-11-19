@@ -15,10 +15,10 @@ Development and test environments retain the local Vite origin default. Do not u
 ## Network segmentation
 Compose now uses three network zones:
 - `frontend`: web Nginx and Platform API.
-- `backend`: Platform API and AI API only; isolated from external networks.
+- `backend`: Platform API and AI API only; not shared with the web container. The bridge retains outbound connectivity for reviewed AI provider calls.
 - `data`: Platform API, PostgreSQL, and migration runner only; isolated from external networks.
 
-The web container cannot connect directly to the AI API or PostgreSQL. The Platform API is the only application bridge between the web, AI and database zones. PostgreSQL and application APIs remain unpublished to the host.
+The web container cannot connect directly to the AI API or PostgreSQL. The Platform API is the only application bridge between the web, AI and database zones. The AI API retains outbound connectivity for configured model-provider requests; the data network remains internal. PostgreSQL and application APIs remain unpublished to the host.
 
 ## Response hardening
 The web proxy sets a restrictive Content Security Policy and additional browser security headers. Nginx also has request/connection timeouts and hides its version token. The Platform API adds API-appropriate content, framing, referrer, permissions, resource and no-store headers and disables the Kestrel Server header.
