@@ -440,7 +440,8 @@ jobs:
           uname -m
           cat /etc/os-release
           docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
-          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml run --rm --no-deps platform-api sh -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \;'
+          platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images -q platform-api)"
+          docker run --rm --entrypoint sh "$platform_image" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \;'
           for image in $(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images -q | sort -u); do
             docker image inspect "$image" --format 'Image={{.Id}} OS={{.Os}} Architecture={{.Architecture}} Digests={{json .RepoDigests}}'
           done
