@@ -308,8 +308,6 @@ jobs:
           name: travelos-playwright-e2e-results
           path: |
             apps/web/playwright-report/
-            apps/web/test-results/
-            !apps/web/test-results/**/*.zip
             !apps/web/playwright-report/**/*.zip
             ${{ runner.temp }}/travelos-platform-api.log
             ${{ runner.temp }}/travelos-ai-mock.log
