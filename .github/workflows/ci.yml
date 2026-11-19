@@ -261,12 +261,14 @@ jobs:
           set -euo pipefail
           postgres_password="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
           jwt_signing_key="$(openssl rand -hex 48)"
+          ai_service_token="$(openssl rand -hex 48)"
           echo "::add-mask::$jwt_signing_key"
+          echo "::add-mask::$ai_service_token"
           mkdir -p "$Receipts__StoragePath"
           export ConnectionStrings__TravelOS="Host=localhost;Port=5432;Database=travelos_e2e;Username=postgres;Password=$postgres_password"
-          env Jwt__SigningKey="$jwt_signing_key" dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
+          env Jwt__SigningKey="$jwt_signing_key" AI_SERVICE_TOKEN="$ai_service_token" dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/travelos-platform-api.pid"
-          unset jwt_signing_key postgres_password ConnectionStrings__TravelOS
+          unset jwt_signing_key ai_service_token postgres_password ConnectionStrings__TravelOS
           for attempt in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
               echo "Platform API is ready"
