@@ -4,7 +4,7 @@
 
 Stage 45 adds Chromium browser journeys for the critical traveller workflows already implemented in TravelOS. The browser uses the real React + Vite application, ASP.NET Core Platform API, JWT authentication and a disposable PostgreSQL 16 database.
 
-Only the AI recommendation-generation upstream response is replaced by a deterministic local Node.js fixture. The browser still calls the real Platform API for recommendation generation, and all trip, itinerary, authorization, scheduling and persistence operations remain connected to PostgreSQL through the real API.
+Only the AI recommendation-generation upstream response is replaced by a deterministic local Node.js fixture. The browser still calls the real Platform API for recommendation generation, and all trip, itinerary, finance, receipt, authorization, scheduling and persistence operations remain connected to PostgreSQL through the real API. The browser job sets `RateLimits__AuthPerMinute=30` to accommodate the combined multi-account test suite; the application default remains 10 authentication requests per minute when this setting is absent.
 
 The suite is intentionally not connected to a paid AI account, production database, or live travel supplier.
 
@@ -164,3 +164,76 @@ The existing web, AI API, Platform API build, Platform API unit-test, PostgreSQL
 ## Safety
 
 Use only generated test accounts and a disposable PostgreSQL database. Never run the suite against a production or personal database. Do not store production API keys or JWT secrets in Playwright configuration, fixtures or browser storage.
+
+
+## Stage 46 — finance and accessibility scenarios
+
+Stage 46 extends the Stage 45 Chromium suite without altering the existing journeys. The two new specs are `finance-accessibility.spec.ts` and the shared `helpers.ts`.
+
+### Additional scenarios and expected results
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| FIN-01 | Register an owner and a second traveller; accept a real trip invitation | The real Platform API records two distinct accounts and member roles |
+| FIN-02 | Create a shared LKR 1,000 meal expense split equally between both members | The saved expense shows two LKR 500 shares and persists in PostgreSQL |
+| FIN-03 | Review settlement suggestions | The member who owes money is the debtor; the payer is the creditor; the suggested transfer is LKR 500 |
+| FIN-04 | Submit the repayment as the debtor | A pending repayment appears and the debt balance remains unchanged |
+| FIN-05 | Attempt to confirm as the debtor | The real Platform API returns HTTP 403; the debtor cannot self-confirm |
+| FIN-06 | Sign in as the recipient and confirm the pending repayment | The repayment becomes confirmed and the resulting settlement contains no outstanding balances |
+| RCPT-01 | Upload a text file as a receipt | The receipt endpoint rejects non-image content and no receipt is created |
+| RCPT-02 | Upload a small PNG and associate it with the saved expense | The API stores the image in the isolated private test directory and displays a manual-review receipt when OCR is not configured |
+| RCPT-03 | Enter merchant, date, amount and currency, link the expense and confirm | The user-reviewed details are saved as confirmed; no OCR output is treated as verified automatically |
+| RCPT-04 | Retrieve the original receipt with the authenticated file endpoint | HTTP 200, image/png content type and exact uploaded fixture bytes are returned |
+| RCPT-05 | Upload the same PNG again | The second receipt is flagged as a possible duplicate; both records persist after browser refresh |
+| A11Y-01 | Run axe-core on the unauthenticated registration screen | The test fails on critical or serious WCAG 2.1 A/AA violations |
+
+### Accessibility scope
+
+The automated axe scan uses the WCAG 2.0 A/AA and WCAG 2.1 A/AA rule tags and fails the test on any critical or serious impact violation. It is a targeted automated accessibility check, not a full accessibility conformance statement. It does not replace keyboard-only testing, screen-reader verification, manual focus review, zoom/reflow testing or human evaluation.
+
+### Finance test data and safety
+
+- Test accounts use unique generated `example.test` email addresses and a fixed test-only password.
+- Shared expense and repayment calls use the real authenticated Platform API and disposable PostgreSQL 16 database.
+- Receipt upload tests use a tiny synthetic PNG buffer created in the test code and an invalid text payload. They do not use personal receipts.
+- The API's private receipt storage path is configured under the GitHub runner's temporary directory. The workflow uploads test reports/logs, not the receipt files.
+- The AI mock server does not implement receipt OCR. The real receipt endpoint is expected to preserve the upload and report manual review when the OCR service is unavailable.
+
+### Updated local commands
+
+From `apps/web`, run:
+
+```bash
+npm install
+npx playwright install chromium
+npm run typecheck
+npm run typecheck:e2e
+npm run build
+npm run test:e2e
+```
+
+The disposable browser API is configured with an authentication request allowance of 30/minute to account for the 2-account registration/login journey in the suite. The normal application default remains 10/minute when no configuration override is supplied. The `test:e2e` script now runs strict TypeScript checking for the Playwright test files and configuration before starting the browser suite. Start the same disposable PostgreSQL database, deterministic AI fixture and test-configured Platform API documented in the Stage 45 setup section.
+
+### Stage 46 limitations
+
+- Chromium remains the only automated browser project.
+- axe checks the registration screen only; other workspaces and dynamic states require future scans and manual review.
+- The receipt browser flow tests the manual-review path, not a live OCR provider or extraction accuracy.
+- The browser test verifies local/private receipt access with an authenticated member token. It does not constitute a production storage security audit.
+- These tests do not verify actual bank transfer execution; repayments are application records that require recipient confirmation.
+
+
+### Stage 46 validation record
+
+Latest verified commit at the time of this record: `7048017914918de73307fb58d68c48568077d8a0`.
+
+GitHub Actions run [#44500311672](https://github.com/harini281/travel_os/actions/runs/44500311672) completed with **7/7 jobs successful**:
+- Web typecheck and production build.
+- Platform API Release build.
+- Platform API unit tests (10 passed; 14 database-dependent tests skipped in this job and covered by the PostgreSQL integration job).
+- Platform API PostgreSQL integration tests (24 passed).
+- AI API tests (18 passed; 1 warning).
+- PostgreSQL 16 migration validation.
+- Chromium browser suite (**7 passed**, combining four Stage 45 tests and three Stage 46 tests).
+
+The browser job uploaded `travelos-playwright-e2e-results` (artifact ID `14517361919`), containing the HTML report and test diagnostics. The receipt files themselves remain in the runner's temporary private directory and are not part of the artifact.

@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 45 — Playwright Chromium browser end-to-end testing. Stage 45 is under review in a separate draft pull request based on Stage 44. Stages 42–44 remain in their own draft pull requests. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 46 — finance and accessibility browser testing. Stage 46 is under review in a separate draft pull request based on Stage 45. Stage 45 remains in its own open draft pull request; Stages 42–44 remain separate drafts. This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -357,6 +357,7 @@ $env:ConnectionStrings__TravelOS = "Host=localhost;Port=5432;Database=travelos_e
 $env:Jwt__Issuer = "TravelOS.Playwright"
 $env:Jwt__Audience = "TravelOS.Playwright.Client"
 $env:Jwt__SigningKey = "REPLACE_WITH_A_PRIVATE_TEST_SECRET_AT_LEAST_32_BYTES"
+$env:RateLimits__AuthPerMinute = "30" # Disposable browser test only; production default remains 10/minute.
 $env:Cors__AllowedOrigins__0 = "http://127.0.0.1:5173"
 $env:AiService__BaseUrl = "http://127.0.0.1:8011"
 $env:Receipts__StoragePath = "../../data/playwright-receipts"
@@ -402,12 +403,46 @@ The dedicated **Chromium browser end-to-end tests** job provisions PostgreSQL 16
 Chromium is the only automated browser project in Stage 45. Firefox, WebKit, mobile layouts, keyboard-only accessibility and assistive-technology tests remain manual/future work. The deterministic AI fixture validates the contract and error path, not live model quality, provider pricing, latency or availability. External mapping, weather, routing, opening-hours and flight providers are not verified by these browser journeys. Production deployment, HTTPS, secrets handling, real-provider AI verification and full operational recovery still need review.
 
 
+
+### Stage 46 — finance and accessibility browser coverage
+
+Stage 46 extends the existing Playwright suite; it does not replace Stage 45's authentication, trip, itinerary, recommendation or scheduling journeys. New browser tests exercise the existing shared-finance features through the real React app, authenticated Platform API and disposable PostgreSQL 16 database.
+
+Coverage added:
+- Two real test accounts, an owner-created shared expense with equal shares, and verification of the resulting debtor/creditor settlement.
+- The debtor submits a repayment; the debtor cannot self-confirm it; the recipient confirms it; and the final settlement balances return to zero.
+- Receipt upload rejects non-image content, supports a manual-review path when no receipt OCR provider is configured, allows traveller confirmation of merchant/date/amount/currency and expense association, verifies authenticated original-file retrieval, and detects an identical second upload.
+- axe-core accessibility scanning of the registration screen against WCAG 2.1 A/AA rules, failing CI on critical or serious violations.
+
+Only the existing AI provider adapter remains mocked for the browser suite. Finance endpoints, authentication, receipt storage and database writes are real. Receipt images are synthetic test fixtures; files are stored only in the workflow's temporary private receipt directory and are not committed.
+
+#### Strictly typecheck and run E2E tests
+
+From `apps/web`:
+
+```bash
+npm install
+npx playwright install chromium
+npm run typecheck
+npm run typecheck:e2e
+npm run build
+npm run test:e2e
+```
+
+The `test:e2e` script runs `typecheck:e2e` before launching Chromium. CI's existing browser job therefore fails on TypeScript errors in the Playwright specs as well as browser assertion failures. The existing disposable PostgreSQL 16, test-only JWT settings, real Platform API and deterministic AI fixture configuration from Stage 45 are unchanged.
+
+For the expanded two-account suite, set `RateLimits__AuthPerMinute=30` in the **test-only** Platform API environment to avoid shared CI IP collisions during repeated registrations and sign-ins. The application retains its normal default of 10 requests per minute when the override is absent. Do not carry the test override into production.
+
+**Latest Stage 46 validation:** [GitHub Actions run #44500311672](https://github.com/harini281/travel_os/actions/runs/44500311672) completed successfully. All seven CI jobs passed, and the combined Stage 45–46 Chromium suite reported **7 passed** (four original browser journeys and three new finance/accessibility journeys). The workflow uploaded the Playwright result bundle as artifact `travelos-playwright-e2e-results`.
+
+See [docs/BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md) for the Stage 46 scenario IDs, setup, diagnostics and remaining limitations.
+
 ## 8. What is still left?
 
 TravelOS has a substantial feature set, but a successful CI run is not a production launch. The main remaining work is:
 
 1. **Merge and release Stage 39:** review and merge [PR #41](https://github.com/harini281/travel_os/pull/41) into the intended integration branch after review.
-2. **End-to-end testing:** Stage 45 adds automated Chromium journeys for account access, trip and itinerary management, AI recommendation review, explicit time-slot selection, persistence, member permissions and provider failures. Cross-browser, accessibility, responsive-device and broader manual checks remain outstanding.
+2. **End-to-end testing:** Stages 45–46 automate core Chromium journeys for authentication, itinerary, recommendations/scheduling, shared expenses, repayments and receipt review, with an axe-core WCAG 2.1 A/AA scan of the registration screen. Firefox, WebKit, mobile, broader accessibility/manual review and provider-specific workflows remain outstanding.
 3. **Live AI verification:** test Stage 39 with a real configured provider key, check cost/latency, rate limits, malformed responses and user-facing errors. Current CI tests use a mocked provider; they do not call OpenAI.
 4. **Production deployment:** configure HTTPS, managed PostgreSQL, persistent private receipt storage, secrets management, backups, logging, monitoring and a deployment pipeline.
 5. **Authentication hardening:** email verification, password reset, refresh-token/session management and MFA are not implemented.
