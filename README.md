@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 49 — production security hardening is in progress on a separate draft pull request based on Stage 48. Stage 48 container deployment validation is complete. Earlier stages remain in their own pull requests. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 51 — security testing and penetration-test preparation is under implementation on `stage51-security-testing`, based on Stage 50. Stages 49 and 50 remain open and unmerged in their own draft pull requests (#51 and #52). This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -87,6 +87,7 @@ The API process needs these environment variables. The root `.env` file is read 
 | `Jwt__SigningKey` | Unique secret of at least 32 bytes; mandatory |
 | `Cors__AllowedOrigins__0` | Exact web origin, normally `http://localhost:5173` |
 | `AiService__BaseUrl` | AI service URL, normally `http://localhost:8001` |
+| `AI_SERVICE_TOKEN` | Shared server-only credential (32+ characters) sent by the Platform API to the AI API; never expose it to the browser |
 | `Receipts__StoragePath` | Private receipt storage directory |
 | `FLIGHTAWARE_API_KEY` | Optional FlightAware AeroAPI key for live flight refresh |
 
@@ -100,6 +101,7 @@ Set these in the terminal where Uvicorn is started. The Python service does **no
 | `OPENAI_API_KEY` | Required only when enabling OpenAI itinerary generation/recommendations |
 | `OPENAI_MODEL` | Optional model override; example: `gpt-4.1-mini` |
 | `AI_RECEIPT_PROVIDER` | Receipt extraction provider; keep `demo` unless deliberately configured |
+| `AI_SERVICE_TOKEN` | Same server-only token configured in the Platform API process; protects planner and receipt routes. The health endpoint remains unauthenticated for container health checks |
 
 Stage 39 returns no generated suggestions in demo mode. To use live AI recommendations, configure `AI_PROVIDER=openai` and `OPENAI_API_KEY`. Provider usage may incur charges. Never put an AI or FlightAware key in a `VITE_*` frontend variable.
 
@@ -177,7 +179,20 @@ If you have an older database volume, **do not blindly rerun migrations or delet
 
 ### Step 2 — Start the Platform API
 
-Open a new terminal:
+Open a new terminal. Set a unique random internal service token of at least 32 characters; use exactly the same value in the AI API terminal in Step 3. The value below is an instruction, not a reusable secret:
+
+PowerShell:
+
+```powershell
+$env:AI_SERVICE_TOKEN = "REPLACE_WITH_THE_SAME_PRIVATE_RANDOM_TOKEN_IN_BOTH_SERVICE_TERMINALS"
+```
+
+Bash:
+
+```bash
+export AI_SERVICE_TOKEN="REPLACE_WITH_THE_SAME_PRIVATE_RANDOM_TOKEN_IN_BOTH_SERVICE_TERMINALS"
+```
+
 
 ```powershell
 cd services/platform-api
@@ -196,7 +211,8 @@ For macOS/Linux, use `export VARIABLE=value` instead of PowerShell's `$env:VARIA
 
 ### Step 3 — Start the AI API
 
-Open another terminal from the repository root:
+Open another terminal from the repository root and set the **same** `AI_SERVICE_TOKEN` value that you set for the Platform API in Step 2. Keep it server-side; never create a `VITE_*` variable for this secret.
+
 
 ```powershell
 cd services/ai-api
