@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   API_URL, apiContextFor, createTripThroughBrowser, openTrip,
   registerThroughBrowser, signInThroughBrowser, TEST_PASSWORD, uniqueEmail,
-} from "./helpers";
+} from "./helpers.ts";
 
 async function inviteMemberThroughApi(page: Page, tripName: string, ownerEmail: string) {
   const owner = await apiContextFor(page);
