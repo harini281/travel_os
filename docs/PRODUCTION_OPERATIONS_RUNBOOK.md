@@ -34,9 +34,11 @@ The file is ignored by Git. Never commit it, paste it into issues, print it in C
 | Setting | Required | Purpose / rule |
 |---|---:|---|
 | `POSTGRES_DB` | Yes | Database created by PostgreSQL |
-| `POSTGRES_USER` | Yes | Least-privilege application/database owner account; do not reuse a superuser from another system |
-| `POSTGRES_PASSWORD` | Yes | Unique, high-entropy, URL-safe password |
-| `TRAVELOS_CONNECTION_STRING` | Yes | Must refer to the same host/database/user/password provisioned for the PostgreSQL service |
+| `POSTGRES_USER` | Yes | Bootstrap/migration administrator created by the official PostgreSQL image; privileged and never used by the API |
+| `POSTGRES_PASSWORD` | Yes | Unique migration-administrator password |
+| `TRAVELOS_APP_DB_USER` | Yes | Separate non-superuser role used by the API |
+| `TRAVELOS_APP_DB_PASSWORD` | Yes | Unique runtime application password, different from the migration administrator password |
+| `TRAVELOS_CONNECTION_STRING` | Yes | Must use the same database and the `TRAVELOS_APP_DB_USER` / `TRAVELOS_APP_DB_PASSWORD` pair |
 | `JWT_ISSUER` | Yes | Stable issuer identifier |
 | `JWT_AUDIENCE` | Yes | Stable application audience |
 | `JWT_SIGNING_KEY` | Yes | Unique random secret of at least 32 bytes; store and rotate through a managed secret mechanism where available |
@@ -50,7 +52,7 @@ The file is ignored by Git. Never commit it, paste it into issues, print it in C
 | `OPENAI_BASE_URL` | Optional | Defaults to the OpenAI API; live mode requires an HTTPS URL without embedded credentials/query/fragment |
 | `FLIGHTAWARE_API_KEY` | Optional | Server-side only; confirm account access, pricing and provider terms before use |
 
-The Platform API now fails at startup in Production if the PostgreSQL connection string is missing, malformed or lacks host, database, username or password. JWT and HTTPS CORS checks from Stage 49 remain in force. The AI API fails at startup for unsupported mode values or when a live provider lacks its key or a valid HTTPS endpoint.
+The migration runner uses `POSTGRES_USER` only for ordered schema changes. It creates or updates `TRAVELOS_APP_DB_USER` as a separate NOINHERIT, non-superuser login and grants runtime table DML/sequence access while keeping migration-history writes with the administrator. The Platform API connection string must use that runtime role. The API now fails at startup in Production if the PostgreSQL connection string is missing, malformed, incomplete or does not use `TRAVELOS_APP_DB_USER`. JWT and HTTPS CORS checks from Stage 49 remain in force. The AI API fails at startup for unsupported mode values or when a live provider lacks its key or a valid HTTPS endpoint.
 
 The root `.env.example` is for local development. `apps/web/.env.example` contains a public browser API URL only. Never place AI, FlightAware, database or JWT secrets in a `VITE_*` variable.
 
