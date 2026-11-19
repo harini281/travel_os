@@ -194,7 +194,7 @@ test.describe("TravelOS finance browser journeys", () => {
       "base64",
     );
     await fileInput.setInputFiles({ name: "playwright-receipt.png", mimeType: "image/png", buffer: png });
-    await uploadForm.getByLabel("Attach to expense (optional)").selectOption({ label: /Receipt-linked lunch/ });
+    await uploadForm.getByLabel("Attach to expense (optional)").selectOption({ index: 1 });
     await uploadForm.getByRole("button", { name: "Upload receipt" }).click();
 
     const receipt = page.locator(".receipt-card").filter({ hasText: "playwright-receipt.png" });
@@ -254,7 +254,7 @@ test.describe("TravelOS finance browser journeys", () => {
     await page.getByRole("button", { name: "Create account", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
 
-    const results = await new AxeBuilder({ page })
+    const results = await new AxeBuilder({ page: page as never })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
       .analyze();
     const serious = results.violations.filter(item => item.impact === "critical" || item.impact === "serious");
