@@ -1,5 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Jpeg;
+using SkiaSharp;
 
 namespace TravelOS.PlatformApi.Security;
 
@@ -9,11 +8,13 @@ public static class ReceiptImageProcessor
 {
     public const int MaximumDimension = 8_000;
     public const long MaximumPixels = 16_000_000;
+    public const long MaximumDecodedBytes = 128L * 1024 * 1024;
 
     /// <summary>
-    /// Fully decodes an uploaded JPEG, PNG or WebP and re-encodes it as JPEG.
-    /// Re-encoding removes source metadata and trailing/polyglot payloads.
-    /// Dimensions are inspected before pixel allocation to reduce decompression-bomb risk.
+    /// Fully decodes a supported single-frame JPEG, PNG or WebP and re-encodes it as
+    /// JPEG. The encoded dimensions and decoded allocation budget are checked before
+    /// allocating the output bitmap. Re-encoding removes source metadata and trailing
+    /// content after the image payload.
     /// </summary>
     public static bool TryNormalize(
         byte[] source,
@@ -23,42 +24,60 @@ public static class ReceiptImageProcessor
         normalized = null;
         try
         {
-            var format = Image.DetectFormat(source);
+            using var data = SKData.CreateCopy(source);
+            using var codec = SKCodec.Create(data);
+            if (codec is null)
+                return false;
+
             var expectedFormat = declaredContentType switch
             {
-                "image/jpeg" => "JPEG",
-                "image/png" => "PNG",
-                "image/webp" => "WEBP",
-                _ => null
+                "image/jpeg" => SKEncodedImageFormat.Jpeg,
+                "image/png" => SKEncodedImageFormat.Png,
+                "image/webp" => SKEncodedImageFormat.Webp,
+                _ => (SKEncodedImageFormat?)null
             };
 
-            if (format is null ||
-                !string.Equals(format.Name, expectedFormat, StringComparison.OrdinalIgnoreCase))
+            if (!expectedFormat.HasValue ||
+                codec.EncodedFormat != expectedFormat.Value ||
+                codec.FrameCount != 1)
                 return false;
 
-            var info = Image.Identify(source);
-            if (info is null ||
-                info.Width <= 0 || info.Height <= 0 ||
-                info.Width > MaximumDimension || info.Height > MaximumDimension ||
-                (long)info.Width * info.Height > MaximumPixels ||
-                info.FrameCount > 1 ||
-                info.GetPixelMemorySize() > 128L * 1024 * 1024)
+            var sourceInfo = codec.Info;
+            if (sourceInfo.Width <= 0 || sourceInfo.Height <= 0 ||
+                sourceInfo.Width > MaximumDimension ||
+                sourceInfo.Height > MaximumDimension ||
+                (long)sourceInfo.Width * sourceInfo.Height > MaximumPixels)
                 return false;
 
-            using var image = Image.Load(source);
-            if (image.Width != info.Width || image.Height != info.Height)
+            var outputInfo = new SKImageInfo(
+                sourceInfo.Width, sourceInfo.Height,
+                SKColorType.Bgra8888, SKAlphaType.Premul);
+
+            if (outputInfo.BytesSize <= 0 ||
+                outputInfo.BytesSize > MaximumDecodedBytes)
                 return false;
 
-            using var output = new MemoryStream();
-            image.Save(output, new JpegEncoder { Quality = 85 });
-            normalized = new NormalizedReceiptImage(output.ToArray(), image.Width, image.Height);
-            return normalized.Bytes.Length > 0;
+            using var bitmap = new SKBitmap(outputInfo);
+            if (bitmap.GetPixels() == IntPtr.Zero)
+                return false;
+
+            var decodeResult = codec.GetPixels(outputInfo, bitmap.GetPixels());
+            if (decodeResult != SKCodecResult.Success)
+                return false;
+
+            using var image = SKImage.FromBitmap(bitmap);
+            using var encoded = image.Encode(SKEncodedImageFormat.Jpeg, 85);
+            if (encoded is null || encoded.Size <= 0)
+                return false;
+
+            var bytes = encoded.ToArray();
+            if (bytes.Length == 0)
+                return false;
+
+            normalized = new NormalizedReceiptImage(bytes, sourceInfo.Width, sourceInfo.Height);
+            return true;
         }
-        catch (UnknownImageFormatException)
-        {
-            return false;
-        }
-        catch (InvalidImageContentException)
+        catch (SKException)
         {
             return false;
         }
