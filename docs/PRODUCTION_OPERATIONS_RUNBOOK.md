@@ -91,7 +91,7 @@ Store the displayed public recipient in the approved backup job configuration. S
 
 ### Create a coordinated backup
 
-The backup script requires Docker Compose, Docker, `age`, `sha256sum` and a running Platform API container with its receipt volume mounted. It validates Compose configuration and PostgreSQL readiness, pauses the web/API writers, captures PostgreSQL in custom archive format, archives the private receipt volume, checks both archive formats and encrypts both files before publishing the backup directory.
+The backup script requires Bash 4+, Docker Compose, Docker, `age`, `sha256sum`, `flock` and a running Platform API container with its receipt volume mounted. It validates Compose configuration and PostgreSQL readiness, pauses the web/API writers, captures PostgreSQL in custom archive format, archives the private receipt volume, checks both archive formats and encrypts both files before publishing the backup directory.
 
 Use a destination outside the repository, ideally on an encrypted backup disk or a staging mount that is subsequently copied to approved off-host storage:
 
@@ -100,7 +100,7 @@ mkdir -p /secure-backup-staging/travelos
 chmod 700 /secure-backup-staging/travelos
 AGE_RECIPIENT='age1_REPLACE_WITH_APPROVED_PUBLIC_RECIPIENT' \
   TRAVELOS_ENV_FILE="$PWD/deploy/production.env" \
-  ./deploy/backup.sh /secure-backup-staging/travelos
+  bash ./deploy/backup.sh /secure-backup-staging/travelos
 ```
 
 The script pauses web/API writes during the capture and attempts to bring the previously running services back to healthy status. It fails rather than create an unencrypted final backup if the dump/archive, encryption or validation fails. Keep the destination outside the repository. Copy the **entire timestamped directory** to a separate, access-controlled off-host location.
@@ -111,7 +111,7 @@ The utility does not upload backups, enforce retention, set an RPO/RTO, verify r
 
 ```bash
 AGE_IDENTITY_FILE="$HOME/.config/travelos/backup-identity.txt" \
-  ./deploy/verify-backup.sh /secure-backup-staging/travelos/travelos-backup-YYYYMMDDTHHMMSSZ
+  bash ./deploy/verify-backup.sh /secure-backup-staging/travelos/travelos-backup-YYYYMMDDTHHMMSSZ
 ```
 
 This checks the SHA-256 manifest, decrypts both archives into a private temporary directory and validates the PostgreSQL custom archive and receipt tar archive. The plaintext temporary directory is removed on exit. A successful integrity check does **not** prove that the application can be restored correctly.
