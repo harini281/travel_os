@@ -27,13 +27,28 @@ public sealed class ProductionSecurityConfigurationTests
     }
 
     [Theory]
-    [InlineData("Host=postgres;Database=travelos;Username=travelos;Password=secret")]
+    [InlineData("Host=postgres;Database=travelos;Username=travelos_app;Password=secret")]
     [InlineData("Host=db.example.test;Port=5432;Database=travelos;Username=app;Password=secret")]
     public void Production_accepts_complete_postgres_connection_strings(string connectionString)
     {
-        var configuration = BuildConfiguration(("ConnectionStrings:TravelOS", connectionString));
+        var configuration = BuildConfiguration(
+            ("ConnectionStrings:TravelOS", connectionString),
+            ("TRAVELOS_APP_DB_USER", "travelos_app"));
 
         ProductionSecurityConfiguration.ValidateDatabaseConnectionString(configuration, production: true);
+    }
+
+    [Fact]
+    public void Production_rejects_a_connection_string_using_another_database_role()
+    {
+        var configuration = BuildConfiguration(
+            ("ConnectionStrings:TravelOS", "Host=postgres;Database=travelos;Username=travelos_admin;Password=secret"),
+            ("TRAVELOS_APP_DB_USER", "travelos_app"));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateDatabaseConnectionString(configuration, production: true));
+
+        Assert.Contains("TRAVELOS_APP_DB_USER", exception.Message);
     }
 
     [Fact]
