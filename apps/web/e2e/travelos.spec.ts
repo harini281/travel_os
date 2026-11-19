@@ -10,8 +10,8 @@ function uniqueEmail(label: string): string {
 async function registerThroughBrowser(page: Page, label: string) {
   const email = uniqueEmail(label);
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   await page.getByRole("button", { name: "Create account", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Create your account" })).toBeVisible();
   await page.getByLabel("Full name").fill(`E2E ${label}`);
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(TEST_PASSWORD);
@@ -104,6 +104,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
     await expect(page.getByText("Your TravelOS account is ready.")).toBeVisible();
 
     await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
 
     await page.getByLabel("Email address").fill(email);
@@ -239,7 +240,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
   });
 
   test("shows AI service failures and hides owner-only itinerary and scheduling controls from trip members", async ({ page, request }) => {
-    const ownerEmail = await registerThroughBrowser(page, "owner");
+    await registerThroughBrowser(page, "owner");
     const tripName = `E2E Member Permissions ${Date.now()}`;
     const { startDate } = await createTripThroughBrowser(page, tripName);
     await openTrip(page, tripName);
@@ -249,36 +250,40 @@ test.describe("TravelOS browser end-to-end journeys", () => {
 
     // Register the invited traveller via the real auth API, then create and accept
     // an invitation using the real owner/member authorization boundaries.
-    const api = await request.newContext({ baseURL: API_URL });
-    try {
-      const memberEmail = uniqueEmail("member");
-      const memberRegistration = await api.post("/api/v1/auth/register", {
+    const api = request;
+    const memberEmail = uniqueEmail("member");
+    const memberRegistration = await api.post(`${API_URL}/api/v1/auth/register`, {
         data: { email: memberEmail, displayName: "E2E Member", password: TEST_PASSWORD },
       });
-      expect(memberRegistration.status()).toBe(201);
-      const memberAuth = await memberRegistration.json() as { accessToken: string; user: { id: string } };
+    expect(memberRegistration.status()).toBe(201);
+    const memberAuth = await memberRegistration.json() as { accessToken: string; user: { id: string } };
 
-      const owner = await apiContextFor(page);
-      const ownerTripsResponse = await api.get("/api/v1/trips", { headers: owner.headers });
-      expect(ownerTripsResponse.ok()).toBeTruthy();
-      const ownerTrips = await ownerTripsResponse.json() as Array<{ id: string; name: string }>;
-      const trip = ownerTrips.find(item => item.name === tripName);
-      expect(trip).toBeTruthy();
+    const owner = await apiContextFor(page);
+    const ownerTripsResponse = await api.get(`${API_URL}/api/v1/trips`, { headers: owner.headers });
+    expect(ownerTripsResponse.ok()).toBeTruthy();
+    const ownerTrips = await ownerTripsResponse.json() as Array<{ id: string; name: string }>;
+    const trip = ownerTrips.find(item => item.name === tripName);
+    expect(trip).toBeTruthy();
 
-      const invitationResponse = await api.post(`/api/v1/trips/${trip!.id}/invitations`, {
+    const invitationResponse = await api.post(`${API_URL}/api/v1/trips/${trip!.id}/invitations`, {
         headers: owner.headers,
         data: { email: memberEmail },
       });
-      expect(invitationResponse.status()).toBe(201);
-      const invitation = await invitationResponse.json() as { id: string };
+    expect(invitationResponse.status()).toBe(201);
+    const invitation = await invitationResponse.json() as { id: string };
 
-      const acceptResponse = await api.post(
-        `/api/v1/trips/${trip!.id}/invitations/${invitation.id}/accept`,
+    const acceptResponse = await api.post(
+        `${API_URL}/api/v1/trips/${trip!.id}/invitations/${invitation.id}/accept`,
         { headers: { Authorization: `Bearer ${memberAuth.accessToken}` } },
       );
-      expect(acceptResponse.ok()).toBeTruthy();
+    expect(acceptResponse.ok()).toBeTruthy();
 
-      await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByLabel("What would you like to improve?").fill("[e2e:fail] simulate AI provider unavailable");
+    await page.getByRole("button", { name: /Get recommendations/ }).click();
+    await expect(page.locator(".alert.error")).toBeVisible();
+    await expect(page.locator(".alert.error")).not.toBeEmpty();
+
+    await page.getByRole("button", { name: "Sign out" }).click();
       await signInThroughBrowser(page, memberEmail);
       await openTrip(page, tripName);
       await expect(page.locator(".day-card .activity-row").filter({ hasText: "Member visible museum" })).toBeVisible();
@@ -286,9 +291,9 @@ test.describe("TravelOS browser end-to-end journeys", () => {
       await expect(page.getByRole("button", { name: /Add a day/ })).toHaveCount(0);
       await expect(page.locator(".add-activity-link")).toHaveCount(0);
 
-      const memberHeaders = { Authorization: `Bearer ${memberAuth.accessToken}` };
-      const scheduleResponse = await api.post(
-        `/api/v1/trips/${trip!.id}/itinerary/recommendations/schedule`,
+    const memberHeaders = { Authorization: `Bearer ${memberAuth.accessToken}` };
+    const scheduleResponse = await api.post(
+        `${API_URL}/api/v1/trips/${trip!.id}/itinerary/recommendations/schedule`,
         {
           headers: memberHeaders,
           data: {
@@ -297,13 +302,13 @@ test.describe("TravelOS browser end-to-end journeys", () => {
           },
         },
       );
-      expect(scheduleResponse.status()).toBe(404);
+    expect(scheduleResponse.status()).toBe(404);
 
-      const itineraryResponse = await api.get(`/api/v1/trips/${trip!.id}/itinerary`, { headers: memberHeaders });
-      expect(itineraryResponse.ok()).toBeTruthy();
-      const itinerary = await itineraryResponse.json() as { days: Array<{ id: string }> };
-      const addActivityResponse = await api.post(
-        `/api/v1/trips/${trip!.id}/itinerary/days/${itinerary.days[0].id}/activities`,
+    const itineraryResponse = await api.get(`${API_URL}/api/v1/trips/${trip!.id}/itinerary`, { headers: memberHeaders });
+    expect(itineraryResponse.ok()).toBeTruthy();
+    const itinerary = await itineraryResponse.json() as { days: Array<{ id: string }> };
+    const addActivityResponse = await api.post(
+        `${API_URL}/api/v1/trips/${trip!.id}/itinerary/days/${itinerary.days[0].id}/activities`,
         {
           headers: memberHeaders,
           data: {
@@ -314,10 +319,6 @@ test.describe("TravelOS browser end-to-end journeys", () => {
           },
         },
       );
-      expect(addActivityResponse.status()).toBe(404);
-    } finally {
-      await api.dispose();
-    }
-    expect(ownerEmail).toContain("@example.test");
+    expect(addActivityResponse.status()).toBe(404);
   });
 });
