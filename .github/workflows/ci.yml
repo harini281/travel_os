@@ -345,6 +345,12 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error http://127.0.0.1:8088/ -o /dev/null
+          headers="$(curl --fail --silent --show-error -I http://127.0.0.1:8088/)"
+          printf '%s\\n' "$headers" | grep -qi '^content-security-policy:'
+          printf '%s\\n' "$headers" | grep -qi '^x-content-type-options: nosniff'
+          api_headers="$(curl --fail --silent --show-error -I http://127.0.0.1:8088/health)"
+          printf '%s\\n' "$api_headers" | grep -qi '^content-security-policy:'
+          printf '%s\\n' "$api_headers" | grep -qi '^cache-control: no-store'
           curl --fail --silent --show-error http://127.0.0.1:8088/health
           docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
           docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
@@ -354,15 +360,32 @@ jobs:
           count="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T postgres psql -U travelos -d travelos -Atc 'SELECT count(*) FROM travelos_migration_history')"
           echo "Recorded migrations: $count"
           test "$count" = "18"
-      - name: Verify internal-only database and API ports
+      - name: Verify internal-only ports and service network isolation
         run: |
           set -euo pipefail
-          for service in postgres platform-api; do
+          for service in postgres platform-api ai-api; do
             container_id="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps -q "$service")"
             test -n "$container_id"
             docker inspect "$container_id" --format '{{json .HostConfig.PortBindings}}' > "$RUNNER_TEMP/${service}-port-bindings.json"
             python -c "import json,sys; bindings=json.load(open(sys.argv[1])); assert not bindings or not any(bindings.values()), f'Unexpected published port bindings: {bindings}'; print(sys.argv[2] + ': no host-published ports')" "$RUNNER_TEMP/${service}-port-bindings.json" "$service"
           done
+          for service in web platform-api ai-api; do
+            container_id="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps -q "$service")"
+            docker inspect "$container_id" --format '{{json .NetworkSettings.Networks}}' > "$RUNNER_TEMP/${service}-networks.json"
+          done
+          python - "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          networks = {
+              name: set(json.loads((root / f"{name}-networks.json").read_text()))
+              for name in ("web", "platform-api", "ai-api")
+          }
+          suffix = lambda names, network: any(name.endswith("_" + network) for name in names)
+          assert suffix(networks["web"], "frontend") and not suffix(networks["web"], "backend")
+          assert suffix(networks["ai-api"], "backend") and not suffix(networks["ai-api"], "frontend")
+          assert suffix(networks["platform-api"], "frontend") and suffix(networks["platform-api"], "backend")
+          print("Network isolation verified: web cannot reach AI API directly.")
+          PY
       - name: Collect container diagnostics
         if: always()
         run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps --all
