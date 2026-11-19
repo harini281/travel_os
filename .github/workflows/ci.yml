@@ -345,12 +345,12 @@ jobs:
         run: |
           set -euo pipefail
           curl --fail --silent --show-error http://127.0.0.1:8088/ -o /dev/null
-          headers="$(curl --fail --silent --show-error -I http://127.0.0.1:8088/)"
-          printf '%s\\n' "$headers" | grep -qi '^content-security-policy:'
-          printf '%s\\n' "$headers" | grep -qi '^x-content-type-options: nosniff'
-          api_headers="$(curl --fail --silent --show-error -I http://127.0.0.1:8088/health)"
-          printf '%s\\n' "$api_headers" | grep -qi '^content-security-policy:'
-          printf '%s\\n' "$api_headers" | grep -qi '^cache-control: no-store'
+          headers="$(curl --fail --silent --show-error -D - -o /dev/null http://127.0.0.1:8088/)"
+          printf '%s\n' "$headers" | grep -qi '^content-security-policy:'
+          printf '%s\n' "$headers" | grep -qi '^x-content-type-options: nosniff'
+          api_headers="$(curl --fail --silent --show-error -D - -o /dev/null http://127.0.0.1:8088/health)"
+          printf '%s\n' "$api_headers" | grep -qi '^content-security-policy:'
+          printf '%s\n' "$api_headers" | grep -qi '^cache-control: no-store'
           curl --fail --silent --show-error http://127.0.0.1:8088/health
           docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
           docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
