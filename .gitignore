@@ -16,3 +16,7 @@ obj/
 .DS_Store
 *.user
 *.suo
+
+// Production deployment settings must never enter Git.
+deploy/*.env
+!deploy/*.env.example
