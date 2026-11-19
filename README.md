@@ -571,3 +571,26 @@ The integration tests are skipped when `TRAVELOS_TEST_CONNECTION_STRING` is not 
 Extended the PostgreSQL-backed Platform API suite beyond recommendation scheduling. The tests now exercise owner-only itinerary creation, day creation, timed activity creation, activity updates/deletion, itinerary approval and read-only enforcement after approval. They also verify trip members cannot add days or activities and duplicate itinerary creation is rejected.
 
 Run with the Stage 43 PostgreSQL test setup using `TRAVELOS_TEST_CONNECTION_STRING` as documented above. The CI integration job runs the complete suite against PostgreSQL 16 after applying all migrations.
+
+## Stage 48 — Container deployment foundation
+
+Stage 48 adds Docker builds and a Docker Compose deployment for the React web client, .NET 8 Platform API, FastAPI AI service and PostgreSQL 16. It includes Nginx same-origin API proxying, private persistent receipt storage, isolated database networking, health checks and an ordered migration runner.
+
+**Local container deployment (requires Docker Engine and Docker Compose v2):**
+
+```bash
+cp deploy/production.env.example deploy/production.env
+# Edit deploy/production.env: set a unique database password,
+# a random JWT signing key (at least 32 bytes), and your HTTPS web origin.
+docker compose --env-file deploy/production.env -f docker-compose.prod.yml config
+docker compose --env-file deploy/production.env -f docker-compose.prod.yml up --build -d --wait
+docker compose --env-file deploy/production.env -f docker-compose.prod.yml ps
+```
+
+The web app is bound to `127.0.0.1:8088` by default. Configure a trusted TLS reverse proxy or managed ingress before public access. PostgreSQL and the API services are not published directly to the host. Database and receipt data use named volumes.
+
+**Important:** `deploy/production.env.example` contains placeholders, not production credentials. Copy it to `deploy/production.env`, replace every placeholder and never commit the resulting file. Keep AI integrations in demo mode until provider access, privacy and costs have been reviewed.
+
+CI now validates the Compose configuration, builds all three application images, starts the complete disposable stack, checks web/API/AI health and verifies that all 18 ordered migrations were recorded. See [the Stage 48 deployment test plan](docs/PRODUCTION_DEPLOYMENT_TEST_PLAN.md).
+
+This is a container deployment foundation, not a public production launch. DNS/TLS hosting, managed secrets, backups and restore drills, vulnerability scanning, centralized observability, load testing and operational review remain required.
