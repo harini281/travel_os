@@ -1,6 +1,4 @@
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Formats.Png;
-using SixLabors.ImageSharp.PixelFormats;
+using SkiaSharp;
 using TravelOS.PlatformApi.Security;
 using Xunit;
 
@@ -8,37 +6,39 @@ namespace TravelOS.PlatformApi.Tests;
 
 public sealed class ReceiptImageProcessorTests
 {
-    [Fact]
-    public void TryNormalize_AcceptsValidPngAndReencodesItAsJpeg()
+    [Theory]
+    [InlineData(SKEncodedImageFormat.Jpeg, "image/jpeg")]
+    [InlineData(SKEncodedImageFormat.Png, "image/png")]
+    [InlineData(SKEncodedImageFormat.Webp, "image/webp")]
+    public void TryNormalize_AcceptsSupportedImageAndReencodesAsJpeg(
+        SKEncodedImageFormat sourceFormat, string contentType)
     {
-        var source = CreatePng(32, 24);
+        var source = CreateImage(sourceFormat, 32, 24);
 
-        var accepted = ReceiptImageProcessor.TryNormalize(source, "image/png", out var normalized);
+        var accepted = ReceiptImageProcessor.TryNormalize(source, contentType, out var normalized);
 
         Assert.True(accepted);
         Assert.NotNull(normalized);
         Assert.Equal(32, normalized.Width);
         Assert.Equal(24, normalized.Height);
-        Assert.Equal("JPEG", Image.DetectFormat(normalized.Bytes).Name);
 
-        using var decoded = Image.Load(normalized.Bytes);
+        using var encodedData = SKData.CreateCopy(normalized.Bytes);
+        using var codec = SKCodec.Create(encodedData);
+        Assert.NotNull(codec);
+        Assert.Equal(SKEncodedImageFormat.Jpeg, codec.EncodedFormat);
+
+        using var decoded = SKBitmap.Decode(normalized.Bytes);
+        Assert.NotNull(decoded);
         Assert.Equal(32, decoded.Width);
         Assert.Equal(24, decoded.Height);
     }
 
     [Theory]
-    [InlineData("image/jpeg")]
-    [InlineData("image/png")]
-    [InlineData("image/webp")]
-    public void TryNormalize_RejectsMalformedImageBodies(string contentType)
+    [InlineData("image/jpeg", new byte[] { 0xFF, 0xD8, 0xFF, 0x00, 0x01 })]
+    [InlineData("image/png", new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A })]
+    [InlineData("image/webp", new byte[] { 0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50 })]
+    public void TryNormalize_RejectsMalformedImageBodies(string contentType, byte[] malformed)
     {
-        var malformed = contentType switch
-        {
-            "image/jpeg" => new byte[] { 0xFF, 0xD8, 0xFF, 0x00, 0x01 },
-            "image/png" => new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A },
-            _ => System.Text.Encoding.ASCII.GetBytes("RIFFxxxxWEBP")
-        };
-
         Assert.False(ReceiptImageProcessor.TryNormalize(malformed, contentType, out var normalized));
         Assert.Null(normalized);
     }
@@ -46,7 +46,7 @@ public sealed class ReceiptImageProcessorTests
     [Fact]
     public void TryNormalize_RejectsMimeTypeThatDoesNotMatchDecodedFormat()
     {
-        var png = CreatePng(8, 8);
+        var png = CreateImage(SKEncodedImageFormat.Png, 8, 8);
 
         Assert.False(ReceiptImageProcessor.TryNormalize(png, "image/jpeg", out var normalized));
         Assert.Null(normalized);
@@ -55,17 +55,20 @@ public sealed class ReceiptImageProcessorTests
     [Fact]
     public void TryNormalize_RejectsUnsupportedDeclaredTypes()
     {
-        var png = CreatePng(8, 8);
+        var png = CreateImage(SKEncodedImageFormat.Png, 8, 8);
 
         Assert.False(ReceiptImageProcessor.TryNormalize(png, "image/svg+xml", out var normalized));
         Assert.Null(normalized);
     }
 
-    private static byte[] CreatePng(int width, int height)
+    private static byte[] CreateImage(SKEncodedImageFormat format, int width, int height)
     {
-        using var image = new Image<Rgba32>(width, height);
-        using var output = new MemoryStream();
-        image.Save(output, new PngEncoder());
-        return output.ToArray();
+        using var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.White);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(format, 95);
+        Assert.NotNull(encoded);
+        return encoded.ToArray();
     }
 }
