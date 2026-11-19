@@ -5,11 +5,13 @@ WORKDIR /app
 # Apply current Debian security updates before the image is assembled.
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
+    && if dpkg-query -W python3-setuptools >/dev/null 2>&1; then apt-get purge --yes python3-setuptools; fi \
     && rm -rf /var/lib/apt/lists/*
 
 # Keep tooling packages in the runtime layer at versions with current security fixes.
 RUN python -m pip install --no-cache-dir --upgrade \
-    "pip" "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0"
+    "pip" "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" \
+    && python -c "import setuptools; from packaging.version import Version; assert Version(setuptools.__version__) >= Version('78.1.1'), setuptools.__version__"
 
 COPY services/ai-api/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
