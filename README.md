@@ -605,7 +605,7 @@ See [docs/PRODUCTION_SECURITY_HARDENING_TEST_PLAN.md](docs/PRODUCTION_SECURITY_H
 
 ## Stage 50 — Production readiness and release preparation
 
-Stage 50 adds fail-fast production PostgreSQL configuration validation, ignores deploy/production.env, validates live AI-provider configuration at AI service startup, and provides encrypted database/receipt backup utilities with archive integrity checks. Compose now bounds local JSON-file log growth. These controls improve release preparation; they do not create hosting infrastructure or make the application production-ready.
+Stage 50 separates the privileged PostgreSQL migration administrator from the non-superuser API database role, validates that runtime role at API startup, ignores deploy/production.env, validates live AI-provider configuration at AI service startup, and provides encrypted database/receipt backup utilities with archive integrity checks. Compose now bounds local JSON-file log growth. These controls improve release preparation; they do not create hosting infrastructure or make the application production-ready.
 
 Operational guidance:
 - Production operations runbook: docs/PRODUCTION_OPERATIONS_RUNBOOK.md
