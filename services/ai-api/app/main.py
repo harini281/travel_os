@@ -23,10 +23,7 @@ def require_platform_service_auth(
 
 @app.get("/health", response_model=HealthResponse)
 async def health():
-    return HealthResponse(
-        mode=provider.mode if provider.mode in {"demo", "openai"} else "demo",
-        modelConfigured=provider.model_configured,
-    )
+    return HealthResponse()
 
 
 @app.post("/api/v1/planner/drafts", response_model=DraftResponse)
