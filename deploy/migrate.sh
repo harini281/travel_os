@@ -75,7 +75,7 @@ SELECT format(
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user');
 \gexec
 
-# Remove any previously granted role memberships before normalizing privileges.
+-- Remove any previously granted role memberships before normalizing privileges.
 SELECT format('REVOKE %I FROM %I', granted_role.rolname, member_role.rolname)
 FROM pg_auth_members memberships
 JOIN pg_roles granted_role ON granted_role.oid = memberships.roleid
