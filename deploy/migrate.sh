@@ -75,13 +75,24 @@ SELECT format(
 WHERE NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :'app_user');
 \gexec
 
+# Remove any previously granted role memberships before normalizing privileges.
+SELECT format('REVOKE %I FROM %I', granted_role.rolname, member_role.rolname)
+FROM pg_auth_members memberships
+JOIN pg_roles granted_role ON granted_role.oid = memberships.roleid
+JOIN pg_roles member_role ON member_role.oid = memberships.member
+WHERE member_role.rolname = :'app_user';
+\gexec
+
 SELECT format(
     'ALTER ROLE %I WITH LOGIN NOINHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS PASSWORD %L',
     :'app_user', :'app_password');
 \gexec
 
+SELECT format('REVOKE CREATE, TEMPORARY ON DATABASE %I FROM %I', current_database(), :'app_user');
+\gexec
 SELECT format('GRANT CONNECT ON DATABASE %I TO %I', current_database(), :'app_user');
 \gexec
+REVOKE CREATE ON SCHEMA public FROM :"app_user";
 GRANT USAGE ON SCHEMA public TO :"app_user";
 REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM :"app_user";
 REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM :"app_user";
