@@ -52,7 +52,7 @@ async function createEqualExpense(page: Page, title: string, payerName: string, 
   const form = page.locator("form.expense-create-form");
   await form.getByLabel("What was paid for?").fill(title);
   await form.getByLabel("Category").selectOption("food");
-  await form.getByLabel("Amount").fill("1000");
+  await form.getByRole("spinbutton", { name: "Amount" }).fill("1000");
   await form.getByLabel("Currency").selectOption("LKR");
   await form.getByLabel("Date").fill("2027-07-10");
   await form.getByLabel("Who paid?").selectOption({ label: payerName });
