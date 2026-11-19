@@ -1,4 +1,8 @@
 from datetime import date
+import os
+
+TEST_SERVICE_TOKEN = "test-only-travelos-internal-service-token-32-bytes"
+os.environ.setdefault("AI_SERVICE_TOKEN", TEST_SERVICE_TOKEN)
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -13,7 +17,7 @@ from app.schemas import (
     PlannerRequest,
 )
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-TravelOS-Service-Token": os.environ["AI_SERVICE_TOKEN"]})
 
 
 def planner_payload():
@@ -28,6 +32,31 @@ def planner_payload():
         "interests": ["food", "architecture"],
         "travelPace": "balanced",
     }
+
+
+def test_ai_routes_reject_missing_internal_service_token():
+    response = client.post(
+        "/api/v1/planner/drafts",
+        json=planner_payload(),
+        headers={"X-TravelOS-Service-Token": ""},
+    )
+    assert response.status_code == 401
+
+
+def test_ai_routes_reject_incorrect_internal_service_token():
+    response = client.post(
+        "/api/v1/planner/drafts",
+        json=planner_payload(),
+        headers={"X-TravelOS-Service-Token": "incorrect-service-token"},
+    )
+    assert response.status_code == 401
+
+
+def test_ai_routes_fail_closed_when_internal_token_is_not_configured(monkeypatch):
+    monkeypatch.delenv("AI_SERVICE_TOKEN", raising=False)
+    response = client.post("/api/v1/planner/drafts", json=planner_payload())
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]
 
 
 def test_health_is_demo_only_by_default():
