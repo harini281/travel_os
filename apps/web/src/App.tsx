@@ -1687,7 +1687,7 @@ export default function App() {
           description: `${item.reason}\n\nAI suggestion — verify before visiting: ${item.verificationNote}`,
           placeName: null, latitude: null, longitude: null,
           durationMinutes: item.suggestedDurationMinutes,
-          startTime: selectedSlot?.startTime ?? null, endTime: selectedSlot?.endTime ?? null,
+          startTime: selectedSlot ? selectedSlot.startTime + ":00" : null, endTime: selectedSlot ? selectedSlot.endTime + ":00" : null,
           estimatedCost: item.estimatedCost,
           currencyCode: item.estimatedCost !== null ? (item.currencyCode || selectedTrip.currencyCode) : null,
           sortOrder: 0,
