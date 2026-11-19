@@ -1,4 +1,5 @@
 using SkiaSharp;
+using System.Text;
 using TravelOS.PlatformApi.Security;
 using Xunit;
 
@@ -59,6 +60,42 @@ public sealed class ReceiptImageProcessorTests
 
         Assert.False(ReceiptImageProcessor.TryNormalize(png, "image/svg+xml", out var normalized));
         Assert.Null(normalized);
+    }
+
+    [Fact]
+    public void TryNormalize_RejectsAnImageAboveTheMaximumDimension()
+    {
+        var source = CreateImage(SKEncodedImageFormat.Png, ReceiptImageProcessor.MaximumDimension + 1, 1);
+
+        Assert.False(ReceiptImageProcessor.TryNormalize(source, "image/png", out var normalized));
+        Assert.Null(normalized);
+    }
+
+    [Fact]
+    public void TryNormalize_RejectsAnImageAboveTheMaximumPixelCount()
+    {
+        // 4,001 x 4,000 is just above the 16-million-pixel budget.
+        // The compressed PNG stays small; the decoder must reject it from metadata
+        // before allocating a decoded pixel buffer.
+        var source = CreateImage(SKEncodedImageFormat.Png, 4_001, 4_000);
+
+        Assert.False(ReceiptImageProcessor.TryNormalize(source, "image/png", out var normalized));
+        Assert.Null(normalized);
+    }
+
+    [Fact]
+    public void TryNormalize_ReencodingDiscardsTrailingPayloadBytes()
+    {
+        var png = CreateImage(SKEncodedImageFormat.Png, 32, 24);
+        var trailing = Encoding.UTF8.GetBytes("TRAILING-MALICIOUS-PAYLOAD");
+        var source = png.Concat(trailing).ToArray();
+
+        Assert.True(ReceiptImageProcessor.TryNormalize(source, "image/png", out var normalized));
+        Assert.NotNull(normalized);
+        Assert.DoesNotContain(trailing, normalized.Bytes);
+        using var data = SKData.CreateCopy(normalized.Bytes);
+        using var codec = SKCodec.Create(data);
+        Assert.Equal(SKEncodedImageFormat.Jpeg, codec!.EncodedFormat);
     }
 
     private static byte[] CreateImage(SKEncodedImageFormat format, int width, int height)
