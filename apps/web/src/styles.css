@@ -833,3 +833,20 @@
   outline:3px solid #9b6335;
   outline-offset:3px;
 }
+
+
+/* Stage 47 dashboard contrast remediation based on axe-core browser findings. */
+.dashboard .breadcrumb{color:#526058!important}
+.dashboard .preview-tag{color:#70502e!important}
+.dashboard .eyebrow{color:#70502e!important}
+.dashboard .muted{color:#526058!important}
+.dashboard .stats-row article span,
+.dashboard .stats-row article small{color:#526058!important}
+.dashboard .count-label{color:#526058!important}
+.dashboard .empty-state p{color:#526058!important}
+.dashboard .dashboard-footer{color:#526058!important}
+.dashboard .trip-destination{color:#70502e!important}
+.dashboard .trip-dates{color:#526058!important}
+.dashboard .trip-card-foot{color:#526058!important}
+.dashboard .btn-primary{background:#24342d!important;color:#fff!important}
+.dashboard .btn-primary:hover{background:#17251e!important;color:#fff!important}
