@@ -10,21 +10,24 @@
 
 ## 1. Executive result
 
-The Stage 51 branch is based on Stage 50 and is ahead without divergence. The compare endpoint reported 31 changed paths against the base branch. The reviewed changes include the AI service token boundary, receipt image normalization, authorization tests, GitHub security automation, Dependabot, deployment configuration and documentation. Two narrow remediation commits were subsequently pushed to the same branch:
+The Stage 51 branch is based on Stage 50 with no base-branch divergence. The initial source comparison identified 31 changed paths; after adding the canonical assessment/response documents, the open Stage 51 draft PR lists 33 changed files. The reviewed changes include the AI service token boundary, receipt image normalization, authorization tests, GitHub security automation, Dependabot, deployment configuration and documentation. Remediation commits on the same branch include:
 
 - `fa00fd3439e3e560d6dcfc023873c5ff4a4a81df` — removed the unavailable `SKException` catch that was breaking the .NET build.
 - `c2fc271934d5e4e8e3d570a8bfb5838c80a64865` — raises the AI image's setuptools floor to the patched `78.1.1` version reported by Trivy.
+- `0b31e6754bebc8d04e7f04fb50e718fde7204a08` — corrects the receipt image test's byte-sequence assertion so the test project can compile.
+- `a7d4e9ce3803cd96b7c08a82f433c4409052b031` — aligns the deployment smoke test with the intentionally minimal public AI health response.
+- `90600a0ca0c6a73a1c780463fb9786b719aea3a1` — attempts to remove the stale Debian `python3-setuptools` package from the AI image and asserts the active Python package is patched.
 
-The new CI and security workflows on the second commit were still running at the time of this report. The two changes are **not verified fixes** until those jobs pass. Earlier completed runs on `c86b4272924d54c5cd36cdb227a74e008c8473a9` conclusively failed due to the compile error. The logs showed the same `CS0246: SKException could not be found` error in the API build, unit tests, PostgreSQL integration tests, deployment image build and Platform API CodeQL build.
+The code-build correction was verified by the Platform API build and C# CodeQL on commit `c2fc271`. That run then exposed a second issue: the new image unit test itself failed to compile with `CS1503` because an xUnit `DoesNotContain` overload was selected incorrectly; the assertion was changed to `Span.IndexOf` in `0b31e675`. The deployment smoke test also failed because it expected a `mode` field that was intentionally removed from the public health response; the workflow expectation was updated in `a7d4e9c`. The security run on `c2fc271` detected one remaining HIGH `setuptools 70.3.0` copy in the AI container despite the active pip-installed `setuptools 84.2.1`; `90600a0` attempts to remove the stale Debian package. The workflow runs for the current branch head `90600a0` were queued at the time this report was updated, so those latest fixes are **not yet verified**.
 
 | Category | Result | Basis |
 |---|---|---|
-| AI API service authentication | **PASS — source and API tests** | All three internal POST routes require the header; absent/wrong token tests, fail-closed configuration test and public-health response test exist and the AI API test job passed on the pre-fix head. Current-head rerun is pending. |
-| Receipt image security | **BLOCKED** | Format detection, decode, dimension/pixel limits and JPEG re-encoding are implemented with unit tests; the Platform API did not compile on the previous head, and the remediation is awaiting current-head CI. Animation and real resource-use behaviour are not fully tested. |
-| Authorization / IDOR | **INCOMPLETE** | New PostgreSQL cross-user tests cover several key resources, but route-family coverage is not exhaustive; Platform API integration test execution failed on the compile error. |
-| GitHub security automation | **FAIL / PARTIAL** | Web/AI CodeQL, file/secret scan and package audit completed successfully on the previous head. Platform API CodeQL and image scans failed before completing. Configuration scan is report-only. SARIF is stored as workflow artifacts, not uploaded to GitHub Code Scanning. |
+| AI API service authentication | **PASS — source and API tests** | All three internal POST routes require the header; absent/wrong token tests, fail-closed configuration test and public-health response test exist. AI API test job passed on `c2fc271`; latest branch-head rerun is queued. |
+| Receipt image security | **BLOCKED** | The Platform API build passed on `c2fc271`, but the image unit-test project failed to compile due to the byte-array assertion (corrected in `0b31e675`). The current-head test run is queued. Animation and real resource-use behaviour are not fully tested. |
+| Authorization / IDOR | **INCOMPLETE** | Cross-user tests cover trips, budgets/recommendations, expenses, repayments, invitations and receipt file/upload access. The PostgreSQL test project did not compile on `c2fc271` due to the test assertion error; the corrected current-head run is queued. Route-family coverage remains incomplete. |
+| GitHub security automation | **PARTIAL** | On `c2fc271`, both CodeQL jobs, filesystem/secret/config scan and package audit passed. The container image job failed on one HIGH AI-image finding; the web image scan was skipped after that failure. Configuration scan is report-only. SARIF is stored as workflow artifacts, not uploaded to GitHub Code Scanning. Latest head run is queued. |
 | Dependency vulnerability checks | **PASS WITH LIMITS** | npm reported 0 vulnerabilities; pip-audit reported no known vulnerabilities; NuGet high/critical gate passed on the previous head. This does not prove the container images are free of vulnerabilities. |
-| Container image security | **FAIL / BLOCKED** | Historical Trivy run found three HIGH findings in the AI image. Current Dockerfile updates include the corresponding patched versions; latest scan is pending. A later scan on the original head could not run because the Platform API image build failed. |
+| Container image security | **FAIL / BLOCKED** | Trivy on `c2fc271` found one remaining HIGH finding (`setuptools 70.3.0`) in the AI image. Platform API image scan passed; web image scan was skipped. The latest Dockerfile attempts to remove the stale Debian package; a fresh scan is queued, not yet passed. |
 | Runtime support | **FAIL — production blocker** | Platform API and tests target .NET 8, Docker uses .NET 8 SDK/runtime, and workflows install SDK 8. .NET 8 support ended 10 November 2026. No .NET 10 migration was performed. |
 | Production readiness | **FAIL** | Unsupported runtime, build/test validation outstanding, image scan pending and independent staging security assessment not performed. |
 
@@ -45,9 +48,9 @@ Tests use generated identities, fake AI providers and disposable CI PostgreSQL c
 ### S51-01 — Build-breaking SkiaSharp exception reference
 
 **Severity:** High (release blocker)  
-**Evidence:** On commit `c86b4272924d54c5cd36cdb227a74e008c8473a9`, Platform API compilation failed at `ReceiptImageProcessor.cs:83` with `CS0246: SKException could not be found`. This blocked API build, unit tests, PostgreSQL tests, image builds, deployment smoke tests and the C# CodeQL build.  
-**Remediation pushed:** `fa00fd3439e3e560d6dcfc023873c5ff4a4a81df` removes the unresolved catch type.  
-**Status:** Pending revalidation on the latest branch head. Do not mark fixed until new .NET build, tests and Docker image build pass.
+**Evidence:** On `c86b427`, Platform API compilation failed at `ReceiptImageProcessor.cs:83` with `CS0246: SKException could not be found`, blocking downstream build/test/scan steps.  
+**Remediation pushed:** `fa00fd3439e3e560d6dcfc023873c5ff4a4a81df` removes the unresolved catch type. The Platform API build and Platform API CodeQL jobs subsequently passed on `c2fc271`.  
+**Status:** Source build issue corrected and verified on `c2fc271`; full unit/integration testing remains pending because the test project had a separate compile error, corrected in `0b31e675`.
 
 ### S51-02 — Three HIGH vulnerabilities in an earlier AI container scan
 
@@ -57,8 +60,8 @@ Tests use generated identities, fake AI providers and disposable CI PostgreSQL c
 - `setuptools` 70.3.0 — CVE-2025-47273 — fixed in 78.1.1.
 - `wheel` 0.45.1 — CVE-2026-24049 — fixed in 0.46.2.
 
-**Remediation pushed:** Existing AI image commands raised `jaraco.context` and `wheel`; commit `c2fc271934d5e4e8e3d570a8bfb5838c80a64865` adds `setuptools>=78.1.1`.  
-**Status:** Pending a successful fresh AI image build and Trivy scan. Previous versions and scan findings remain part of the evidence; no claim of remediation is made yet.
+**Remediation pushed:** AI image installs `jaraco.context>=6.1.0` and `wheel>=0.46.2`; commit `c2fc271` added `setuptools>=78.1.1`. Trivy then confirmed the active setuptools distribution was 84.2.1 but still detected a second 70.3.0 system package. Commit `90600a0` purges Debian `python3-setuptools` if installed and asserts the Python-imported version.  
+**Status:** Two earlier findings no longer appeared in the `c2fc271` report; one HIGH remains. The `90600a0` image scan is queued. Do not mark resolved until Trivy confirms zero HIGH/CRITICAL findings for all built images.
 
 ### S51-03 — Unsupported .NET runtime
 
@@ -72,35 +75,38 @@ Tests use generated identities, fake AI providers and disposable CI PostgreSQL c
 **Severity:** Medium (coverage gap; not a confirmed exploit)  
 **Evidence:** New PostgreSQL-backed tests exercise trip owner/member/outsider read and owner-only update; recommendation and budget boundaries; expense history/edit access and no unauthorized DB change; repayment recipient-only response; owner-managed invitation list and invitee-only acceptance; receipt member file access, outsider denial, uploader/owner deletion; receipt upload MIME mismatch, filename sanitization and oversized-file rejection. JWT validation tests cover missing/malformed bearer, wrong signing key, wrong issuer/audience, expired and future-`nbf` tokens.  
 **Gap:** The test matrix does not independently exercise every endpoint and verb for itineraries, recommendations, receipts (including confirmation), financial resources and all group membership/preference/voting functions. The current test suite cannot be called comprehensive. The PostgreSQL test job on the earlier completed head failed before tests could execute due to the same C# compile error.  
-**Status:** Incomplete; expand negative access tests and rerun against a disposable database after the build fix.
+**Status:** Incomplete; the tests are real PostgreSQL-backed integration tests, but on `c2fc271` the test assembly failed to compile at `ReceiptImageProcessorTests.cs:95` before the cases ran. The byte-array assertion was corrected in `0b31e675`; rerun against the disposable database is queued. Add confirmation/remaining group resource tests.
 
 ### S51-05 — Receipt image controls need more test evidence
 
 **Severity:** Medium  
 **Source implementation observed:** JPEG/PNG/WebP allow-list, Skia codec format detection, static-frame restriction, maximum edge 8,000 pixels, maximum 16 million pixels, 128 MiB output-info decoded-byte budget, re-encoding to JPEG, generated GUID storage filename, private storage root, request/form size limits and membership checks on retrieval. The endpoint stores and forwards normalized bytes, not the original file.  
 **Tests observed:** Valid JPEG/PNG/WebP, malformed data, MIME mismatch, unsupported declared content type, excessive dimensions and pixel count, trailing bytes, path-shaped client filename and >8 MiB upload.  
-**Gaps:** No explicit animated-image regression test is present in the inspected test file; no measurement/stress test demonstrates peak process memory or processing-time bounds; cleanup on all failure paths and unauthorized upload side effects need additional integration coverage. A decode/pixel ceiling is not a malware-scanning control.  
-**Status:** Blocked on current build/test; residual test gaps remain after it passes.
+**Gaps:** No explicit animated-image regression test is present in the inspected test file; no measurement/stress test demonstrates peak process memory or processing-time bounds; cleanup on all failure paths and unauthorized upload side effects need additional integration coverage. The receipt delete handler swallows `IOException` after deleting the DB row, so a failed disk deletion can leave an orphaned file. A decode/pixel ceiling is not a malware-scanning control.  
+**Status:** Platform API build passed on `c2fc271`; unit-test compilation failed before running these tests and was corrected in `0b31e675`. Current-head execution is queued; residual test gaps remain after it passes.
 
 ### S51-06 — Code-scanning results are artifacts, not GitHub Code Scanning alerts
 
 **Severity:** Medium (visibility/triage gap)  
-**Evidence:** `.github/workflows/security.yml` configures `github/codeql-action/analyze@v4` with `upload: false` and the job uses `security-events: read`. SARIF output is retained as Actions artifacts. The successful web/AI analysis artifact on run 44549757071 is artifact `14542142200`; it is not an uploaded alert set in GitHub Code Scanning.  
+**Evidence:** `.github/workflows/security.yml` configures `github/codeql-action/analyze@v4` with `upload: false` and the job uses `security-events: read`. On `c2fc271`, both CodeQL jobs passed and SARIF was retained as artifacts `14543037675` (C#) and `14542098628` (Web/AI) from [Security Assessment run 44551270049](https://github.com/harini281/travel_os/actions/runs/44551270049). These are not uploaded GitHub Code Scanning alerts.  
 **Configuration scan:** Trivy configuration scanning is set to `exit-code: "0"`, intentionally preserving baseline findings for reviewer triage. Its job success is not a claim that configuration findings are absent or cleared.  
 **Status:** Partial. Enable a reviewed upload/triage policy or clearly keep artifact-only reporting as an accepted limitation; do not report artifact storage as GitHub alert triage.
 
 ### S51-07 — Dependency reproducibility
 
 **Severity:** Medium (supply-chain risk)  
-**Evidence:** npm dependency audit runs `npm install`, and the inspected branch does not include a committed npm lockfile. Python runtime requirements are ranges rather than a full hash-locked environment. Dependabot is configured weekly for Actions, npm, pip, NuGet and Docker.  
-**Latest completed evidence on pre-fix head:** npm reported 0 vulnerabilities; pip-audit reported no known vulnerabilities; the NuGet high/critical check completed successfully.  
-**Status:** Partial. Audit output is a time-specific advisory check, not deterministic resolution or an SBOM. Commit reproducible lockfiles with a deliberate update process.
+**Evidence:** `apps/web/package.json` uses `latest` for React, Vite, TypeScript and several other direct dependencies; no `package-lock.json` exists and CI runs `npm install`. Python runtime requirements use ranges. Dependabot is configured weekly for Actions, npm, pip, NuGet and Docker.  
+**Latest completed evidence:** On `c2fc271`, npm reported 0 vulnerabilities, pip-audit reported no known vulnerabilities and the NuGet high/critical check passed.  
+**Status:** Partial. Audit output is a time-specific advisory check, not deterministic resolution or an SBOM. Commit a reproducible lockfile and use `npm ci` with a reviewed update process.
 
 ### S51-08 — Operational security residuals
 
 **Severity:** Medium  
 - Rate limiting is process-local; it is not coordinated across multiple API replicas.
 - Receipt storage is a private local volume; there is no verified malware-scanning workflow, object-store lifecycle/retention or deletion automation.
+- The receipt delete handler deletes the DB row before file deletion and catches `IOException` without surfacing the orphan; add cleanup/reconciliation monitoring.
+- ASP.NET Core Data Protection logs that its key directory is container-local and may not persist across container destruction; configure a protected persistent key ring for production.
+- Two CS8602 nullable-reference warnings remain in `Preferences/PreferenceEndpoints.cs` lines 104–105. Validate/normalize nullable request strings with a guard that the compiler understands.
 - Branch protection was reported disabled on the Stage 51 branch. Protect the branch and require CI/review checks before production promotion.
 - No independent staging penetration test, external specialist review or cloud IAM/ingress assessment was performed.
 
@@ -125,42 +131,49 @@ Never expose `AI_SERVICE_TOKEN` to the browser or place it in a `VITE_*` variabl
 
 ## 5. GitHub Actions verification record
 
-### Latest completed baseline-head evidence
+### Completed workflow evidence on remediation commit `c2fc271934d5e4e8e3d570a8bfb5838c80a64865`
 
-[TravelOS CI — run 44549756999](https://github.com/harini281/travel_os/actions/runs/44549756999) on `c86b427` — **FAIL**:
+[TravelOS CI — run 44551269802](https://github.com/harini281/travel_os/actions/runs/44551269802) — **overall still in progress when inspected**:
+- PASS: Platform API application build.
 - PASS: AI API tests.
 - PASS: Web typecheck/build.
 - PASS: PostgreSQL migration validation.
-- FAIL: Platform API build — `SKException` CS0246.
-- FAIL: Platform API unit tests — compilation blocked by CS0246.
-- FAIL: Platform API PostgreSQL tests — compilation blocked by CS0246.
-- FAIL: container deployment job — application image build blocked by CS0246; runtime/smoke assertions were skipped.
-- FAIL: browser E2E job — Platform API did not start; browser journey step was skipped. This is not an E2E test failure from browser assertions, nor a pass.
+- FAIL: Platform API unit tests — test-project compilation failed with `CS1503` at `ReceiptImageProcessorTests.cs:95` (`byte[]` passed to an incompatible xUnit async-enumerable overload).
+- FAIL: Platform API PostgreSQL integration tests — same test-project compile error, so the integration cases did not execute.
+- FAIL: Container deployment smoke — all images built and services started healthy, but the smoke assertion expected `data['mode']=='demo'` from the AI health response. The health response was intentionally reduced to `{"status":"ok"}`; workflow assertion corrected in `a7d4e9c`. Migration and port-isolation assertions were skipped after the earlier health assertion failed.
+- Browser E2E job: isolated PostgreSQL, migrations, web build, browser installation, AI mock and Platform API startup passed; the browser journey step was still running at last inspection. Do not call it passed until completed.
 
-[TravelOS Security Assessment — run 44549757071](https://github.com/harini281/travel_os/actions/runs/44549757071) on `c86b427` — **FAIL**:
-- PASS: CodeQL Web/AI.
-- PASS: Trivy filesystem/secret and configuration job; configuration findings are report-only (exit code 0), so review artifact findings before accepting.
-- PASS: npm, Python and NuGet dependency audit job.
-- FAIL: CodeQL Platform API build — CS0246; no source analysis SARIF was generated for the .NET job.
-- FAIL: container image security job — Platform API build failed; Platform, AI and Web image scans did not all run. Mark downstream image scans skipped, not passed.
+[TravelOS Security Assessment — run 44551270049](https://github.com/harini281/travel_os/actions/runs/44551270049) — **FAIL**:
+- PASS: CodeQL — Platform API.
+- PASS: CodeQL — Web and AI.
+- PASS: NuGet/npm/Python dependency audit.
+- PASS: filesystem/secret/config scan job. Configuration scan is report-only (`exit-code: 0`), so findings still require human review.
+- FAIL: container image vulnerability scans — Platform API image scan passed; AI image found one HIGH `setuptools 70.3.0` (`CVE-2025-47273`); web image build/scan were skipped after failure.
+- SARIF artifacts retained: C# `14543037675`; Web/AI `14542098628`. Filesystem/config artifact: `14542652226`. No Code Scanning alert upload was performed.
 
-Artifacts from that security run:
-- [Web/AI CodeQL SARIF artifact 14542142200](https://github.com/harini281/travel_os/actions/runs/44549757071)
-- [Trivy filesystem/config artifact 14542790988](https://github.com/harini281/travel_os/actions/runs/44549757071)
+The latest corrections on the current branch head `90600a0ca0c6a73a1c780463fb9786b719aea3a1` include the test assertion correction, health assertion correction and system setuptools purge. At the time of this update, its push-triggered workflows were queued:
+- [TravelOS CI — run 44551871672](https://github.com/harini281/travel_os/actions/runs/44551871672) — queued.
+- [TravelOS Security Assessment — run 44551871709](https://github.com/harini281/travel_os/actions/runs/44551871709) — queued.
 
-### New remediation-head runs — not yet validated at report time
+### Earlier completed baseline-head evidence
 
-- [TravelOS CI — run 44551269802](https://github.com/harini281/travel_os/actions/runs/44551269802) on `c2fc271` — in progress/awaiting result.
-- [TravelOS Security Assessment — run 44551270049](https://github.com/harini281/travel_os/actions/runs/44551270049) on `c2fc271` — queued/in progress/awaiting result.
+[TravelOS CI — run 44549756999](https://github.com/harini281/travel_os/actions/runs/44549756999) on `c86b427` — **FAIL**: AI API tests, web build and migrations passed; Platform API build/tests failed on unresolved `SKException`; deployment image build failed; browser E2E could not start the Platform API.
 
-Do not infer completion from run creation. Update this report with final job-level outcomes before changing any FAIL/BLOCKED status to PASS.
+[TravelOS Security Assessment — run 44549757071](https://github.com/harini281/travel_os/actions/runs/44549757071) on `c86b427` — **FAIL**: CodeQL Web/AI, filesystem/secret/config and dependency audit passed; Platform API CodeQL and container image builds failed at the unresolved type.
+
+An earlier image scan in [run 44548475831](https://github.com/harini281/travel_os/actions/runs/44548475831) reported three HIGH AI-image findings:
+- `jaraco.context` 5.3.0 — CVE-2026-23949 — fixed 6.1.0.
+- `setuptools` 70.3.0 — CVE-2025-47273 — fixed 78.1.1.
+- `wheel` 0.45.1 — CVE-2026-24049 — fixed 0.46.2.
 
 ### Failed / skipped / unavailable distinctions
 
-- The Platform API CodeQL scan on `c86b427` failed at compilation; its analyzer stage was not executed.
-- The container scanner job on `c86b427` failed during Platform API image build; subsequent image scans were skipped.
-- Browser journey tests were skipped because the API failed startup; no browser pass is evidenced on that head.
-- Trivy configuration scan is configured report-only; a successful step is not a clean configuration result.
+- Platform API build on `c86b427` failed compilation; later application build and C# CodeQL succeeded on `c2fc271`.
+- Unit and PostgreSQL integration tests on `c2fc271` failed at test-project compilation before execution. The test compile issue was corrected; latest head run is queued.
+- The `c2fc271` deployment stack started, but the smoke test stopped on the obsolete AI health `mode` assertion. The assertion was aligned with the minimal health contract; latest head run is queued.
+- The E2E run on `c2fc271` had not completed the browser journey at last inspection; no E2E pass is claimed.
+- The AI container scan on `c2fc271` failed on one HIGH `setuptools` finding. Web image scan was skipped. The latest system-package purge is not yet validated.
+- The Trivy configuration scan is configured report-only; job success is not a clean configuration result.
 - CodeQL is artifact-only (`upload: false`); no GitHub Code Scanning alert upload is evidenced.
 - No independent DAST, third-party penetration test, cloud configuration audit or external production scan was performed.
 
