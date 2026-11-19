@@ -37,10 +37,28 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: docker
-    directory: /
+    directory: /apps/web
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
     groups:
-      container-base-images:
+      web-base-images:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /services/platform-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      platform-api-base-images:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /services/ai-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      ai-api-base-images:
         patterns: ["*"]
