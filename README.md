@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 — security testing and penetration-test preparation is under implementation on `stage51-security-testing`, based on Stage 50. Stages 49 and 50 remain open and unmerged in their own draft pull requests (#51 and #52). This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 51 — security verification and penetration-test preparation is under review on `stage51-security-testing`, based on Stage 50. GitHub currently reports PRs #51 (Stage 49) and #52 (Stage 50) as merged; this work has not merged Stage 51. No Stage 51 pull request existed during the initial audit. This remains an active development project, not approved for public production.
 
 ## 1. Features implemented
 
@@ -185,14 +185,19 @@ Open a new terminal. Set a unique random internal service token of at least 32 c
 PowerShell:
 
 ```powershell
-$env:AI_SERVICE_TOKEN = "REPLACE_WITH_THE_SAME_PRIVATE_RANDOM_TOKEN_IN_BOTH_SERVICE_TERMINALS"
+$serviceToken = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:AI_SERVICE_TOKEN = $serviceToken
+Write-Output "Copy this one-time local value into the AI API terminal: $serviceToken"
 ```
 
 Bash:
 
 ```bash
-export AI_SERVICE_TOKEN="REPLACE_WITH_THE_SAME_PRIVATE_RANDOM_TOKEN_IN_BOTH_SERVICE_TERMINALS"
+export AI_SERVICE_TOKEN="$(openssl rand -hex 32)"
+printf 'Copy this one-time local value into the AI API terminal: %s\\n' "$AI_SERVICE_TOKEN"
 ```
+
+Copy the generated value into the AI API terminal in Step 3. Do not add it to source control, frontend configuration, screenshots, or shared logs. The value in `.env.example` is only a placeholder.
 
 
 ```powershell
@@ -212,10 +217,10 @@ For macOS/Linux, use `export VARIABLE=value` instead of PowerShell's `$env:VARIA
 
 ### Step 3 — Start the AI API
 
-Open another terminal from the repository root and set the **same** `AI_SERVICE_TOKEN` value that you set for the Platform API in Step 2. Keep it server-side; never create a `VITE_*` variable for this secret.
-
+Open another terminal from the repository root. Paste the one-time value generated in Step 2, then start the AI API. Keep the token server-side; never create a `VITE_*` variable for it.
 
 ```powershell
+$env:AI_SERVICE_TOKEN = "PASTE_THE_SAME_RANDOM_VALUE_FROM_STEP_2"
 cd services/ai-api
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -297,13 +302,13 @@ The GitHub Actions workflow starts a clean PostgreSQL 16 service and applies mig
 
 ### Latest verified CI result
 
-<badge color="warning">Stage 51 validation in progress</badge>
+<badge color="warning">Final Stage 51 runs pending</badge>
 
-The Stage 50 baseline CI run [#44529642937](https://github.com/harini281/travel_os/actions/runs/44529642937) passed all eight jobs on commit `071e737db16ac5dce2f23180bf981b818f4f2d03`. That is historical baseline evidence, not verification of Stage 51.
+The historical Stage 50 baseline run [#44529642937](https://github.com/harini281/travel_os/actions/runs/44529642937) passed all eight jobs on commit `071e737db16ac5dce2f23180bf981b818f4f2d03`. It is not evidence that Stage 51 passes.
 
-Stage 51 adds a separate [security assessment workflow](.github/workflows/security.yml) covering CodeQL, npm/pip/NuGet dependency audits, Trivy filesystem/secret/configuration scans and container image scans. See the [Stage 51 security assessment plan](docs/STAGE51_SECURITY_ASSESSMENT_PLAN.md) and [assessment report](docs/STAGE51_SECURITY_ASSESSMENT_REPORT.md).
+Stage 51's final verification runs are recorded in [`docs/SECURITY_ASSESSMENT.md`](docs/SECURITY_ASSESSMENT.md). The report distinguishes completed scans from failed checks and still-pending results. Configuration-scan SARIF requires explicit triage; a workflow step configured to preserve baseline findings is not proof that the configuration is clean.
 
-The first Stage 51 runs exposed issues in the newly added scanner/dependency setup. Those are being corrected; **do not treat Stage 51 as validated until the latest branch-head CI and security workflow both complete successfully and their findings are reviewed**. Automated checks are not a professional penetration test or security certification.
+The source-level fixes and test expansions are not a professional penetration test, independent security audit or production sign-off. Do not deploy publicly while the .NET 8 end-of-support blocker and other documented release gates remain open.
 
 ## 7. Stage 39 — AI activity recommendations
 
