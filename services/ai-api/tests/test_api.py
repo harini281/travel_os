@@ -83,6 +83,25 @@ def test_ai_routes_reject_incorrect_internal_service_token(path, payload):
     assert response.status_code == 401
 
 
+@pytest.mark.parametrize("path,payload", [
+    ("/api/v1/planner/drafts", planner_payload()),
+    ("/api/v1/planner/recommendations", recommendation_payload()),
+    ("/api/v1/receipts/extract", {
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    }),
+])
+@pytest.mark.parametrize("malformed_token", ["", "not-a-jwt", "Bearer not-a-token", "%%%"])
+def test_ai_routes_reject_malformed_present_service_tokens(path, payload, malformed_token):
+    response = TestClient(app).post(
+        path,
+        json=payload,
+        headers={"X-TravelOS-Service-Token": malformed_token},
+    )
+    assert response.status_code == 401
+    assert TEST_SERVICE_TOKEN not in response.text
+
+
 def test_health_remains_public_and_does_not_disclose_provider_configuration():
     response = TestClient(app).get("/health")
     assert response.status_code == 200
