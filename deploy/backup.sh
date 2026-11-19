@@ -41,8 +41,11 @@ api_container_id="${api_ids[0]}"
 
 api_was_running=false
 web_was_running=false
-if [[ -n $(" ${compose[@]}" ps --status running --quiet platform-api 2>/dev/null) ]]; then api_was_running=true; fi
-if [[ -n $(" ${compose[@]}" ps --status running --quiet web 2>/dev/null) ]]; then web_was_running=true; fi
+api_running_id="$("${compose[@]}" ps --status running --quiet platform-api)"
+[[ -n "$api_running_id" ]] || fail "Platform API must be running before capturing a coordinated database/receipt backup."
+api_was_running=true
+web_running_id="$("${compose[@]}" ps --status running --quiet web)"
+if [[ -n "$web_running_id" ]]; then web_was_running=true; fi
 
 backup_name="travelos-backup-$(date -u +%Y%m%dT%H%M%SZ)"
 final_dir="$output_root/$backup_name"
@@ -63,11 +66,39 @@ cleanup() {
       status=1
     }
   fi
-  if [[ "$web_was_running" == true ]]; then
+  if [[ "$api_was_running" == true ]]; then
+    api_id="$("${compose[@]}" ps --quiet platform-api)"
+    api_healthy=false
+    for attempt in $(seq 1 45); do
+      if [[ -n "$api_id" ]] && [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$api_id" 2>/dev/null || true)" == "healthy" ]]; then
+        api_healthy=true
+        break
+      fi
+      sleep 2
+    done
+    if [[ "$api_healthy" != true ]]; then
+      echo "WARNING: Platform API did not return to healthy status after backup." >&2
+      status=1
+    fi
+  fi
+  if [[ "$web_was_running" == true && "$api_healthy" == true ]]; then
     "${compose[@]}" start web >/dev/null || {
       echo "WARNING: Web service could not be restarted automatically." >&2
       status=1
     }
+    web_id="$("${compose[@]}" ps --quiet web)"
+    web_healthy=false
+    for attempt in $(seq 1 30); do
+      if [[ -n "$web_id" ]] && [[ "$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$web_id" 2>/dev/null || true)" == "healthy" ]]; then
+        web_healthy=true
+        break
+      fi
+      sleep 2
+    done
+    if [[ "$web_healthy" != true ]]; then
+      echo "WARNING: Web service did not return to healthy status after backup." >&2
+      status=1
+    fi
   fi
   exit "$status"
 }
