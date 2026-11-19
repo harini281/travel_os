@@ -31,13 +31,12 @@ public sealed class JwtSecurityIntegrationTests(TravelOsApiFactory factory)
         Assert.Equal(HttpStatusCode.Unauthorized, malformed.StatusCode);
     }
 
-    [Theory]
     [InlineData("wrong-key")]
     [InlineData("wrong-issuer")]
     [InlineData("wrong-audience")]
     [InlineData("expired")]
     [InlineData("not-before")]
-    [PostgresFact]
+    [PostgresTheory]
     public async Task ProtectedTripEndpoint_RejectsInvalidJwtValidationCases(string variant)
     {
         var request = new HttpRequestMessage(
