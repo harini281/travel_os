@@ -158,24 +158,24 @@ jobs:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          for migration in \\
-            001_initial_schema.sql \\
-            002_identity_schema.sql \\
-            003_itinerary_constraints.sql \\
-            003_trip_invitations.sql \\
-            004_trip_member_preferences.sql \\
-            005_group_polls.sql \\
-            006_shared_expenses.sql \\
-            007_trip_repayments.sql \\
-            008_trip_expense_audits.sql \\
-            009_trip_receipts.sql \\
-            010_currency_conversions.sql \\
-            011_conversion_source_expense_date.sql \\
-            012_trip_budget_alerts.sql \\
-            013_trip_weather_assessments.sql \\
-            014_trip_flights.sql \\
-            015_flight_journey_groups.sql \\
-            016_activity_schedule_times.sql \\
+          for migration in \
+            001_initial_schema.sql \
+            002_identity_schema.sql \
+            003_itinerary_constraints.sql \
+            003_trip_invitations.sql \
+            004_trip_member_preferences.sql \
+            005_group_polls.sql \
+            006_shared_expenses.sql \
+            007_trip_repayments.sql \
+            008_trip_expense_audits.sql \
+            009_trip_receipts.sql \
+            010_currency_conversions.sql \
+            011_conversion_source_expense_date.sql \
+            012_trip_budget_alerts.sql \
+            013_trip_weather_assessments.sql \
+            014_trip_flights.sql \
+            015_flight_journey_groups.sql \
+            016_activity_schedule_times.sql \
             017_trip_notifications.sql
           do
             echo "Applying $migration"
