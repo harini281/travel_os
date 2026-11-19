@@ -71,10 +71,20 @@ export async function createItineraryAndDay(page: Page, dayDate: string) {
 
   const createButton = emptyState.getByRole("button", { name: /Create itinerary/ });
   if (await createButton.isVisible().catch(() => false)) {
+    const createResponsePromise = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return /^\/api\/v1\/trips\/[^/]+\/itinerary$/.test(url.pathname)
+        && response.request().method() === "POST";
+    }, { timeout: 30_000 });
     await createButton.click();
+    const response = await createResponsePromise;
+    if (!response.ok()) {
+      throw new Error(`Create itinerary failed (${response.status()}): ${await response.text()}`);
+    }
   }
 
-  await expect(toolbar).toBeVisible();
+  // Allow slower browser engines to finish loading the new itinerary after the POST.
+  await expect(toolbar).toBeVisible({ timeout: 30_000 });
   const addDay = page.getByRole("button", { name: /Add a day/ });
   if (await addDay.isVisible().catch(() => false)) {
     await addDay.click();
