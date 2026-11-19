@@ -207,7 +207,7 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            psql -h localhost -U postgres -d travelos_e2e -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_e2e -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Install web dependencies
         working-directory: apps/web
