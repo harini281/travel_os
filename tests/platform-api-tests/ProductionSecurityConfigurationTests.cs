@@ -37,7 +37,7 @@ public sealed class ProductionSecurityConfigurationTests
         var configuration = BuildConfiguration(("Cors:AllowedOrigins:0", "https://travelos.example.com"));
 
         Assert.Equal(
-            ["https://travelos.example.com"],
+            new[] { "https://travelos.example.com" },
             ProductionSecurityConfiguration.GetAllowedOrigins(configuration, production: true));
     }
 
@@ -47,7 +47,7 @@ public sealed class ProductionSecurityConfigurationTests
         var configuration = BuildConfiguration();
 
         Assert.Equal(
-            ["http://localhost:5173"],
+            new[] { "http://localhost:5173" },
             ProductionSecurityConfiguration.GetAllowedOrigins(configuration, production: false));
     }
 
