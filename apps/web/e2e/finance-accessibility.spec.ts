@@ -190,7 +190,7 @@ test.describe("TravelOS finance browser journeys", () => {
 
     // Small valid PNG fixture; it is only test data and is not committed as a file.
     const png = Buffer.from(
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l2sAAAAASUVORK5CYII=",
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGP4DwQACfsD/fteaysAAAAASUVORK5CYII=",
       "base64",
     );
     await fileInput.setInputFiles({ name: "playwright-receipt.png", mimeType: "image/png", buffer: png });
