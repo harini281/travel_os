@@ -10,6 +10,21 @@ public sealed class TravelOsApiFactory : WebApplicationFactory<Program>
     public const string TestIssuer = "TravelOS.IntegrationTests";
     public const string TestAudience = "TravelOS.IntegrationTests.Client";
 
+    static TravelOsApiFactory()
+    {
+        // Minimal hosting reads configuration while Program starts, before
+        // ConfigureWebHost's in-memory configuration callback is applied.
+        // Set isolated test-only environment values before WebApplicationFactory
+        // boots the application.
+        var connectionString = Environment.GetEnvironmentVariable("TRAVELOS_TEST_CONNECTION_STRING");
+        if (!string.IsNullOrWhiteSpace(connectionString))
+            Environment.SetEnvironmentVariable("ConnectionStrings__TravelOS", connectionString);
+
+        Environment.SetEnvironmentVariable("Jwt__Issuer", TestIssuer);
+        Environment.SetEnvironmentVariable("Jwt__Audience", TestAudience);
+        Environment.SetEnvironmentVariable("Jwt__SigningKey", TestSigningKey);
+    }
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         var connectionString = Environment.GetEnvironmentVariable("TRAVELOS_TEST_CONNECTION_STRING")
