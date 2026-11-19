@@ -313,7 +313,7 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
     private async Task<SeededTrip> SeedTripAsync()
     {
         var seed = new SeededTrip(
-            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid());
 
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
@@ -379,6 +379,5 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
     }
 
     private sealed record SeededTrip(
-        Guid OwnerId, Guid MemberId, Guid OutsiderId, Guid InvitedId,
-        Guid TripId, Guid UnusedId1, Guid UnusedId2);
+        Guid OwnerId, Guid MemberId, Guid OutsiderId, Guid InvitedId, Guid TripId);
 }
