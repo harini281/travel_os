@@ -427,6 +427,7 @@ jobs:
             printf 'OPENAI_API_KEY=\n'
             printf 'OPENAI_MODEL=gpt-4.1-mini\n'
             printf 'AI_RECEIPT_PROVIDER=demo\n'
+            printf 'AI_SERVICE_TOKEN=%s\n' "$(openssl rand -hex 48)"
             printf 'FLIGHTAWARE_API_KEY=\n'
           } > "$env_file"
           chmod 600 "$env_file"
