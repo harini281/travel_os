@@ -4,64 +4,81 @@
 **Repository:** https://github.com/harini281/travel_os  
 **Branch:** `stage51-security-testing`  
 **Baseline:** `stage50-production-readiness`  
-**Scope:** Source and configuration review, repository diff review, safe automated tests, and GitHub Actions evidence.
+**Current branch head at this update:** `324929de999809ec834494adbd3adf225b9fd0aa`  
+**Draft PR:** [#53 — Stage 51: Security verification and hardening](https://github.com/harini281/travel_os/pull/53)
 
-> **Overall result: FAIL / BLOCKED — not approved for public production.** This is a repository-level verification, not an independent security audit or penetration test. No production system or external provider was probed. Do not describe TravelOS as fully secure.
+> **Overall result: FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes its CI and security gates, but the current head still has a fresh Trivy-policy-coverage rerun queued, .NET 8 is out of support, branch protection is disabled, and independent staging security testing has not been performed. This is a repository-level assessment, not an independent audit, certification or penetration test.
 
 ## 1. Executive result
 
-The Stage 51 branch is based on Stage 50 with no base-branch divergence. The initial source comparison identified 31 changed paths; after adding the canonical assessment/response documents, the open Stage 51 draft PR lists 33 changed files. The reviewed changes include the AI service token boundary, receipt image normalization, authorization tests, GitHub security automation, Dependabot, deployment configuration and documentation. Remediation commits on the same branch include:
+The Stage 51 branch is based on Stage 50 with no base-branch divergence. The draft PR currently targets `stage50-production-readiness`, remains open and unmerged, and preserves the existing branch/commit history. PRs #51 and #52 were historical Stage 49/50 PRs; they were not changed or merged as part of this work.
 
-- `fa00fd3439e3e560d6dcfc023873c5ff4a4a81df` — removed the unavailable `SKException` catch that was breaking the .NET build.
-- `c2fc271934d5e4e8e3d570a8bfb5838c80a64865` — raises the AI image's setuptools floor to the patched `78.1.1` version reported by Trivy.
-- `0b31e6754bebc8d04e7f04fb50e718fde7204a08` — corrects the receipt image test's byte-sequence assertion so the test project can compile.
-- `a7d4e9ce3803cd96b7c08a82f433c4409052b031` — aligns the deployment smoke test with the intentionally minimal public AI health response.
-- `90600a0ca0c6a73a1c780463fb9786b719aea3a1` — attempts to remove the stale Debian `python3-setuptools` package from the AI image and asserts the active Python package is patched.
+The completed validation baseline is commit `2ceec4dbb85ef10d8d2144f8d5bcf37ab6e2de9f`:
 
-The code-build correction was verified by the Platform API build and C# CodeQL on commit `c2fc271`. That run then exposed a second issue: the new image unit test itself failed to compile with `CS1503` because an xUnit `DoesNotContain` overload was selected incorrectly; the assertion was changed to `Span.IndexOf` in `0b31e675`. The deployment smoke test also failed because it expected a `mode` field that was intentionally removed from the public health response; the workflow expectation was updated in `a7d4e9c`. The security run on `c2fc271` detected one remaining HIGH `setuptools 70.3.0` copy in the AI container despite the active pip-installed `setuptools 84.2.1`; `90600a0` attempts to remove the stale Debian package. The workflow runs for the current branch head `90600a0` were queued at the time this report was updated, so those latest fixes are **not yet verified**.
+- [CI run 44558532457](https://github.com/harini281/travel_os/actions/runs/44558532457) — **PASS** across all eight jobs.
+- [Security Assessment run 44558532472](https://github.com/harini281/travel_os/actions/runs/44558532472) — **PASS** across all five jobs.
 
-| Category | Result | Basis |
+Exact completed CI evidence:
+- Platform API build — passed.
+- Platform API unit tests — **48 passed, 0 failed, 27 skipped**. The skipped cases are PostgreSQL-backed tests and are run by the separate database job.
+- PostgreSQL-backed integration suite — **79 passed, 0 failed**.
+- AI API tests — **48 passed, 1 warning**.
+- Web typecheck/build — passed.
+- PostgreSQL migrations — passed.
+- Container deployment build and smoke test — passed, including web/API/AI health, migrations recorded and internal port/network isolation checks.
+- Browser E2E — **16 passed, 0 failed**, including Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, tablet Chromium and the receipt upload/confirmation/duplicate flow.
+
+Exact completed security evidence on the same commit:
+- CodeQL Platform API — passed and SARIF uploaded successfully to GitHub Code Scanning.
+- CodeQL Web and AI — passed and SARIF uploaded successfully to GitHub Code Scanning.
+- NuGet/npm/Python dependency audit — passed; npm reported 0 vulnerabilities, pip-audit reported no known vulnerabilities, and the NuGet high/critical gate passed.
+- Filesystem and secret scan — passed.
+- Trivy configuration scan — the job passed its HIGH/CRITICAL gate, but Trivy 0.70 warned that one AWS CloudFront logging policy requiring Trivy 0.72+ was skipped. This is a policy-coverage limitation, not a clean result for that skipped rule.
+- Platform API, AI API and web container image scans — all passed the HIGH/CRITICAL gate. The AI image was rebuilt as a multi-stage image so builder/package-manager layers do not enter the final runtime; the web runtime uses the refreshed NGINX unprivileged/Alpine 3.24 base.
+
+Because of the skipped Trivy policy, the current head pins Trivy `v0.76.2` for all five Trivy action uses. Fresh CI/security runs triggered by that version pin are queued/in progress. Do not call the Trivy configuration coverage final until that newer run passes and the CloudFront rule is no longer skipped.
+
+The final source also received a null-safe normalization change in `Preferences/PreferenceEndpoints.cs` after the completed baseline; the current-head build/test rerun for that small change is queued/in progress.
+
+| Category | Result | Evidence and limits |
 |---|---|---|
-| AI API service authentication | **PASS — source and API tests** | All three internal POST routes require the header; absent/wrong token tests, fail-closed configuration test and public-health response test exist. AI API test job passed on `c2fc271`; latest branch-head rerun is queued. |
-| Receipt image security | **BLOCKED** | The Platform API build passed on `c2fc271`, but the image unit-test project failed to compile due to the byte-array assertion (corrected in `0b31e675`). The current-head test run is queued. Animation and real resource-use behaviour are not fully tested. |
-| Authorization / IDOR | **INCOMPLETE** | Cross-user tests cover trips, budgets/recommendations, expenses, repayments, invitations and receipt file/upload access. The PostgreSQL test project did not compile on `c2fc271` due to the test assertion error; the corrected current-head run is queued. Route-family coverage remains incomplete. |
-| GitHub security automation | **PARTIAL** | On `c2fc271`, both CodeQL jobs, filesystem/secret/config scan and package audit passed. The container image job failed on one HIGH AI-image finding; the web image scan was skipped after that failure. Configuration scan is report-only. SARIF is stored as workflow artifacts, not uploaded to GitHub Code Scanning. Latest head run is queued. |
-| Dependency vulnerability checks | **PASS WITH LIMITS** | npm reported 0 vulnerabilities; pip-audit reported no known vulnerabilities; NuGet high/critical gate passed on the previous head. This does not prove the container images are free of vulnerabilities. |
-| Container image security | **FAIL / BLOCKED** | Trivy on `c2fc271` found one remaining HIGH finding (`setuptools 70.3.0`) in the AI image. Platform API image scan passed; web image scan was skipped. The latest Dockerfile attempts to remove the stale Debian package; a fresh scan is queued, not yet passed. |
-| Runtime support | **FAIL — production blocker** | Platform API and tests target .NET 8, Docker uses .NET 8 SDK/runtime, and workflows install SDK 8. .NET 8 support ended 10 November 2026. No .NET 10 migration was performed. |
-| Production readiness | **FAIL** | Unsupported runtime, build/test validation outstanding, image scan pending and independent staging security assessment not performed. |
+| AI API service authentication | **PASS** | All three internal POST routes require the service token; missing, wrong and malformed-present tokens are rejected; missing server configuration fails closed; public health returns only `{"status":"ok"}`. AI API tests passed. |
+| Receipt image security | **PASS for tested controls; residual limits** | Format/signature checks, full decode, dimension/pixel/decoded-byte ceilings, animation rejection, JPEG re-encoding, generated storage names and access checks are implemented. Unit/integration/E2E receipt journeys passed. No peak-memory/performance stress test or malware scan is evidenced. |
+| Authorization / IDOR | **PASS for exercised matrix; not exhaustive** | 79 PostgreSQL integration tests passed, including multi-user trips, expenses, repayments, invitations, preferences, polls/votes, receipt file/confirmation/delete and outsider upload side-effect cases. Not every route and HTTP verb has its own negative-access test. |
+| CodeQL / dependency / secret automation | **PASS on baseline; current Trivy policy rerun pending** | Both CodeQL analyses uploaded SARIF; dependency, filesystem/secret and Trivy image gates passed. The earlier Trivy config scan skipped one policy due to outdated scanner; Trivy 0.76.2 is now pinned and the current-head rerun is pending. |
+| Container image security | **PASS on baseline** | All three images passed Trivy HIGH/CRITICAL gates after moving to current image bases and a multi-stage AI runtime. This is a time-specific scan, not proof that no vulnerabilities exist. |
+| Runtime support | **FAIL — production blocker** | Platform API/tests, Docker and CI still target .NET 8, which ended support on 10 November 2026. Migration to .NET 10 LTS has not been performed or compatibility-tested. |
+| Production readiness | **FAIL / BLOCKED** | Unsupported .NET 8, branch protection disabled, independent staging assessment not performed, plus operational residuals listed below. |
 
 ## 2. Scope and evidence boundaries
 
-Reviewed the complete Stage 50-to-Stage 51 file list returned by GitHub compare, including:
+Reviewed the Stage 50-to-Stage 51 changed files, including:
+- AI service routes, request schemas, tests, requirements and Dockerfiles.
+- Platform API production-security configuration, middleware registration, AI client calls, receipt endpoints/image processor and project dependencies.
+- JWT/production-configuration tests, PostgreSQL-backed cross-user authorization tests and receipt-image tests.
+- CI/security workflows, Dependabot, production Compose and environment templates.
+- README, Stage 51 security plan, security assessment and response guide.
 
-- AI service routes, request schemas, tests, requirements and Dockerfile.
-- Platform API production-security configuration, middleware registration, AI client calls, receipt endpoints, image processor and project dependencies.
-- JWT and production-configuration tests, PostgreSQL-backed authorization tests and receipt-image tests.
-- CI and security workflows, Dependabot configuration, production Compose and example environment files.
-- README, Stage 51 security plan and the previous Stage 51 report.
+All active API/IDOR testing used generated identities, fake AI providers and a disposable PostgreSQL test database. No production database, real customer data, public deployment, third-party provider or external host was actively probed. No destructive testing or load/DoS testing was performed.
 
-Tests use generated identities, fake AI providers and disposable CI PostgreSQL containers. The repository test plan explicitly scopes active testing to local application code and disposable resources. No production database, live customer data, third-party service, public internet host or production deployment was accessed.
+The GitHub Actions runs cited below are the evidence record. Skipped, queued and unavailable steps are not counted as passes.
 
 ## 3. Findings
 
 ### S51-01 — Build-breaking SkiaSharp exception reference
 
-**Severity:** High (release blocker)  
-**Evidence:** On `c86b427`, Platform API compilation failed at `ReceiptImageProcessor.cs:83` with `CS0246: SKException could not be found`, blocking downstream build/test/scan steps.  
-**Remediation pushed:** `fa00fd3439e3e560d6dcfc023873c5ff4a4a81df` removes the unresolved catch type. The Platform API build and Platform API CodeQL jobs subsequently passed on `c2fc271`.  
-**Status:** Source build issue corrected and verified on `c2fc271`; full unit/integration testing remains pending because the test project had a separate compile error, corrected in `0b31e675`.
+**Severity:** High (release blocker when present)  
+**Evidence:** On the original `c86b427` head, Platform API compilation failed with `CS0246: SKException could not be found`, blocking dependent tests, image builds and C# CodeQL.  
+**Remediation:** Commit `fa00fd3439e3e560d6dcfc023873c5ff4a4a81df` removed the unresolved catch type. The Platform API build and CodeQL subsequently passed, and the final validation baseline CI passed the API build, unit tests, PostgreSQL integration tests and deployment smoke.  
+**Status:** Fixed and verified on the completed validation baseline. A small later null-safe preference normalization edit has a separate current-head validation run queued.
 
-### S51-02 — Three HIGH vulnerabilities in an earlier AI container scan
+### S51-02 — Vulnerabilities in earlier AI and web container images
 
-**Severity:** High  
-**Evidence:** Trivy job logs for [Security Assessment run 44548475831](https://github.com/harini281/travel_os/actions/runs/44548475831) reported:
-- `jaraco.context` 5.3.0 — CVE-2026-23949 — fixed in 6.1.0.
-- `setuptools` 70.3.0 — CVE-2025-47273 — fixed in 78.1.1.
-- `wheel` 0.45.1 — CVE-2026-24049 — fixed in 0.46.2.
-
-**Remediation pushed:** AI image installs `jaraco.context>=6.1.0` and `wheel>=0.46.2`; commit `c2fc271` added `setuptools>=78.1.1`. Trivy then confirmed the active setuptools distribution was 84.2.1 but still detected a second 70.3.0 system package. Commit `90600a0` purges Debian `python3-setuptools` if installed and asserts the Python-imported version.  
-**Status:** Two earlier findings no longer appeared in the `c2fc271` report; one HIGH remains. The `90600a0` image scan is queued. Do not mark resolved until Trivy confirms zero HIGH/CRITICAL findings for all built images.
+**Severity:** High / Critical (historical findings; remediated on the completed validation baseline)  
+**Evidence:** Earlier Trivy scans reported three HIGH Python package findings in the AI image: `jaraco.context` CVE-2026-23949, `setuptools` CVE-2025-47273 and `wheel` CVE-2026-24049. An old web image based on NGINX 1.27 / Alpine 3.21.3 reported 68 findings (65 HIGH, 3 CRITICAL), including Alpine/OpenSSL and other OS packages.  
+**Remediation:** Raised vulnerable Python package floors, then replaced the AI image with a multi-stage build: dependency installation occurs in a builder, packaging tools are removed, and only the cleaned CPython runtime tree is copied into a fresh Debian Trixie final image. The web image moved to an unprivileged NGINX 1.31.9 / Alpine 3.24 base with explicit `USER 101`. The web image scan and all three image scans passed on the completed validation baseline.  
+**Evidence:** [Security Assessment run 44558532472](https://github.com/harini281/travel_os/actions/runs/44558532472), container image job passed.  
+**Status:** PASS on the validation baseline. Current head has a fresh Trivy 0.76.2 run pending; continue to treat container findings as time-sensitive and rescan release images.
 
 ### S51-03 — Unsupported .NET runtime
 
@@ -70,27 +87,27 @@ Tests use generated identities, fake AI providers and disposable CI PostgreSQL c
 **Lifecycle:** Microsoft lists .NET 8 LTS as ending 11 November 2026 (Microsoft lifecycle page; the date is shown in Pacific Time) and .NET 10 support through 15 November 2028 in Pacific Time. The user-facing equivalent dates are commonly expressed as 10 November 2026 and 14 November 2028. See [Microsoft .NET lifecycle](https://learn.microsoft.com/en-us/lifecycle/products/microsoft-net-and-net-core) and [release/support guidance](https://learn.microsoft.com/en-us/dotnet/core/releases-and-support).  
 **Status:** Open. Current .NET 8 runtime is not an acceptable public-production runtime.
 
-### S51-04 — IDOR / authorization coverage is improved but incomplete
+### S51-04 — Authorization / IDOR regression coverage
 
-**Severity:** Medium (coverage gap; not a confirmed exploit)  
-**Evidence:** New PostgreSQL-backed tests exercise trip owner/member/outsider read and owner-only update; recommendation and budget boundaries; expense history/edit access and no unauthorized DB change; repayment recipient-only response; owner-managed invitation list and invitee-only acceptance; receipt member file access, outsider denial, uploader/owner deletion; receipt upload MIME mismatch, filename sanitization and oversized-file rejection. JWT validation tests cover missing/malformed bearer, wrong signing key, wrong issuer/audience, expired and future-`nbf` tokens.  
-**Gap:** The test matrix does not independently exercise every endpoint and verb for itineraries, recommendations, receipts (including confirmation), financial resources and all group membership/preference/voting functions. The current test suite cannot be called comprehensive. The PostgreSQL test job on the earlier completed head failed before tests could execute due to the same C# compile error.  
-**Status:** Incomplete; the tests are real PostgreSQL-backed integration tests, but on `c2fc271` the test assembly failed to compile at `ReceiptImageProcessorTests.cs:95` before the cases ran. The byte-array assertion was corrected in `0b31e675`; rerun against the disposable database is queued. Add confirmation/remaining group resource tests.
+**Severity:** Medium (coverage limitation; no confirmed exploitable IDOR established in this review)  
+**Evidence:** The 79-test PostgreSQL integration suite passed. It exercises trip owner/member/outsider read and owner-only update; recommendation/budget membership boundaries; expense history/edit access and no unauthorized DB mutation; recipient-only repayment response; owner-managed invitations and invitee-only acceptance; receipt member file access; uploader/owner confirmation/deletion; member-scoped preferences and group preference visibility; poll listing/voting/closure permissions; and outsider receipt-upload denial with no file or DB side effects. JWT tests cover missing/malformed bearer tokens, wrong signing key, issuer/audience, expiry and future `nbf`.  
+**Gap:** This is targeted regression coverage, not a full exhaustive method/verb matrix over every itinerary, notification, group membership, poll and finance route. No independently conducted penetration test has been performed.  
+**Status:** PASS for the routes and permission cases exercised by the 79 passing database tests; broader route-family coverage remains a follow-up.
 
-### S51-05 — Receipt image controls need more test evidence
+### S51-05 — Receipt image processing and storage controls
 
-**Severity:** Medium  
-**Source implementation observed:** JPEG/PNG/WebP allow-list, Skia codec format detection, static-frame restriction, maximum edge 8,000 pixels, maximum 16 million pixels, 128 MiB output-info decoded-byte budget, re-encoding to JPEG, generated GUID storage filename, private storage root, request/form size limits and membership checks on retrieval. The endpoint stores and forwards normalized bytes, not the original file.  
-**Tests observed:** Valid JPEG/PNG/WebP, malformed data, MIME mismatch, unsupported declared content type, excessive dimensions and pixel count, trailing bytes, path-shaped client filename and >8 MiB upload.  
-**Gaps:** No explicit animated-image regression test is present in the inspected test file; no measurement/stress test demonstrates peak process memory or processing-time bounds; cleanup on all failure paths and unauthorized upload side effects need additional integration coverage. The receipt delete handler swallows `IOException` after deleting the DB row, so a failed disk deletion can leave an orphaned file. A decode/pixel ceiling is not a malware-scanning control.  
-**Status:** Platform API build passed on `c2fc271`; unit-test compilation failed before running these tests and was corrected in `0b31e675`. Current-head execution is queued; residual test gaps remain after it passes.
+**Severity:** Medium (residual resource/operational test gaps)  
+**Source implementation observed:** JPEG/PNG/WebP allow-list, Skia codec format detection, single-frame restriction, maximum edge 8,000 pixels, maximum 16 million pixels, 128 MiB decoded-byte budget, 8 MiB upload limit, request/form limits, JPEG re-encoding, generated GUID storage filename, private storage root and trip membership checks. The Platform API stores and forwards normalized JPEG bytes rather than the original upload.  
+**Tests observed:** Supported JPEG/PNG/WebP, malformed image data, MIME mismatch, unsupported formats, excessive dimension/pixel count, trailing-content discard, >8 MiB rejection, path-shaped filename handling, outsider upload with no file/DB side effect, member file read, and uploader/owner receipt confirmation/deletion. The browser journey confirmed receipt upload, manual confirmation and duplicate-image detection.  
+**Gaps:** No dedicated animated-file regression fixture (the implementation rejects additional frames); no measured peak memory or processing-time stress test; no malware-scanning service is configured. Receipt deletion currently removes the database row before attempting file deletion and swallows `IOException`, which can leave an orphaned stored file.  
+**Status:** PASS for the tested image-validation/authorization cases. Performance bounds, dedicated animation test, malware scanning and deletion reconciliation remain open.
 
-### S51-06 — Code-scanning results are artifacts, not GitHub Code Scanning alerts
+### S51-06 — CodeQL, Trivy and GitHub security automation
 
-**Severity:** Medium (visibility/triage gap)  
-**Evidence:** `.github/workflows/security.yml` configures `github/codeql-action/analyze@v4` with `upload: false` and the job uses `security-events: read`. On `c2fc271`, both CodeQL jobs passed and SARIF was retained as artifacts `14543037675` (C#) and `14542098628` (Web/AI) from [Security Assessment run 44551270049](https://github.com/harini281/travel_os/actions/runs/44551270049). These are not uploaded GitHub Code Scanning alerts.  
-**Configuration scan:** Trivy configuration scanning is set to `exit-code: "0"`, intentionally preserving baseline findings for reviewer triage. Its job success is not a claim that configuration findings are absent or cleared.  
-**Status:** Partial. Enable a reviewed upload/triage policy or clearly keep artifact-only reporting as an accepted limitation; do not report artifact storage as GitHub alert triage.
+**Severity:** Medium (coverage and maintenance residuals)  
+**Evidence:** On [Security Assessment run 44558532472](https://github.com/harini281/travel_os/actions/runs/44558532472), both CodeQL jobs passed and logs confirmed “Successfully uploaded results” and “Analysis upload status is complete.” SARIF artifacts were also retained: C# `14545139248`, Web/AI `14547585066`. The filesystem/secret/config job passed; Trivy configuration now has an exit code of 1 for HIGH/CRITICAL findings.  
+**Trivy version limitation:** The successful baseline run used Trivy 0.70 and logged that the AWS CloudFront logging Rego policy was skipped because it required Trivy 0.72 or newer. The current branch pins all Trivy actions to `v0.76.2`, released 5 November 2026, to ensure policy compatibility. The post-pin run is queued/in progress and must pass before claiming complete configuration-policy coverage.  
+**Status:** PASS for CodeQL uploads, dependency audit, filesystem/secret scan and image scans on the validation baseline; configuration scan coverage rerun pending with Trivy 0.76.2.
 
 ### S51-07 — Dependency reproducibility
 
@@ -102,12 +119,13 @@ Tests use generated identities, fake AI providers and disposable CI PostgreSQL c
 ### S51-08 — Operational security residuals
 
 **Severity:** Medium  
-- Rate limiting is process-local; it is not coordinated across multiple API replicas.
-- Receipt storage is a private local volume; there is no verified malware-scanning workflow, object-store lifecycle/retention or deletion automation.
-- The receipt delete handler deletes the DB row before file deletion and catches `IOException` without surfacing the orphan; add cleanup/reconciliation monitoring.
-- ASP.NET Core Data Protection logs that its key directory is container-local and may not persist across container destruction; configure a protected persistent key ring for production.
-- Two CS8602 nullable-reference warnings remain in `Preferences/PreferenceEndpoints.cs` lines 104–105. Validate/normalize nullable request strings with a guard that the compiler understands.
-- Branch protection was reported disabled on the Stage 51 branch. Protect the branch and require CI/review checks before production promotion.
+- Rate limiting is process-local and is not coordinated across multiple API replicas.
+- Receipt storage is a private local volume; there is no verified malware scanner, object-store lifecycle/retention or automated deletion/reconciliation.
+- Receipt deletion can leave an orphaned file if filesystem deletion fails after the DB row is removed.
+- ASP.NET Core Data Protection keys are container-local unless a persistent, protected key directory is configured; configure a persistent key ring for production.
+- The final preference normalization source now guards nullable `Pace`/`TravelStyle` values; verify the current-head compile is warning-free in the latest CI run.
+- Branch protection was reported disabled on `stage51-security-testing`. Configure required reviews and CI/security checks before production promotion.
+- CI emits runner deprecation warnings because actions/checkout@v4, setup-dotnet@v4, setup-node@v4 and setup-python@v5 are still identified as Node 20 actions being forced to Node 24. Update action major versions as a separate maintenance change.
 - No independent staging penetration test, external specialist review or cloud IAM/ingress assessment was performed.
 
 ## 4. AI API authentication verification
@@ -131,51 +149,51 @@ Never expose `AI_SERVICE_TOKEN` to the browser or place it in a `VITE_*` variabl
 
 ## 5. GitHub Actions verification record
 
-### Completed workflow evidence on remediation commit `c2fc271934d5e4e8e3d570a8bfb5838c80a64865`
+### Completed validation baseline — commit `2ceec4dbb85ef10d8d2144f8d5bcf37ab6e2de9f`
 
-[TravelOS CI — run 44551269802](https://github.com/harini281/travel_os/actions/runs/44551269802) — **overall still in progress when inspected**:
-- PASS: Platform API application build.
-- PASS: AI API tests.
+[TravelOS CI — run 44558532457](https://github.com/harini281/travel_os/actions/runs/44558532457) — **PASS**:
+- PASS: Platform API build.
+- PASS: Platform API unit tests — 48 passed, 0 failed, 27 skipped (PostgreSQL-only cases are exercised by the separate integration job).
+- PASS: PostgreSQL integration tests — 79 passed, 0 failed.
+- PASS: AI API tests — 48 passed, 1 warning.
 - PASS: Web typecheck/build.
-- PASS: PostgreSQL migration validation.
-- FAIL: Platform API unit tests — test-project compilation failed with `CS1503` at `ReceiptImageProcessorTests.cs:95` (`byte[]` passed to an incompatible xUnit async-enumerable overload).
-- FAIL: Platform API PostgreSQL integration tests — same test-project compile error, so the integration cases did not execute.
-- FAIL: Container deployment smoke — all images built and services started healthy, but the smoke assertion expected `data['mode']=='demo'` from the AI health response. The health response was intentionally reduced to `{"status":"ok"}`; workflow assertion corrected in `a7d4e9c`. Migration and port-isolation assertions were skipped after the earlier health assertion failed.
-- Browser E2E job: isolated PostgreSQL, migrations, web build, browser installation, AI mock and Platform API startup passed; the browser journey step was still running at last inspection. Do not call it passed until completed.
+- PASS: PostgreSQL migrations.
+- PASS: Container deployment build and smoke test — web/API/AI health, migrations and internal network/port isolation assertions passed.
+- PASS: Browser E2E — 16 passed, 0 failed across Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit and tablet Chromium. Receipt upload/confirmation/duplicate detection and accessibility journeys passed.
 
-[TravelOS Security Assessment — run 44551270049](https://github.com/harini281/travel_os/actions/runs/44551270049) — **FAIL**:
-- PASS: CodeQL — Platform API.
-- PASS: CodeQL — Web and AI.
-- PASS: NuGet/npm/Python dependency audit.
-- PASS: filesystem/secret/config scan job. Configuration scan is report-only (`exit-code: 0`), so findings still require human review.
-- FAIL: container image vulnerability scans — Platform API image scan passed; AI image found one HIGH `setuptools 70.3.0` (`CVE-2025-47273`); web image build/scan were skipped after failure.
-- SARIF artifacts retained: C# `14543037675`; Web/AI `14542098628`. Filesystem/config artifact: `14542652226`. No Code Scanning alert upload was performed.
+[TravelOS Security Assessment — run 44558532472](https://github.com/harini281/travel_os/actions/runs/44558532472) — **PASS**:
+- PASS: CodeQL — Platform API; SARIF upload completed successfully.
+- PASS: CodeQL — Web and AI; SARIF upload completed successfully.
+- PASS: NuGet/npm/Python dependency audit. npm reported 0 vulnerabilities; pip-audit reported no known vulnerabilities; NuGet high/critical gate passed.
+- PASS: filesystem/secret scan.
+- PASS: Trivy configuration scan HIGH/CRITICAL gate, with the Trivy 0.70 policy-skip limitation noted below.
+- PASS: Trivy Platform API, AI API and web container images at the HIGH/CRITICAL threshold.
+- SARIF artifacts: C# `14545139248`; Web/AI `14547585066`. Trivy filesystem/config artifact: `14546990802`.
 
-The latest corrections on the current branch head `90600a0ca0c6a73a1c780463fb9786b719aea3a1` include the test assertion correction, health assertion correction and system setuptools purge. At the time of this update, its push-triggered workflows were queued:
-- [TravelOS CI — run 44551871672](https://github.com/harini281/travel_os/actions/runs/44551871672) — queued.
-- [TravelOS Security Assessment — run 44551871709](https://github.com/harini281/travel_os/actions/runs/44551871709) — queued.
+### Latest Trivy policy compatibility update
 
-### Earlier completed baseline-head evidence
+Commit `324929de999809ec834494adbd3adf225b9fd0aa` pins each Trivy action to `v0.76.2` (the 5 November 2026 release). This addresses the Trivy 0.70 warning that the AWS CloudFront logging policy required Trivy 0.72+. The new branch-head workflow runs were queued when this report was written:
+- [TravelOS Security Assessment — run 44559376151](https://github.com/harini281/travel_os/actions/runs/44559376151) — queued.
+- [TravelOS CI — run 44559376142](https://github.com/harini281/travel_os/actions/runs/44559376142) — queued.
 
-[TravelOS CI — run 44549756999](https://github.com/harini281/travel_os/actions/runs/44549756999) on `c86b427` — **FAIL**: AI API tests, web build and migrations passed; Platform API build/tests failed on unresolved `SKException`; deployment image build failed; browser E2E could not start the Platform API.
+The branch subsequently received a null-safe preference normalization change at `a40c73ef36b6693a7a9ce05a789bd5e2e4604155`; its exact-head build/security workflows are also pending. Do not transfer the prior baseline PASS status to this new head until its runs complete.
 
-[TravelOS Security Assessment — run 44549757071](https://github.com/harini281/travel_os/actions/runs/44549757071) on `c86b427` — **FAIL**: CodeQL Web/AI, filesystem/secret/config and dependency audit passed; Platform API CodeQL and container image builds failed at the unresolved type.
+### Earlier failed runs and regressions corrected
 
-An earlier image scan in [run 44548475831](https://github.com/harini281/travel_os/actions/runs/44548475831) reported three HIGH AI-image findings:
-- `jaraco.context` 5.3.0 — CVE-2026-23949 — fixed 6.1.0.
-- `setuptools` 70.3.0 — CVE-2025-47273 — fixed 78.1.1.
-- `wheel` 0.45.1 — CVE-2026-24049 — fixed 0.46.2.
+- [CI run 44549756999](https://github.com/harini281/travel_os/actions/runs/44549756999) on `c86b427` failed due to the unavailable `SKException` symbol; downstream API tests and image build were blocked.
+- [Security run 44549757071](https://github.com/harini281/travel_os/actions/runs/44549757071) on `c86b427` failed during Platform API CodeQL/image build due to the same compile error.
+- [Security run 44551270049](https://github.com/harini281/travel_os/actions/runs/44551270049) identified one remaining HIGH `setuptools 70.3.0` CVE in the AI image after a pip upgrade, and the image scans were incomplete.
+- Later runs exposed and corrected a test assertion compile error, a deployment smoke test expecting the old public health `mode` field, a stale PNG expectation after JPEG normalization, and an invalid E2E PNG fixture.
+- Historical web image Trivy runs reported 68 HIGH/CRITICAL findings (65 HIGH, 3 CRITICAL) in the old Alpine 3.21.3 base. The refreshed Alpine 3.24.4 web image passed Trivy on the completed validation baseline.
 
 ### Failed / skipped / unavailable distinctions
 
-- Platform API build on `c86b427` failed compilation; later application build and C# CodeQL succeeded on `c2fc271`.
-- Unit and PostgreSQL integration tests on `c2fc271` failed at test-project compilation before execution. The test compile issue was corrected; latest head run is queued.
-- The `c2fc271` deployment stack started, but the smoke test stopped on the obsolete AI health `mode` assertion. The assertion was aligned with the minimal health contract; latest head run is queued.
-- The E2E run on `c2fc271` had not completed the browser journey at last inspection; no E2E pass is claimed.
-- The AI container scan on `c2fc271` failed on one HIGH `setuptools` finding. Web image scan was skipped. The latest system-package purge is not yet validated.
-- The Trivy configuration scan is configured report-only; job success is not a clean configuration result.
-- CodeQL is artifact-only (`upload: false`); no GitHub Code Scanning alert upload is evidenced.
-- No independent DAST, third-party penetration test, cloud configuration audit or external production scan was performed.
+- No tests or scans are reported as passing solely because a job was created or queued.
+- The 27 skips in the Platform API unit-only job are PostgreSQL-dependent cases; the separate disposable PostgreSQL job ran 79 tests and all passed.
+- The browser E2E suite on the completed validation baseline ran 16 tests, all passed. Earlier E2E failures were test expectation/fixture regressions and were corrected.
+- The baseline Trivy 0.70 configuration scan skipped one AWS CloudFront policy because the policy required 0.72+. Trivy 0.76.2 is pinned on the current branch; exact-head rerun pending.
+- No independent DAST, third-party penetration test, cloud IAM review or production deployment assessment was performed.
+- The Node 20 action deprecation warning is recorded; no CI action major-version migration was included in this stage.
 
 ## 6. .NET 10 LTS migration plan (not executed)
 
@@ -195,17 +213,18 @@ The repository still targets .NET 8. A migration must be a separately reviewed c
 
 ## 7. Production blockers
 
-1. Current project runtime remains unsupported .NET 8.
-2. Build and all dependent tests/scans must pass on the final commit after the compiler correction.
-3. Fresh AI/Platform/Web Trivy image scans must complete; the historical AI-image HIGH findings must be shown resolved.
-4. Complete cross-user IDOR regression coverage for the remaining itinerary, group and receipt-confirmation paths.
-5. Decide whether CodeQL SARIF is uploaded for central alert triage and triage existing Trivy configuration findings.
-6. Add reproducible dependency lockfiles and reviewed update controls.
-7. Add staging security testing by an independent qualified tester; evaluate deployment IAM, secrets, ingress/TLS, backup restore, monitoring, rate limits and receipt lifecycle.
-8. Enable branch protection and require passing CI/security checks and review.
+1. **Unsupported .NET 8 runtime.** Platform API/tests, Docker images and workflow SDKs still target .NET 8, which ended support on 10 November 2026. Migrate to .NET 10 LTS in a separately reviewed change and run the full suite on it.
+2. **Current-head validation.** The completed green CI/security baseline is commit `2ceec4d`; Trivy 0.76.2 and null-safe preference changes are later commits. Their exact-head workflows must pass before the branch is called fully validated.
+3. **Branch protection is disabled.** Enable required pull-request review and required CI/security checks before production promotion.
+4. **No independent security test.** Obtain an authorized independent staging assessment/penetration test; this repository review and automated test suite are not a penetration test.
+5. **Operational security controls.** Configure a persistent Data Protection key ring, private receipt retention/deletion reconciliation, malware scanning if required by the threat model, distributed rate limiting if running multiple replicas, and reviewed cloud IAM/ingress/backup settings.
+6. **Dependency reproducibility.** The web project uses `latest` for several direct dependencies, has no committed `package-lock.json`, and CI uses `npm install`. Commit a lockfile and use `npm ci`; retain a deliberate update process for Python and NuGet ranges.
+7. **Scanner maintenance.** Validate the pinned Trivy 0.76.2 config scan and update deprecated Node 20-targeting GitHub Actions.
 
 ## 8. Assessment conclusion
 
-**FAIL / BLOCKED.** Stage 51 adds useful security controls and tests, but there are known build and historical image vulnerabilities, incomplete test evidence, an unsupported runtime, and incomplete automation/operational gates. The latest remediation-head workflows must be checked before the code fix or image updates can be called verified.
+**FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes CI and the configured security gates, including CodeQL uploads, dependency audits and all three image scans. The baseline also passes 79 PostgreSQL integration tests and 16 browser E2E journeys. The current branch head still needs its Trivy 0.76.2 re-run, and it still targets an unsupported .NET 8 runtime. Branch protection, independent testing and several operational controls remain outstanding.
+
+This report does not certify TravelOS as secure and does not describe the work as a penetration test.
 
 This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
