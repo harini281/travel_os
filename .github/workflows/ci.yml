@@ -41,8 +41,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r services/ai-api/requirements.txt
-      - name: Validate operational shell scripts
-        run: bash -n deploy/backup.sh deploy/verify-backup.sh
+      - name: Validate operational scripts and production env-file ignore rules
+        run: |
+          bash -n deploy/backup.sh deploy/verify-backup.sh
+          git check-ignore --quiet deploy/production.env
+          for sample in .env.example apps/web/.env.example deploy/production.env.example; do
+            if git check-ignore --quiet "$sample"; then
+              echo "::error::$sample must remain trackable as an example template."
+              exit 1
+            fi
+          done
       - name: Run tests
         run: pytest -q
 
