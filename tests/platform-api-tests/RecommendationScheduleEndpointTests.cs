@@ -115,8 +115,9 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
-        Assert.Equal(2, await db.ItineraryDays.CountAsync(x => x.ItineraryId ==
-            db.Itineraries.Where(i => i.TripId == seeded.TripId).Select(i => i.Id).Single()));
+        var itineraryId = await db.Itineraries.Where(i => i.TripId == seeded.TripId)
+            .Select(i => i.Id).SingleAsync();
+        Assert.Equal(2, await db.ItineraryDays.CountAsync(x => x.ItineraryId == itineraryId));
     }
 
     [PostgresFact]
@@ -209,7 +210,7 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
         using var update = AuthorizedApiRequest(
             seeded.TripId, seeded.OwnerId, HttpMethod.Put,
             $"/api/v1/trips/{seeded.TripId}/itinerary/activities/{activityId}",
-            ActivityBody("Updated museum visit", "10:15", "11:15"));
+            ActivityBody("Updated museum visit", "10:15", "11:45"));
         using var updateResponse = await Client.SendAsync(update);
         Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
         Assert.Equal("Updated museum visit", await db.Activities
