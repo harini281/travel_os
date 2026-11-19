@@ -134,3 +134,18 @@ dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configu
 ```
 
 When `TRAVELOS_TEST_CONNECTION_STRING` is absent, PostgreSQL-backed tests are skipped; pure planner unit tests continue to execute. Never use a production database for integration tests.
+
+
+## Stage 44 — itinerary workflow API integration tests
+
+Additional PostgreSQL-backed HTTP scenarios:
+1. Duplicate itinerary creation returns 409.
+2. The owner can add a day inside the trip date range and it is persisted.
+3. A trip member cannot add a day.
+4. The owner can add an activity with start/end times and those values are persisted.
+5. A trip member cannot add an activity.
+6. The owner can approve an itinerary containing activities and the approver/timestamp are persisted.
+7. Approved itineraries reject further activity additions with 409.
+8. The owner can update and delete an activity while the itinerary remains editable.
+
+Run the suite using the disposable PostgreSQL setup documented in the Stage 43 section. The same CI job now executes the Stage 42 planner tests, Stage 43 scheduling API tests and Stage 44 itinerary workflow tests.
