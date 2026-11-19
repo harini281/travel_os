@@ -45,7 +45,7 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
     {
         var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
         using var request = AuthorizedRequest(seeded.TripId, seeded.OwnerId);
-        using var response = await _client.SendAsync(request);
+        using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
@@ -65,7 +65,7 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
     {
         var seeded = await SeedTripAsync(addItinerary: true, addMember: false, approved: true);
         using var request = AuthorizedRequest(seeded.TripId, seeded.OwnerId);
-        using var response = await _client.SendAsync(request);
+        using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -75,7 +75,7 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
     {
         var seeded = await SeedTripAsync(addItinerary: false, addMember: false);
         using var request = AuthorizedRequest(seeded.TripId, seeded.OwnerId);
-        using var response = await _client.SendAsync(request);
+        using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
@@ -85,7 +85,7 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
     {
         var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
         using var request = AuthorizedRequest(seeded.TripId, seeded.OwnerId, durationMinutes: 10);
-        using var response = await _client.SendAsync(request);
+        using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
