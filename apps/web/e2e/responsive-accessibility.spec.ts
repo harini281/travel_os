@@ -77,9 +77,7 @@ test.describe("TravelOS responsive and accessibility journeys", () => {
     await registerThroughBrowser(page, `keyboard-${testInfo.project.name}`);
     const planTrip = page.getByRole("button", { name: /Plan a trip/ });
     await planTrip.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("heading", { name: "Let's plan somewhere." })).toBeVisible();
-
+    await page.keyboard.press("Tab");
     const focus = await page.evaluate(() => {
       const active = document.activeElement;
       if (!(active instanceof HTMLElement)) return null;
@@ -100,5 +98,10 @@ test.describe("TravelOS responsive and accessibility journeys", () => {
       focus!.outlineStyle !== "none" && focus!.outlineWidth !== "0px" || focus!.boxShadow !== "none",
       "Keyboard focus should have a visible outline or shadow",
     ).toBeTruthy();
+
+    await page.keyboard.press("Shift+Tab");
+    await expect(planTrip).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("heading", { name: "Let's plan somewhere." })).toBeVisible();
   });
 });
