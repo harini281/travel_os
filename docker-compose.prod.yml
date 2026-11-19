@@ -49,6 +49,14 @@ services:
       start_period: 15s
       retries: 5
     networks: [app]
+  receipt-storage-init:
+    image: alpine:3.20
+    restart: "no"
+    command: ["sh", "-c", "mkdir -p /var/lib/travelos/receipts && chown -R 1654:1654 /var/lib/travelos/receipts"]
+    volumes:
+      - receipts-data:/var/lib/travelos/receipts
+    networks: [data]
+
   platform-api:
     build:
       context: .
@@ -59,6 +67,8 @@ services:
         condition: service_completed_successfully
       ai-api:
         condition: service_healthy
+      receipt-storage-init:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
