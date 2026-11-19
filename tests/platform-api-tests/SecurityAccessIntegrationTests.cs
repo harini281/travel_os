@@ -132,6 +132,33 @@ public sealed class TripAccessSecurityIntegrationTests(TravelOsApiFactory factor
         using var outsiderResponse = await Client.SendAsync(outsiderRead);
         Assert.Equal(HttpStatusCode.NotFound, outsiderResponse.StatusCode);
 
+        var memberScopedRoutes = new[]
+        {
+            $"/api/v1/trips/{tripId}/itinerary",
+            $"/api/v1/trips/{tripId}/expenses",
+            $"/api/v1/trips/{tripId}/receipts",
+            $"/api/v1/trips/{tripId}/budget",
+            $"/api/v1/trips/{tripId}/settlements",
+            $"/api/v1/trips/{tripId}/flights",
+            $"/api/v1/trips/{tripId}/weather-disruptions",
+            $"/api/v1/trips/{tripId}/budget-intelligence",
+            $"/api/v1/trips/{tripId}/expense-intelligence",
+            $"/api/v1/trips/{tripId}/assistant/briefing"
+        };
+
+        foreach (var route in memberScopedRoutes)
+        {
+            using var memberRequest = AuthorizedRequest(memberId, HttpMethod.Get, route);
+            using var memberResponse = await Client.SendAsync(memberRequest);
+            Assert.True(
+                memberResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
+                $"Current member was unexpectedly blocked from {route}: {(int)memberResponse.StatusCode}");
+
+            using var outsiderRequest = AuthorizedRequest(outsiderId, HttpMethod.Get, route);
+            using var outsiderResourceResponse = await Client.SendAsync(outsiderRequest);
+            Assert.Equal(HttpStatusCode.NotFound, outsiderResourceResponse.StatusCode);
+        }
+
         var updateBody = new
         {
             name = "Unauthorized member edit",
