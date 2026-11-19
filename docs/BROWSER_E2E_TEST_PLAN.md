@@ -221,3 +221,19 @@ The disposable browser API is configured with an authentication request allowanc
 - The receipt browser flow tests the manual-review path, not a live OCR provider or extraction accuracy.
 - The browser test verifies local/private receipt access with an authenticated member token. It does not constitute a production storage security audit.
 - These tests do not verify actual bank transfer execution; repayments are application records that require recipient confirmation.
+
+
+### Stage 46 validation record
+
+Latest verified commit at the time of this record: `7048017914918de73307fb58d68c48568077d8a0`.
+
+GitHub Actions run [#44500311672](https://github.com/harini281/travel_os/actions/runs/44500311672) completed with **7/7 jobs successful**:
+- Web typecheck and production build.
+- Platform API Release build.
+- Platform API unit tests (10 passed; 14 database-dependent tests skipped in this job and covered by the PostgreSQL integration job).
+- Platform API PostgreSQL integration tests (24 passed).
+- AI API tests (18 passed; 1 warning).
+- PostgreSQL 16 migration validation.
+- Chromium browser suite (**7 passed**, combining four Stage 45 tests and three Stage 46 tests).
+
+The browser job uploaded `travelos-playwright-e2e-results` (artifact ID `14517361919`), containing the HTML report and test diagnostics. The receipt files themselves remain in the runner's temporary private directory and are not part of the artifact.
