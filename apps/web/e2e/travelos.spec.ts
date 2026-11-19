@@ -1,4 +1,4 @@
-import { expect, test, type Page, type APIRequestContext } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:8080";
 const TEST_PASSWORD = "TravelOS!E2E2027";
@@ -189,6 +189,11 @@ test.describe("TravelOS browser end-to-end journeys", () => {
     const schedulePanel = garden.locator(".recommendation-schedule");
     await expect(schedulePanel.getByText(/Suggested schedule/)).toBeVisible();
     const slotPicker = schedulePanel.getByLabel("Choose a time slot");
+    const saveWithTime = schedulePanel.getByRole("button", { name: "Save with this time" });
+    await expect(slotPicker).toHaveValue("");
+    await expect(saveWithTime).toBeDisabled();
+    await slotPicker.selectOption({ index: 1 });
+    await expect(saveWithTime).toBeEnabled();
     const selectedSlotText = (await slotPicker.locator("option:checked").textContent()) ?? "";
     const slotMatch = selectedSlotText.match(/(\d{2}:\d{2})–(\d{2}:\d{2})/);
     expect(slotMatch, `Expected a readable selected time slot, got: ${selectedSlotText}`).not.toBeNull();
@@ -196,7 +201,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
     const selectedEnd = slotMatch![2];
     expect(selectedEnd <= "10:00" || selectedStart >= "11:00").toBeTruthy();
 
-    await schedulePanel.getByRole("button", { name: "Save with this time" }).click();
+    await saveWithTime.click()
     const savedGarden = dayCard.locator(".activity-row").filter({ hasText: "Botanical Garden Walk" });
     await expect(savedGarden).toBeVisible();
     await expect(savedGarden.locator(".activity-time")).toContainText(selectedStart);
