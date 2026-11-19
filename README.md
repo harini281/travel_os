@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 — security verification and penetration-test preparation is under review on `stage51-security-testing`, based on Stage 50. GitHub currently reports PRs #51 (Stage 49) and #52 (Stage 50) as merged; this work has not merged Stage 51. No Stage 51 pull request existed during the initial audit. This remains an active development project, not approved for public production.
+> **Current development status:** Stage 51 — security verification and remediation is in review on `stage51-security-testing`, based on Stage 50. PRs #51 (Stage 49) and #52 (Stage 50) are historical merged PRs; they have not been changed or merged as part of Stage 51. A separate Stage 51 draft PR is being prepared. This remains an active development project, not approved for public production.
 
 ## 1. Features implemented
 
@@ -43,7 +43,7 @@ TravelOS is a multi-service travel-planning platform built with React, ASP.NET C
 | Layer | Technology |
 |---|---|
 | Web client | React, TypeScript, Vite, Leaflet |
-| Platform API | ASP.NET Core 8, C#, Entity Framework Core |
+| Platform API | ASP.NET Core 8 (current target; unsupported after November 2026), C#, Entity Framework Core |
 | Database | PostgreSQL 16, Npgsql |
 | AI service | Python 3.11+, FastAPI, Pydantic, OpenAI Responses API (optional) |
 | Maps and travel data | OpenStreetMap, OSRM, Open-Meteo, Frankfurter; optional FlightAware |
@@ -55,7 +55,7 @@ Install these before starting:
 
 - Git
 - Node.js 22+
-- .NET 8 SDK
+- .NET 8 SDK (needed to build the current branch; runtime is out of support — migrate to .NET 10 before production)
 - Python 3.11+
 - Docker Desktop / Docker Engine with Docker Compose
 - PostgreSQL client tools (`psql`) for applying migrations manually
@@ -630,3 +630,17 @@ Operational guidance:
 Create encrypted backups with deploy/backup.sh to an output directory outside the repository. Verify an encrypted backup with deploy/verify-backup.sh. The verification command checks checksums, decryption and archive structure; it is not a substitute for a full restore drill into an isolated PostgreSQL database and receipt-storage directory.
 
 Stage 50 does not deploy publicly, change production credentials, select a cloud provider, provision infrastructure or merge Stage 49 PR #51. Managed secrets, TLS ingress, off-host backup retention, restore drills, centralized observability, vulnerability scanning/SBOM, external-provider/privacy approvals, load testing and formal release sign-off remain explicit production gates.
+
+
+## Stage 51 — Security verification and remediation
+
+Stage 51 adds a shared server-only token boundary to the internal AI API, receipt image decoding and re-encoding, request and pixel limits, cross-user PostgreSQL regression tests, CodeQL/dependency/Trivy workflows and weekly Dependabot updates.
+
+**Security status: FAIL / BLOCKED — not approved for public production.** The current application still targets .NET 8, which is out of support as of this assessment date. Earlier branch-head CI failed because the receipt image processor referenced a missing SkiaSharp exception type; a narrow correction and AI container dependency updates have been pushed, but they require successful current-head CI and security scans before they can be called verified. Cross-user test coverage is improved but is not exhaustive. This work is not an independent penetration test or security certification.
+
+Read:
+- [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md)
+- [Security Response Guide](docs/SECURITY_RESPONSE_GUIDE.md)
+- [Stage 51 Security Assessment Plan](docs/STAGE51_SECURITY_ASSESSMENT_PLAN.md)
+
+Do not deploy the current .NET 8 target publicly. Review the .NET 10 LTS migration plan in the security assessment; the major upgrade was intentionally not mixed into this security-testing change.
