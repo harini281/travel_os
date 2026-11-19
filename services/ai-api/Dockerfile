@@ -1,22 +1,21 @@
-FROM python:3.11-slim
+FROM python:3.11.18-slim-trixie
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
-# Apply current Debian security updates and remove any system setuptools package.
+# Apply current Debian security updates before installing application dependencies.
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
-    && setuptools_packages="$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' | awk '$1 == "ii" && tolower($2) ~ /setuptools/ {print $2}')" \
-    && if [ -n "$setuptools_packages" ]; then apt-get purge --yes $setuptools_packages; fi \
     && rm -rf /var/lib/apt/lists/*
 
-# Keep tooling packages in the runtime layer at versions with current security fixes.
+# Install patched packaging tools for dependency installation, then remove them
+# so build tooling is not retained in the runtime image.
 RUN python -m pip install --no-cache-dir --upgrade \
-    "pip" "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" \
-    && find /usr/lib /usr/local/lib /opt -type d \( -name 'setuptools-70.3.0.dist-info' -o -name 'setuptools-70.3.0.egg-info' \) -prune -exec rm -rf '{}' + \
-    && python -c "import setuptools; from packaging.version import Version; assert Version(setuptools.__version__) >= Version('78.1.1'), setuptools.__version__"
+    "pip" "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0"
 
 COPY services/ai-api/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt \
+RUN python -m pip install --no-cache-dir -r requirements.txt \
+    && python -m pip uninstall --yes setuptools wheel \
+    && python -c "import importlib.metadata as m; assert not any(d.metadata['Name'].lower() in {'setuptools','wheel'} for d in m.distributions())" \
     && useradd --system --uid 10001 --create-home app
 COPY services/ai-api/app ./app
 USER 10001:10001
