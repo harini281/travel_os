@@ -28,7 +28,7 @@ public sealed class ProductionSecurityConfigurationTests
 
     [Theory]
     [InlineData("Host=postgres;Database=travelos;Username=travelos_app;Password=secret")]
-    [InlineData("Host=db.example.test;Port=5432;Database=travelos;Username=app;Password=secret")]
+    [InlineData("Host=db.example.test;Port=5432;Database=travelos;Username=travelos_app;Password=secret")]
     public void Production_accepts_complete_postgres_connection_strings(string connectionString)
     {
         var configuration = BuildConfiguration(
