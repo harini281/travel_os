@@ -237,3 +237,65 @@ GitHub Actions run [#44500311672](https://github.com/harini281/travel_os/actions
 - Chromium browser suite (**7 passed**, combining four Stage 45 tests and three Stage 46 tests).
 
 The browser job uploaded `travelos-playwright-e2e-results` (artifact ID `14517361919`), containing the HTML report and test diagnostics. The receipt files themselves remain in the runner's temporary private directory and are not part of the artifact.
+
+
+## Stage 47 — desktop cross-browser, mobile, keyboard and accessibility matrix
+
+### Browser projects
+
+| Project | Browser/device | Coverage |
+|---|---|---|
+| chromium | Desktop Chromium | All Stage 45–46 journeys plus desktop cross-browser smoke |
+| firefox | Desktop Firefox | Registration, trip creation, timed itinerary activity, refresh persistence and overflow |
+| webkit | Desktop WebKit | Same cross-browser smoke journey |
+| mobile-chromium | Pixel 7 emulation | Registration, dashboard, trip and itinerary at phone width |
+| mobile-webkit | iPhone 14 emulation | Same responsive journey on mobile WebKit |
+| tablet-chromium | 768 × 1024 touch viewport | Responsive journey at tablet width |
+
+### Stage 47 test cases
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| XBR-01 | Run the desktop itinerary smoke journey in Chromium, Firefox and WebKit | Registration, trip creation, timed activity save and refresh persistence all work; no uncaught page errors |
+| XBR-02 | Check horizontal layout on desktop browser engines | Document scroll width does not exceed viewport width |
+| MOB-01 | Open registration at Pixel 7, iPhone 14 and tablet viewports | Registration form is visible and page has no horizontal overflow |
+| MOB-02 | Register and open the dashboard on each responsive project | Dashboard is usable, trip planning entry is visible and there is no horizontal overflow |
+| MOB-03 | Create and open a trip itinerary on each responsive project | Day and activity render within viewport bounds without document-level horizontal scrolling |
+| A11Y-01 | Scan registration state with axe-core on responsive projects | No critical or serious WCAG 2.1 A/AA violations |
+| A11Y-02 | Scan authenticated dashboard state | No critical or serious WCAG 2.1 A/AA violations |
+| A11Y-03 | Scan itinerary state with a saved activity | No critical or serious WCAG 2.1 A/AA violations |
+| KEY-01 | Tab from the plan-trip control to the next control | Focus advances and receives a visible focus outline or shadow |
+| KEY-02 | Shift+Tab back and activate with Enter | Focus returns to the plan-trip button and opens the trip-creation form |
+
+The axe integration checks automated WCAG 2.0/2.1 A/AA rules and fails on critical or serious impact. It is a useful automated gate, not a conformance certificate. Manual screen-reader, full keyboard, zoom/reflow and assistive-technology testing are still necessary.
+
+### Local commands
+
+From `apps/web`:
+
+```bash
+npm install
+npx playwright install chromium firefox webkit
+npm run typecheck
+npm run typecheck:e2e
+npm run build
+npm run test:e2e
+```
+
+Desktop engines and responsive devices can be run separately:
+
+```bash
+npm run test:e2e:desktop
+npm run test:e2e:responsive
+```
+
+All projects run against the same real Platform API and disposable PostgreSQL test database. The AI recommendation upstream remains deterministic as in Stage 45; finance, receipt, authentication, itinerary and scheduling endpoints remain real. CI installs all three Playwright browser engines with Linux dependencies.
+
+### Known limitations
+
+- Playwright Firefox and WebKit are automated builds, not every released Firefox/Safari version or a physical device.
+- Pixel/iPhone projects are device emulation; physical Android and iOS hardware is not covered.
+- axe checks registration, dashboard and itinerary states only; other dynamic panels need additional scans.
+- The keyboard test checks representative focus and activation behaviour; it is not a full keyboard-only journey.
+- Human screen-reader and accessibility review remains outstanding.
+
