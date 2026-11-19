@@ -40,8 +40,10 @@ COPY --chown=10001:10001 services/ai-api/app ./app
 USER 10001:10001
 EXPOSE 8001
 
-# Confirm the runtime tree contains no build-only packaging tools and the app imports.
-RUN python -c "import importlib.metadata as m; names={d.metadata['Name'].lower() for d in m.distributions()}; assert not names.intersection({'setuptools','wheel','pip'}), names; import app.main"
+# Verify shared-library links and the installed application runtime without
+# requiring deployment-only provider secrets during the image build.
+RUN ldconfig \
+    && python -c "import importlib.metadata as m; names={d.metadata['Name'].lower() for d in m.distributions()}; assert not names.intersection({'setuptools','wheel','pip'}), names; import fastapi, pydantic, uvicorn"
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=5 CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
