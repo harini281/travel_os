@@ -101,8 +101,8 @@ public static class PreferenceEndpoints
         }
 
         preference.InterestsJson = JsonSerializer.Serialize(interests);
-        preference.Pace = request.Pace.ToLowerInvariant();
-        preference.TravelStyle = request.TravelStyle.ToLowerInvariant();
+        preference.Pace = (request.Pace ?? "balanced").Trim().ToLowerInvariant();
+        preference.TravelStyle = (request.TravelStyle ?? "mixed").Trim().ToLowerInvariant();
         preference.DailyBudgetAmount = request.DailyBudgetAmount;
         preference.DailyBudgetCurrencyCode = request.DailyBudgetAmount.HasValue
             ? request.DailyBudgetCurrencyCode!.Trim().ToUpperInvariant()
