@@ -37,9 +37,13 @@ Exact completed security evidence on the same commit:
 - Trivy configuration scan — the job passed its HIGH/CRITICAL gate, but Trivy 0.70 warned that one AWS CloudFront logging policy requiring Trivy 0.72+ was skipped. This is a policy-coverage limitation, not a clean result for that skipped rule.
 - Platform API, AI API and web container image scans — all passed the HIGH/CRITICAL gate. The AI image was rebuilt as a multi-stage image so builder/package-manager layers do not enter the final runtime; the web runtime uses the refreshed NGINX unprivileged/Alpine 3.24 base.
 
-Because of the skipped Trivy policy, commit `324929de999809ec834494adbd3adf225b9fd0aa` pins Trivy `v0.76.2` for all five Trivy action uses. [Security run 44559363790](https://github.com/harini281/travel_os/actions/runs/44559363790) is in progress against that pin; [run 44559565380](https://github.com/harini281/travel_os/actions/runs/44559565380) is queued for the later documentation-only head. Do not call the Trivy configuration coverage final until the new scanner run passes and the CloudFront rule is no longer skipped.
+Because of the skipped Trivy policy, commit `324929de999809ec834494adbd3adf225b9fd0aa` pins Trivy `v0.76.2` for all five Trivy action uses. A follow-up image build on that commit failed because `ldconfig` ran after the Dockerfile switched to UID 10001; the error was `Can't create temporary cache file /etc/ld.so.cache~: Permission denied`. Commit `aadca97e81a72984e48cae12641d129c4123d41f` moves the linker-cache/import validation before the privilege drop while keeping the final runtime process non-root. The exact-head validation workflows are now queued:
+- [TravelOS CI — run 44559967580](https://github.com/harini281/travel_os/actions/runs/44559967580).
+- [TravelOS Security Assessment — run 44559968042](https://github.com/harini281/travel_os/actions/runs/44559968042).
 
-The final source also received a null-safe normalization change in `Preferences/PreferenceEndpoints.cs` after the completed baseline; the current-head build/test rerun for that small change is queued/in progress.
+Do not call Trivy 0.76.2 configuration coverage final until that exact-head scan passes and the CloudFront rule is no longer skipped.
+
+The final source also received null-safe normalization in `Preferences/PreferenceEndpoints.cs` (commit `a40c73ef36b6693a7a9ce05a789bd5e2e4604155`). The latest CI rerun will validate that change together with the corrected AI image Dockerfile.
 
 | Category | Result | Evidence and limits |
 |---|---|---|
