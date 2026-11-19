@@ -44,6 +44,7 @@ jobs:
       - name: Validate operational scripts and production env-file ignore rules
         run: |
           bash -n deploy/backup.sh deploy/verify-backup.sh
+          sh -n deploy/migrate.sh
           git check-ignore --quiet deploy/production.env
           for sample in .env.example apps/web/.env.example deploy/production.env.example; do
             if git check-ignore --quiet "$sample"; then
@@ -502,6 +503,12 @@ jobs:
           app_role_admin_flags="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)::text FROM pg_roles WHERE rolname = 'travelos_app'")"
           echo "Application database role has elevated PostgreSQL privileges: $app_role_admin_flags"
           test "$app_role_admin_flags" = "false"
+          app_role_database_create="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT has_database_privilege('travelos_app', 'travelos', 'CREATE')::text")"
+          test "$app_role_database_create" = "false"
+          app_role_schema_create="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT has_schema_privilege('travelos_app', 'public', 'CREATE')::text")"
+          test "$app_role_schema_create" = "false"
+          app_role_memberships="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT count(*) FROM pg_auth_members WHERE member = (SELECT oid FROM pg_roles WHERE rolname = 'travelos_app')")"
+          test "$app_role_memberships" = "0"
           migration_history_write="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT has_table_privilege('travelos_app', 'travelos_migration_history', 'INSERT')::text")"
           test "$migration_history_write" = "false"
       - name: Verify internal-only ports and service network isolation
