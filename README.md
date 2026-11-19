@@ -407,3 +407,10 @@ dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configu
 ```
 
 The integration tests are skipped when `TRAVELOS_TEST_CONNECTION_STRING` is not configured; the scheduling planner unit tests still run normally. Never point this variable at a production or personal database.
+
+
+### Stage 44 — itinerary workflow API integration tests
+
+Extended the PostgreSQL-backed Platform API suite beyond recommendation scheduling. The tests now exercise owner-only itinerary creation, day creation, timed activity creation, activity updates/deletion, itinerary approval and read-only enforcement after approval. They also verify trip members cannot add days or activities and duplicate itinerary creation is rejected.
+
+Run with the Stage 43 PostgreSQL test setup using `TRAVELOS_TEST_CONNECTION_STRING` as documented above. The CI integration job runs the complete suite against PostgreSQL 16 after applying all migrations.
