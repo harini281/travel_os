@@ -299,3 +299,19 @@ All projects run against the same real Platform API and disposable PostgreSQL te
 - The keyboard test checks representative focus and activation behaviour; it is not a full keyboard-only journey.
 - Human screen-reader and accessibility review remains outstanding.
 
+
+### Stage 47 verified CI run
+
+[GitHub Actions run #44510651024](https://github.com/harini281/travel_os/actions/runs/44510651024) completed successfully on code commit `4fe728cb80625e0ced82c959520f0c708451b51d`.
+
+All seven CI jobs passed:
+- Web typecheck and Vite production build.
+- Platform API Release build.
+- Platform API unit tests: 10 passed; 14 PostgreSQL-dependent tests skipped in the database-free unit job.
+- PostgreSQL-backed Platform API integration tests: 24 passed.
+- AI API tests: 18 passed, 1 warning.
+- PostgreSQL 16 migration validation.
+- Cross-browser, mobile and accessibility Playwright matrix: **16 passed in 2.7 minutes**.
+
+The browser job uploaded artifact `travelos-playwright-e2e-results` (ID `14523596375`) with HTML output and failure diagnostics. No live paid AI provider is used; only the deterministic recommendation-generation upstream is mocked. Authentication, trips, itineraries, scheduling, finance and receipts remain backed by the real Platform API and disposable PostgreSQL database.
+
