@@ -292,6 +292,41 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
             using var outsiderFileResponse = await Client.SendAsync(outsiderFile);
             Assert.Equal(HttpStatusCode.NotFound, outsiderFileResponse.StatusCode);
 
+            using var memberConfirm = AuthorizedRequest(
+                seed.MemberId, HttpMethod.Post,
+                $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}/confirm",
+                new
+                {
+                    merchantName = "Unauthorized member confirmation",
+                    receiptDate = "2026-12-02",
+                    totalAmount = 25m,
+                    currencyCode = "LKR"
+                });
+            using var memberConfirmResponse = await Client.SendAsync(memberConfirm);
+            Assert.Equal(HttpStatusCode.Forbidden, memberConfirmResponse.StatusCode);
+
+            await using (var confirmVerifyScope = factory.Services.CreateAsyncScope())
+            {
+                var confirmVerifyDb = confirmVerifyScope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+                var unchangedReceipt = await confirmVerifyDb.TripReceipts.SingleAsync(x => x.Id == receiptId);
+                Assert.Null(unchangedReceipt.MerchantName);
+                Assert.Null(unchangedReceipt.ConfirmedByUserId);
+                Assert.Equal("pending_review", unchangedReceipt.ExtractionStatus);
+            }
+
+            using var ownerConfirm = AuthorizedRequest(
+                seed.OwnerId, HttpMethod.Post,
+                $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}/confirm",
+                new
+                {
+                    merchantName = "Owner confirmed receipt",
+                    receiptDate = "2026-12-02",
+                    totalAmount = 25m,
+                    currencyCode = "LKR"
+                });
+            using var ownerConfirmResponse = await Client.SendAsync(ownerConfirm);
+            Assert.Equal(HttpStatusCode.OK, ownerConfirmResponse.StatusCode);
+
             using var memberDelete = AuthorizedRequest(
                 seed.MemberId, HttpMethod.Delete,
                 $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}");
@@ -388,6 +423,141 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
         await using var scope = factory.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
         Assert.Equal(0, await db.TripReceipts.CountAsync(x => x.TripId == seed.TripId));
+    }
+
+    [PostgresFact]
+    public async Task PreferencesAndGroupPolls_AreScopedToCurrentTripMembers()
+    {
+        var seed = await SeedTripAsync();
+
+        using var memberSavePreference = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Put,
+            $"/api/v1/trips/{seed.TripId}/preferences/me",
+            new
+            {
+                interests = new[] { "culture", "food" },
+                pace = "balanced",
+                travelStyle = "mixed",
+                dailyBudgetAmount = 125m,
+                dailyBudgetCurrencyCode = "LKR",
+                notes = "Member's private preference"
+            });
+        using var memberSavePreferenceResponse = await Client.SendAsync(memberSavePreference);
+        Assert.Equal(HttpStatusCode.OK, memberSavePreferenceResponse.StatusCode);
+
+        using var memberGetPreference = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Get,
+            $"/api/v1/trips/{seed.TripId}/preferences/me");
+        using var memberGetPreferenceResponse = await Client.SendAsync(memberGetPreference);
+        Assert.Equal(HttpStatusCode.OK, memberGetPreferenceResponse.StatusCode);
+        using (var preferenceJson = System.Text.Json.JsonDocument.Parse(
+            await memberGetPreferenceResponse.Content.ReadAsStringAsync()))
+        {
+            Assert.Equal(seed.MemberId,
+                preferenceJson.RootElement.GetProperty("userId").GetGuid());
+        }
+
+        using var ownerGetGroupPreferences = AuthorizedRequest(
+            seed.OwnerId, HttpMethod.Get,
+            $"/api/v1/trips/{seed.TripId}/preferences/group");
+        using var ownerGetGroupPreferencesResponse = await Client.SendAsync(ownerGetGroupPreferences);
+        Assert.Equal(HttpStatusCode.OK, ownerGetGroupPreferencesResponse.StatusCode);
+
+        using var outsiderGetGroupPreferences = AuthorizedRequest(
+            seed.OutsiderId, HttpMethod.Get,
+            $"/api/v1/trips/{seed.TripId}/preferences/group");
+        using var outsiderGetGroupPreferencesResponse = await Client.SendAsync(outsiderGetGroupPreferences);
+        Assert.Equal(HttpStatusCode.NotFound, outsiderGetGroupPreferencesResponse.StatusCode);
+
+        using var outsiderSavePreference = AuthorizedRequest(
+            seed.OutsiderId, HttpMethod.Put,
+            $"/api/v1/trips/{seed.TripId}/preferences/me",
+            new
+            {
+                interests = new[] { "shopping" },
+                pace = "fast",
+                travelStyle = "culture",
+                dailyBudgetAmount = 10m,
+                dailyBudgetCurrencyCode = "LKR",
+                notes = "Unauthorized preference"
+            });
+        using var outsiderSavePreferenceResponse = await Client.SendAsync(outsiderSavePreference);
+        Assert.Equal(HttpStatusCode.NotFound, outsiderSavePreferenceResponse.StatusCode);
+
+        using var ownerCreatePoll = AuthorizedRequest(
+            seed.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/polls",
+            new
+            {
+                title = "Choose a group activity",
+                description = "Security test poll",
+                options = new[] { "Museum", "Beach" }
+            });
+        using var ownerCreatePollResponse = await Client.SendAsync(ownerCreatePoll);
+        Assert.Equal(HttpStatusCode.Created, ownerCreatePollResponse.StatusCode);
+        using var pollJson = System.Text.Json.JsonDocument.Parse(
+            await ownerCreatePollResponse.Content.ReadAsStringAsync());
+        var pollId = pollJson.RootElement.GetProperty("id").GetGuid();
+
+        using var memberListPolls = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Get, $"/api/v1/trips/{seed.TripId}/polls");
+        using var memberListPollsResponse = await Client.SendAsync(memberListPolls);
+        Assert.Equal(HttpStatusCode.OK, memberListPollsResponse.StatusCode);
+
+        using var outsiderListPolls = AuthorizedRequest(
+            seed.OutsiderId, HttpMethod.Get, $"/api/v1/trips/{seed.TripId}/polls");
+        using var outsiderListPollsResponse = await Client.SendAsync(outsiderListPolls);
+        Assert.Equal(HttpStatusCode.NotFound, outsiderListPollsResponse.StatusCode);
+
+        var optionId = pollJson.RootElement.TryGetProperty("options", out var createdOptions)
+            ? createdOptions[0].GetProperty("id").GetGuid()
+            : Guid.Empty;
+        if (optionId == Guid.Empty)
+        {
+            using var listJson = System.Text.Json.JsonDocument.Parse(
+                await memberListPollsResponse.Content.ReadAsStringAsync());
+            optionId = listJson.RootElement[0].GetProperty("options")[0].GetProperty("id").GetGuid();
+        }
+
+        using var outsiderVote = AuthorizedRequest(
+            seed.OutsiderId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/polls/{pollId}/vote",
+            new { optionId });
+        using var outsiderVoteResponse = await Client.SendAsync(outsiderVote);
+        Assert.Equal(HttpStatusCode.NotFound, outsiderVoteResponse.StatusCode);
+
+        using var memberVote = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/polls/{pollId}/vote",
+            new { optionId });
+        using var memberVoteResponse = await Client.SendAsync(memberVote);
+        Assert.Equal(HttpStatusCode.OK, memberVoteResponse.StatusCode);
+
+        using var memberClosePoll = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/polls/{pollId}/close");
+        using var memberClosePollResponse = await Client.SendAsync(memberClosePoll);
+        Assert.Equal(HttpStatusCode.Forbidden, memberClosePollResponse.StatusCode);
+
+        await using (var verifyScope = factory.Services.CreateAsyncScope())
+        {
+            var db = verifyScope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+            Assert.True(await db.GroupPollVotes.AnyAsync(
+                x => x.PollId == pollId && x.UserId == seed.MemberId && x.OptionId == optionId));
+            Assert.Equal("open", await db.GroupPolls
+                .Where(x => x.Id == pollId).Select(x => x.Status).SingleAsync());
+        }
+
+        using var ownerClosePoll = AuthorizedRequest(
+            seed.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/polls/{pollId}/close");
+        using var ownerClosePollResponse = await Client.SendAsync(ownerClosePoll);
+        Assert.Equal(HttpStatusCode.OK, ownerClosePollResponse.StatusCode);
+
+        await using var finalScope = factory.Services.CreateAsyncScope();
+        var finalDb = finalScope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        Assert.Equal("closed", await finalDb.GroupPolls
+            .Where(x => x.Id == pollId).Select(x => x.Status).SingleAsync());
     }
 
     private static byte[] CreatePng(int width, int height)
