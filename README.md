@@ -361,7 +361,7 @@ services/ai-api           FastAPI AI service
 database/migrations       Ordered PostgreSQL SQL migrations
 docs                      Architecture and feature test plans
 packages/contracts        Shared/versioned API contracts
-tests                     AI API automated test suite
+tests                     AI and Platform API automated test suites
 infrastructure            Deployment and infrastructure assets
 .github/workflows         GitHub Actions CI
 ```
@@ -391,3 +391,19 @@ Run locally from the repository root:
 ```bash
 dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
 ```
+
+
+### Stage 43 — PostgreSQL-backed scheduling API integration tests
+
+Added an ASP.NET Core integration-test host and HTTP-level tests for the recommendation scheduling endpoint. The tests cover authentication, owner-only access, successful slot generation, no persistence by the suggestion endpoint, approved-itinerary rejection, missing-itinerary rejection and invalid-duration rejection.
+
+GitHub Actions provisions a disposable PostgreSQL 16 database, applies the repository migrations, and runs these tests against the real platform API and PostgreSQL provider.
+
+To run locally, create a disposable test database and apply all migrations listed in `.github/workflows/ci.yml`, then set:
+
+```bash
+TRAVELOS_TEST_CONNECTION_STRING="Host=localhost;Port=5432;Database=travelos_test;Username=postgres;Password=your-test-password"
+dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
+```
+
+The integration tests are skipped when `TRAVELOS_TEST_CONNECTION_STRING` is not configured; the scheduling planner unit tests still run normally. Never point this variable at a production or personal database.
