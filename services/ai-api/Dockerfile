@@ -2,18 +2,17 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 WORKDIR /app
 
-# Apply current Debian security updates before the image is assembled.
+# Apply current Debian security updates and remove any system setuptools package.
 RUN apt-get update \
     && apt-get upgrade -y --no-install-recommends \
-    && setuptools_packages="$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\\n' | awk '$1 == \"ii\" && tolower($2) ~ /setuptools/ {print $2}')" \
+    && setuptools_packages="$(dpkg-query -W -f='${db:Status-Abbrev} ${binary:Package}\n' | awk '$1 == "ii" && tolower($2) ~ /setuptools/ {print $2}')" \
     && if [ -n "$setuptools_packages" ]; then apt-get purge --yes $setuptools_packages; fi \
     && rm -rf /var/lib/apt/lists/*
 
 # Keep tooling packages in the runtime layer at versions with current security fixes.
 RUN python -m pip install --no-cache-dir --upgrade \
     "pip" "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0" \
-    && find /usr/lib /usr/local/lib /opt -type d \\
-       \\( -name 'setuptools-70.3.0.dist-info' -o -name 'setuptools-70.3.0.egg-info' \\) -prune -exec rm -rf '{}' + \\
+    && find /usr/lib /usr/local/lib /opt -type d \( -name 'setuptools-70.3.0.dist-info' -o -name 'setuptools-70.3.0.egg-info' \) -prune -exec rm -rf '{}' + \
     && python -c "import setuptools; from packaging.version import Version; assert Version(setuptools.__version__) >= Version('78.1.1'), setuptools.__version__"
 
 COPY services/ai-api/requirements.txt ./requirements.txt
