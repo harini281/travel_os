@@ -66,6 +66,63 @@ jobs:
       - name: Run platform API tests
         run: dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
 
+  platform-api-integration-tests:
+    name: Platform API PostgreSQL integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: travelos_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d travelos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Prepare integration-test database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in \
+            001_initial_schema.sql \
+            002_identity_schema.sql \
+            003_itinerary_constraints.sql \
+            003_trip_invitations.sql \
+            004_trip_member_preferences.sql \
+            005_group_polls.sql \
+            006_shared_expenses.sql \
+            007_trip_repayments.sql \
+            008_trip_expense_audits.sql \
+            009_trip_receipts.sql \
+            010_currency_conversions.sql \
+            011_conversion_source_expense_date.sql \
+            012_trip_budget_alerts.sql \
+            013_trip_weather_assessments.sql \
+            014_trip_flights.sql \
+            015_flight_journey_groups.sql \
+            016_activity_schedule_times.sql \
+            017_trip_notifications.sql
+          do
+            echo "Applying $migration"
+            psql -h localhost -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+          done
+      - name: Run PostgreSQL-backed API integration tests
+        env:
+          TRAVELOS_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=travelos_test;Username=postgres;Password=postgres
+        run: dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+
   database-migrations:
     name: PostgreSQL migration validation
     runs-on: ubuntu-latest
