@@ -71,7 +71,8 @@ There are **three example environment files** to copy. Do not commit real secret
 | `deploy/production.env.example` → `deploy/production.env` | Production Compose settings; keep the copied file out of Git and protect it with restrictive permissions | Only for the production-style Compose stack |
 | `services/platform-api/appsettings.json` | Non-secret .NET logging/default configuration | Already present |
 | `services/platform-api/Properties/launchSettings.json` | Local API profile and port 8080 | Already present |
-| `services/ai-api/requirements.txt` | Python service dependencies | Already present |
+| `services/ai-api/requirements.txt` | AI service runtime dependencies | Already present |
+| `services/ai-api/requirements-dev.txt` | Runtime dependencies plus pytest for local/CI tests | Already present |
 | `docker-compose.yml` | PostgreSQL container, port, volume and initial SQL scripts | Already present |
 | `.github/workflows/ci.yml` | Automated build, test and migration checks | Already present |
 
@@ -286,7 +287,7 @@ dotnet build services/platform-api/TravelOS.PlatformApi.csproj --configuration R
 ### AI API tests
 
 ```bash
-python -m pip install -r services/ai-api/requirements.txt
+python -m pip install -r services/ai-api/requirements-dev.txt
 python -m pytest -q
 ```
 
