@@ -40,7 +40,9 @@ public static class ReceiptImageProcessor
             if (info is null ||
                 info.Width <= 0 || info.Height <= 0 ||
                 info.Width > MaximumDimension || info.Height > MaximumDimension ||
-                (long)info.Width * info.Height > MaximumPixels)
+                (long)info.Width * info.Height > MaximumPixels ||
+                info.FrameCount > 1 ||
+                info.GetPixelMemorySize() > 128L * 1024 * 1024)
                 return false;
 
             using var image = Image.Load(source);
