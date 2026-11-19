@@ -20,6 +20,23 @@ from app.schemas import (
 client = TestClient(app, headers={"X-TravelOS-Service-Token": os.environ["AI_SERVICE_TOKEN"]})
 
 
+def recommendation_payload():
+    return {
+        "destination": "Lisbon",
+        "activityDate": "2027-05-01",
+        "currency": "EUR",
+        "travellerCount": 2,
+        "interests": ["food", "architecture"],
+        "travelPace": "balanced",
+        "dailyBudgetRemaining": 120,
+        "question": "Suggest an indoor alternative because rain is forecast.",
+        "focus": "weather",
+        "existingActivities": ["Walk around Alfama"],
+        "weatherContext": ["High precipitation probability; outdoor walking may be uncomfortable."],
+        "planningContext": ["One afternoon slot is free."],
+    }
+
+
 def planner_payload():
     return {
         "contractVersion": "1.0",
@@ -260,23 +277,6 @@ def test_receipt_provider_openai_mode_requires_key(monkeypatch):
     })
     assert response.status_code == 503
     assert "OPENAI_API_KEY" in response.json()["detail"]
-
-
-def recommendation_payload():
-    return {
-        "destination": "Lisbon",
-        "activityDate": "2027-05-01",
-        "currency": "EUR",
-        "travellerCount": 2,
-        "interests": ["food", "architecture"],
-        "travelPace": "balanced",
-        "dailyBudgetRemaining": 120,
-        "question": "Suggest an indoor alternative because rain is forecast.",
-        "focus": "weather",
-        "existingActivities": ["Walk around Alfama"],
-        "weatherContext": ["High precipitation probability; outdoor walking may be uncomfortable."],
-        "planningContext": ["One afternoon slot is free."],
-    }
 
 
 def test_recommendations_are_explicitly_demo_only_without_ai_provider():
