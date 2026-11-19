@@ -113,7 +113,7 @@ jobs:
           dotnet restore services/platform-api/TravelOS.PlatformApi.csproj
           report="$(dotnet list services/platform-api/TravelOS.PlatformApi.csproj package --vulnerable --include-transitive)"
           printf '%s\n' "$report"
-          if printf '%s\n' "$report" | grep -Eiq '\\b(High|Critical)\\b'; then
+          if printf '%s\n' "$report" | grep -Eiq '(^|[^[:alpha:]])(High|Critical)([^[:alpha:]]|$)'; then
             echo "::error::High or critical NuGet vulnerabilities were reported."
             exit 1
           fi
