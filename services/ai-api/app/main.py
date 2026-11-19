@@ -17,7 +17,7 @@ def require_platform_service_auth(
     expected = os.getenv("AI_SERVICE_TOKEN", "").strip()
     if not expected:
         raise HTTPException(status_code=503, detail="Internal AI service authentication is not configured.")
-    if service_token is None or not hmac.compare_digest(expected, service_token):
+    if service_token is None or not hmac.compare_digest(expected.encode("utf-8"), service_token.encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid internal service credentials.")
 
 
