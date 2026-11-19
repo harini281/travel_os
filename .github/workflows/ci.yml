@@ -71,32 +71,40 @@ jobs:
   platform-api-integration-tests:
     name: Platform API PostgreSQL integration tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: travelos_test
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d travelos_test"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Prepare integration-test database
+      - name: Start isolated PostgreSQL with a per-job random password
         env:
-          PGPASSWORD: postgres
+          POSTGRES_DB: travelos_test
+          POSTGRES_USER: postgres
         run: |
+          set +x
           set -euo pipefail
+          umask 077
+          postgres_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$postgres_password"
+          printf '%s' "$postgres_password" > "$RUNNER_TEMP/travelos-postgres-password"
+          export POSTGRES_PASSWORD="$postgres_password"
+          docker run --detach --name travelos-postgres --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD postgres:16
+          unset postgres_password POSTGRES_PASSWORD
+          for attempt in $(seq 1 60); do
+            if docker exec travelos-postgres pg_isready -U postgres -d travelos_test >/dev/null 2>&1; then
+              echo "Disposable PostgreSQL is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs travelos-postgres 2>&1 | python -c 'import pathlib,sys; secret=pathlib.Path(sys.argv[1]).read_text().strip(); text=sys.stdin.read(); sys.stdout.write(text.replace(secret, "[REDACTED]") if secret else text)' "$RUNNER_TEMP/travelos-postgres-password"
+          exit 1
+      - name: Prepare integration-test database
+        run: |
+          set +x
+          set -euo pipefail
+          export PGPASSWORD="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
           for migration in \
             001_initial_schema.sql \
             002_identity_schema.sql \
@@ -118,32 +126,29 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            psql -h localhost -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Run PostgreSQL-backed API integration tests
-        env:
-          TRAVELOS_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=travelos_test;Username=postgres;Password=postgres
-        run: dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+        run: |
+          set +x
+          set -euo pipefail
+          postgres_password="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
+          export TRAVELOS_TEST_CONNECTION_STRING="Host=localhost;Port=5432;Database=travelos_test;Username=postgres;Password=$postgres_password"
+          unset postgres_password
+          dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+      - name: Stop isolated PostgreSQL and remove credentials
+        if: always()
+        run: |
+          set +x
+          docker rm --force --volumes travelos-postgres >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/travelos-postgres-password"
+
 
 
   browser-e2e:
     name: Cross-browser, mobile and accessibility E2E tests
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_DB: travelos_e2e
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d travelos_e2e"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -152,13 +157,35 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Apply migrations to disposable E2E database
+      - name: Start isolated PostgreSQL with a per-job random password
         env:
-          PGPASSWORD: postgres
+          POSTGRES_DB: travelos_e2e
+          POSTGRES_USER: postgres
         run: |
+          set +x
           set -euo pipefail
+          umask 077
+          postgres_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$postgres_password"
+          printf '%s' "$postgres_password" > "$RUNNER_TEMP/travelos-postgres-password"
+          export POSTGRES_PASSWORD="$postgres_password"
+          docker run --detach --name travelos-postgres --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD postgres:16
+          unset postgres_password POSTGRES_PASSWORD
+          for attempt in $(seq 1 60); do
+            if docker exec travelos-postgres pg_isready -U postgres -d travelos_e2e >/dev/null 2>&1; then
+              echo "Disposable PostgreSQL is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs travelos-postgres 2>&1 | python -c 'import pathlib,sys; secret=pathlib.Path(sys.argv[1]).read_text().strip(); text=sys.stdin.read(); sys.stdout.write(text.replace(secret, "[REDACTED]") if secret else text)' "$RUNNER_TEMP/travelos-postgres-password"
+          exit 1
+      - name: Apply migrations to disposable E2E database
+        run: |
+          set +x
+          set -euo pipefail
+          export PGPASSWORD="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
           for migration in \
             001_initial_schema.sql \
             002_identity_schema.sql \
@@ -180,7 +207,7 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            psql -h localhost -U postgres -d travelos_e2e -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_e2e -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Install web dependencies
         working-directory: apps/web
@@ -212,31 +239,35 @@ jobs:
         env:
           ASPNETCORE_URLS: http://127.0.0.1:8080
           ASPNETCORE_ENVIRONMENT: Testing
-          ConnectionStrings__TravelOS: Host=localhost;Port=5432;Database=travelos_e2e;Username=postgres;Password=postgres
           Jwt__Issuer: TravelOS.Playwright
           Jwt__Audience: TravelOS.Playwright.Client
-          Jwt__SigningKey: TravelOS-Playwright-Integration-Test-Signing-Key-2026
           RateLimits__AuthPerMinute: 30
           Cors__AllowedOrigins__0: http://127.0.0.1:5173
           AiService__BaseUrl: http://127.0.0.1:8011
           Receipts__StoragePath: ${{ runner.temp }}/travelos-playwright-receipts
         run: |
+          set +x
           set -euo pipefail
+          postgres_password="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
+          jwt_signing_key="$(openssl rand -hex 48)"
+          echo "::add-mask::$jwt_signing_key"
           mkdir -p "$Receipts__StoragePath"
-          dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
+          export ConnectionStrings__TravelOS="Host=localhost;Port=5432;Database=travelos_e2e;Username=postgres;Password=$postgres_password"
+          env Jwt__SigningKey="$jwt_signing_key" dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/travelos-platform-api.pid"
+          unset jwt_signing_key postgres_password ConnectionStrings__TravelOS
           for attempt in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
               echo "Platform API is ready"
               exit 0
             fi
             if ! kill -0 "$(cat "$RUNNER_TEMP/travelos-platform-api.pid")" 2>/dev/null; then
-              cat "$RUNNER_TEMP/travelos-platform-api.log"
+              echo "Platform API exited before becoming healthy; see redacted diagnostics below."
               exit 1
             fi
             sleep 2
           done
-          cat "$RUNNER_TEMP/travelos-platform-api.log"
+          echo "Platform API did not become healthy; see redacted diagnostics below."
           exit 1
       - name: Run Chromium, Firefox, WebKit, mobile and tablet journeys
         working-directory: apps/web
@@ -246,6 +277,26 @@ jobs:
           E2E_API_URL: http://127.0.0.1:8080
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
         run: npm run test:e2e
+      - name: Redact Platform API diagnostics
+        if: always()
+        run: |
+          set +x
+          python - "$RUNNER_TEMP/travelos-platform-api.log" "$RUNNER_TEMP/travelos-postgres-password" <<'PY'
+          import pathlib, re, sys
+          log = pathlib.Path(sys.argv[1])
+          if not log.exists():
+              raise SystemExit(0)
+          text = log.read_text(errors="replace")
+          secret_file = pathlib.Path(sys.argv[2])
+          if secret_file.exists():
+              secret = secret_file.read_text().strip()
+              if secret:
+                  text = text.replace(secret, "[REDACTED]")
+          text = re.sub(r"(?i)(password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)(jwt(?:__|:)?signingkey\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)\b[0-9a-f]{96}\b", "[REDACTED]", text)
+          log.write_text(text)
+          PY
       - name: Upload cross-browser reports, screenshots and traces
         if: always()
         uses: actions/upload-artifact@v4
@@ -253,38 +304,53 @@ jobs:
           name: travelos-playwright-e2e-results
           path: |
             apps/web/playwright-report/
-            apps/web/test-results/
+            !apps/web/playwright-report/**/*.zip
             ${{ runner.temp }}/travelos-platform-api.log
             ${{ runner.temp }}/travelos-ai-mock.log
           if-no-files-found: ignore
           retention-days: 14
+      - name: Stop isolated PostgreSQL and remove credentials
+        if: always()
+        run: |
+          set +x
+          docker rm --force --volumes travelos-postgres >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/travelos-postgres-password"
+
 
   database-migrations:
     name: PostgreSQL migration validation
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:16
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos
           POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d travelos"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
-      - name: Apply all database migrations
-        env:
-          PGPASSWORD: postgres
         run: |
+          set +x
           set -euo pipefail
+          umask 077
+          postgres_password="$(openssl rand -hex 32)"
+          echo "::add-mask::$postgres_password"
+          printf '%s' "$postgres_password" > "$RUNNER_TEMP/travelos-postgres-password"
+          export POSTGRES_PASSWORD="$postgres_password"
+          docker run --detach --name travelos-postgres --publish 127.0.0.1:5432:5432 \
+            --env POSTGRES_DB --env POSTGRES_USER --env POSTGRES_PASSWORD postgres:16
+          unset postgres_password POSTGRES_PASSWORD
+          for attempt in $(seq 1 60); do
+            if docker exec travelos-postgres pg_isready -U postgres -d travelos >/dev/null 2>&1; then
+              echo "Disposable PostgreSQL is ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs travelos-postgres 2>&1 | python -c 'import pathlib,sys; secret=pathlib.Path(sys.argv[1]).read_text().strip(); text=sys.stdin.read(); sys.stdout.write(text.replace(secret, "[REDACTED]") if secret else text)' "$RUNNER_TEMP/travelos-postgres-password"
+          exit 1
+      - name: Apply all database migrations
+        run: |
+          set +x
+          set -euo pipefail
+          export PGPASSWORD="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
           for migration in \
             001_initial_schema.sql \
             002_identity_schema.sql \
@@ -306,8 +372,14 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            psql -h localhost -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
+      - name: Stop isolated PostgreSQL and remove credentials
+        if: always()
+        run: |
+          set +x
+          docker rm --force --volumes travelos-postgres >/dev/null 2>&1 || true
+          rm -f "$RUNNER_TEMP/travelos-postgres-password"
 
   container-deployment-smoke:
     name: Container deployment build and smoke test
@@ -317,55 +389,169 @@ jobs:
       - uses: actions/checkout@v4
       - name: Create disposable deployment environment
         run: |
-          cat > deploy/ci.env <<'EOF'
-          POSTGRES_DB=travelos
-          POSTGRES_USER=travelos
-          POSTGRES_PASSWORD=TravelOS-CI-Only-Database-Password-2026
-          TRAVELOS_CONNECTION_STRING=Host=postgres;Port=5432;Database=travelos;Username=travelos;Password=TravelOS-CI-Only-Database-Password-2026
-          JWT_ISSUER=TravelOS.CI
-          JWT_AUDIENCE=TravelOS.CI.Client
-          JWT_SIGNING_KEY=TravelOS-CI-Only-Signing-Key-Not-For-Production-2026
-          CORS_ALLOWED_ORIGIN=http://127.0.0.1:8088
-          WEB_BIND_ADDRESS=127.0.0.1
-          WEB_PORT=8088
-          AI_PROVIDER=demo
-          OPENAI_API_KEY=
-          OPENAI_MODEL=gpt-4.1-mini
-          AI_RECEIPT_PROVIDER=demo
-          FLIGHTAWARE_API_KEY=
-          EOF
-          chmod 600 deploy/ci.env
+          set +x
+          set -euo pipefail
+          umask 077
+          db_password="$(openssl rand -hex 32)"
+          jwt_signing_key="$(openssl rand -hex 48)"
+          echo "::add-mask::$db_password"
+          echo "::add-mask::$jwt_signing_key"
+          env_file="$RUNNER_TEMP/travelos-ci.env"
+          {
+            printf 'POSTGRES_DB=travelos\n'
+            printf 'POSTGRES_USER=travelos\n'
+            printf 'POSTGRES_PASSWORD=%s\n' "$db_password"
+            printf 'TRAVELOS_CONNECTION_STRING=Host=postgres;Port=5432;Database=travelos;Username=travelos;Password=%s\n' "$db_password"
+            printf 'JWT_ISSUER=TravelOS.CI\n'
+            printf 'JWT_AUDIENCE=TravelOS.CI.Client\n'
+            printf 'JWT_SIGNING_KEY=%s\n' "$jwt_signing_key"
+            printf 'CORS_ALLOWED_ORIGIN=https://127.0.0.1:8088\n'
+            printf 'WEB_BIND_ADDRESS=127.0.0.1\n'
+            printf 'WEB_PORT=8088\n'
+            printf 'AI_PROVIDER=demo\n'
+            printf 'OPENAI_API_KEY=\n'
+            printf 'OPENAI_MODEL=gpt-4.1-mini\n'
+            printf 'AI_RECEIPT_PROVIDER=demo\n'
+            printf 'FLIGHTAWARE_API_KEY=\n'
+          } > "$env_file"
+          chmod 600 "$env_file"
+          unset db_password jwt_signing_key
       - name: Validate Compose configuration
-        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml config --quiet
+        run: |
+          set +x
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml config --quiet
       - name: Build all application images
-        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml build
+        run: |
+          set +x
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml build
+      - name: Record container runtime diagnostics
+        run: |
+          set +x
+          set -euo pipefail
+          docker info --format 'Docker host architecture: {{.Architecture}}'
+          docker version
+          dotnet --info || true
+          uname -m
+          cat /etc/os-release
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml create
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
+          platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --quiet platform-api)"
+          if [ -z "$platform_image" ] || [ "$(printf '%s\n' "$platform_image" | grep -c .)" -ne 1 ]; then
+            echo "::error::Compose did not return exactly one Platform API image ID after creating service containers."
+            docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
+            exit 1
+          fi
+          if ! docker image inspect "$platform_image" >/dev/null 2>&1; then
+            echo "::error::Compose returned a Platform API image reference that Docker cannot inspect; refusing to invoke docker run."
+            exit 1
+          fi
+          platform_image_id="$(docker image inspect --format '{{.Id}}' "$platform_image")"
+          if [[ ! "$platform_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Docker returned an invalid Platform API image ID; refusing to invoke docker run."
+            exit 1
+          fi
+          echo "Resolved and validated the Platform API image ID."
+          docker image inspect "$platform_image_id" --format 'Platform API image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
+          docker run --rm --entrypoint sh "$platform_image_id" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \;'
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+            if ! docker image inspect "$image" >/dev/null 2>&1; then echo "::error::Compose reported an invalid local image ID: $image"; exit 1; fi
+            docker image inspect "$image" --format 'Compose image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
+          done < <(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --quiet | sort -u)
       - name: Start deployment stack
-        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml up --detach --wait --wait-timeout 240
+        run: |
+          set +x
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml up --detach --wait --wait-timeout 240
       - name: Verify web, API and AI health
         run: |
+          set +x
           set -euo pipefail
+          env_file="$RUNNER_TEMP/travelos-ci.env"
+          docker compose --env-file "$env_file" -f docker-compose.prod.yml ps --all
           curl --fail --silent --show-error http://127.0.0.1:8088/ -o /dev/null
+          headers="$(curl --fail --silent --show-error -D - -o /dev/null http://127.0.0.1:8088/)"
+          printf '%s\n' "$headers" | grep -qi '^content-security-policy:'
+          printf '%s\n' "$headers" | grep -qi '^x-content-type-options: nosniff'
+          api_headers="$(curl --fail --silent --show-error -D - -o /dev/null http://127.0.0.1:8088/health)"
+          printf '%s\n' "$api_headers" | grep -qi '^content-security-policy:'
+          printf '%s\n' "$api_headers" | grep -qi '^cache-control: no-store'
           curl --fail --silent --show-error http://127.0.0.1:8088/health
-          docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
-          docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
+          docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
+          docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
       - name: Verify all database migrations were recorded
         run: |
+          set +x
           set -euo pipefail
-          count="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T postgres psql -U travelos -d travelos -Atc 'SELECT count(*) FROM travelos_migration_history')"
+          count="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos -d travelos -Atc 'SELECT count(*) FROM travelos_migration_history')"
           echo "Recorded migrations: $count"
           test "$count" = "18"
-      - name: Verify internal-only database and API ports
+      - name: Verify internal-only ports and service network isolation
         run: |
+          set +x
           set -euo pipefail
-          for service in postgres platform-api; do
-            container_id="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps -q "$service")"
+          for service in postgres platform-api ai-api; do
+            container_id="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml ps -q "$service")"
             test -n "$container_id"
             docker inspect "$container_id" --format '{{json .HostConfig.PortBindings}}' > "$RUNNER_TEMP/${service}-port-bindings.json"
             python -c "import json,sys; bindings=json.load(open(sys.argv[1])); assert not bindings or not any(bindings.values()), f'Unexpected published port bindings: {bindings}'; print(sys.argv[2] + ': no host-published ports')" "$RUNNER_TEMP/${service}-port-bindings.json" "$service"
           done
-      - name: Collect container diagnostics
+          for service in web platform-api ai-api; do
+            container_id="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml ps -q "$service")"
+            docker inspect "$container_id" --format '{{json .NetworkSettings.Networks}}' > "$RUNNER_TEMP/${service}-networks.json"
+          done
+          python - "$RUNNER_TEMP" <<'PY'
+          import json, pathlib, sys
+          root = pathlib.Path(sys.argv[1])
+          networks = {
+              name: set(json.loads((root / f"{name}-networks.json").read_text()))
+              for name in ("web", "platform-api", "ai-api")
+          }
+          suffix = lambda names, network: any(name.endswith("_" + network) for name in names)
+          assert suffix(networks["web"], "frontend") and not suffix(networks["web"], "backend")
+          assert suffix(networks["ai-api"], "backend") and not suffix(networks["ai-api"], "frontend")
+          assert suffix(networks["platform-api"], "frontend") and suffix(networks["platform-api"], "backend")
+          print("Network isolation verified: web cannot reach AI API directly.")
+          PY
+      - name: Collect redacted container diagnostics
         if: always()
-        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps --all
-      - name: Stop deployment stack
+        run: |
+          set +x
+          set -u
+          env_file="$RUNNER_TEMP/travelos-ci.env"
+          if [ -f "$env_file" ]; then
+            docker compose --env-file "$env_file" -f docker-compose.prod.yml ps --all || true
+            for container_id in $(docker compose --env-file "$env_file" -f docker-compose.prod.yml ps -aq); do
+              docker inspect "$container_id" --format 'Container={{.Name}} Image={{.Config.Image}} State={{json .State}} RestartCount={{.RestartCount}} Healthcheck={{json .Config.Healthcheck}}' || true
+            done
+            for image in $(docker compose --env-file "$env_file" -f docker-compose.prod.yml images -q | sort -u); do
+              docker image inspect "$image" --format 'Image={{.Id}} OS={{.Os}} Architecture={{.Architecture}} Digests={{json .RepoDigests}}' || true
+            done
+            docker compose --env-file "$env_file" -f docker-compose.prod.yml logs --no-color 2>&1 | python -c '
+          import pathlib, re, sys
+          text = sys.stdin.read()
+          env = {}
+          for line in pathlib.Path(sys.argv[1]).read_text(errors="replace").splitlines():
+              if "=" in line:
+                  k, v = line.split("=", 1)
+                  env[k] = v
+          for value in env.values():
+              if value:
+                  text = text.replace(value, "[REDACTED]")
+          text = re.sub(r"(?i)(password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)(jwt_signing_key\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)(postgres_password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)\b[0-9a-f]{96}\b", "[REDACTED]", text)
+          sys.stdout.write(text)
+          ' "$env_file" || true
+          else
+            echo "Temporary environment file unavailable; skipping Compose diagnostics."
+          fi
+      - name: Stop deployment stack and remove temporary credentials
         if: always()
-        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml down --volumes --remove-orphans
+        run: |
+          set +x
+          env_file="$RUNNER_TEMP/travelos-ci.env"
+          if [ -f "$env_file" ]; then
+            docker compose --env-file "$env_file" -f docker-compose.prod.yml down --volumes --remove-orphans >/dev/null 2>&1 || true
+          fi
+          rm -f "$env_file"

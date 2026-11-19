@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
@@ -6,7 +7,7 @@ namespace TravelOS.PlatformApi.Tests;
 
 public sealed class TravelOsApiFactory : WebApplicationFactory<Program>
 {
-    public const string TestSigningKey = "TravelOS-Integration-Test-Signing-Key-2026-Only";
+    public static readonly string TestSigningKey = Convert.ToHexString(RandomNumberGenerator.GetBytes(48));
     public const string TestIssuer = "TravelOS.IntegrationTests";
     public const string TestAudience = "TravelOS.IntegrationTests.Client";
 
