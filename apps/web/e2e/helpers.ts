@@ -59,3 +59,40 @@ export async function apiContextFor(page: Page) {
   expect(token, "The browser session should contain an access token after sign-in").toBeTruthy();
   return { token: token!, headers: { Authorization: `Bearer ${token}` } };
 }
+
+
+export async function createItineraryAndDay(page: Page, dayDate: string) {
+  const createButton = page.getByRole("button", { name: /Create itinerary/ });
+  if (await createButton.isVisible().catch(() => false)) await createButton.click();
+
+  await expect(page.locator(".itinerary-toolbar")).toBeVisible();
+  const addDay = page.getByRole("button", { name: /Add a day/ });
+  if (await addDay.isVisible().catch(() => false)) {
+    await addDay.click();
+    await page.getByLabel("Choose a date within your trip").fill(dayDate);
+    await page.getByRole("button", { name: "Add day", exact: true }).click();
+  }
+  await expect(page.locator(".day-card").first()).toBeVisible();
+}
+
+export async function addActivityThroughBrowser(
+  page: Page,
+  title: string,
+  startTime: string,
+  endTime: string,
+  duration: string,
+) {
+  const dayCard = page.locator(".day-card").first();
+  await dayCard.getByRole("button", { name: /Add activity/ }).click();
+  const form = dayCard.locator("form.activity-form");
+  await form.getByLabel("Activity name").fill(title);
+  await form.getByLabel("Place").fill("Colombo");
+  await form.getByLabel("Notes").fill("Created by the TravelOS Playwright browser test.");
+  await form.getByLabel("Start time").fill(startTime);
+  await form.getByLabel("End time").fill(endTime);
+  await form.getByLabel("Duration (minutes)").fill(duration);
+  await form.getByRole("button", { name: "Save activity" }).click();
+  const row = dayCard.locator(".activity-row").filter({ hasText: title });
+  await expect(row).toBeVisible();
+  return row;
+}
