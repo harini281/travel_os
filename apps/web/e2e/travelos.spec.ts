@@ -15,7 +15,7 @@ async function registerThroughBrowser(page: Page, label: string) {
   await page.getByLabel("Full name").fill(`E2E ${label}`);
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(TEST_PASSWORD);
-  await page.getByRole("button", { name: /Create account/ }).click();
+  await page.getByRole("button", { name: "Create account →", exact: true }).click();
   await expect(page.getByRole("heading", { name: new RegExp(`Good to see you, E2E`) })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Your journeys" })).toBeVisible();
   return email;
@@ -26,7 +26,7 @@ async function signInThroughBrowser(page: Page, email: string, password = TEST_P
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password);
-  await page.getByRole("button", { name: /Sign in/ }).click();
+  await page.getByRole("button", { name: "Sign in →", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Your journeys" })).toBeVisible();
 }
 
