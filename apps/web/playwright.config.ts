@@ -30,6 +30,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
+      testIgnore: "**/responsive-accessibility.spec.ts",
       use: { ...devices["Desktop Chrome"] },
     },
     {
