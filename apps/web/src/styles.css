@@ -826,3 +826,10 @@
 .auth-tabs button.active{color:#111b15!important}
 .auth-card .btn-primary{background:#24342d!important;color:#fff!important}
 .auth-card .btn-primary:hover{background:#17251e!important;color:#fff!important}
+
+
+/* Stage 47 — consistent visible keyboard focus across controls and links. */
+:where(a,button,input,select,textarea,[tabindex]):focus-visible{
+  outline:3px solid #9b6335;
+  outline-offset:3px;
+}
