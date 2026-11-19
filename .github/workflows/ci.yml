@@ -308,3 +308,61 @@ jobs:
             echo "Applying $migration"
             psql -h localhost -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
+
+  container-deployment-smoke:
+    name: Container deployment build and smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable deployment environment
+        run: |
+          cat > deploy/ci.env <<'EOF'
+          POSTGRES_DB=travelos
+          POSTGRES_USER=travelos
+          POSTGRES_PASSWORD=TravelOS-CI-Only-Database-Password-2026
+          TRAVELOS_CONNECTION_STRING=Host=postgres;Port=5432;Database=travelos;Username=travelos;Password=TravelOS-CI-Only-Database-Password-2026
+          JWT_ISSUER=TravelOS.CI
+          JWT_AUDIENCE=TravelOS.CI.Client
+          JWT_SIGNING_KEY=TravelOS-CI-Only-Signing-Key-Not-For-Production-2026
+          CORS_ALLOWED_ORIGIN=http://127.0.0.1:8088
+          WEB_BIND_ADDRESS=127.0.0.1
+          WEB_PORT=8088
+          AI_PROVIDER=demo
+          OPENAI_API_KEY=
+          OPENAI_MODEL=gpt-4.1-mini
+          AI_RECEIPT_PROVIDER=demo
+          FLIGHTAWARE_API_KEY=
+          EOF
+          chmod 600 deploy/ci.env
+      - name: Validate Compose configuration
+        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml config --quiet
+      - name: Build all application images
+        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml build
+      - name: Start deployment stack
+        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml up --detach --wait --wait-timeout 240
+      - name: Verify web, API and AI health
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error http://127.0.0.1:8088/ -o /dev/null
+          curl --fail --silent --show-error http://127.0.0.1:8088/health
+          docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
+      - name: Verify all database migrations were recorded
+        run: |
+          set -euo pipefail
+          count="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml exec -T postgres psql -U travelos -d travelos -Atc 'SELECT count(*) FROM travelos_migration_history')"
+          echo "Recorded migrations: $count"
+          test "$count" = "18"
+      - name: Verify internal-only database and API ports
+        run: |
+          set -euo pipefail
+          ports="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml port postgres 5432 || true)"
+          test -z "$ports"
+          ports="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml port platform-api 8080 || true)"
+          test -z "$ports"
+      - name: Collect container diagnostics
+        if: always()
+        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps --all
+      - name: Stop deployment stack
+        if: always()
+        run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml down --volumes --remove-orphans
