@@ -92,7 +92,7 @@ public sealed class ReceiptImageProcessorTests
 
         Assert.True(ReceiptImageProcessor.TryNormalize(source, "image/png", out var normalized));
         Assert.NotNull(normalized);
-        Assert.DoesNotContain(trailing, normalized.Bytes);
+        Assert.Equal(-1, normalized.Bytes.AsSpan().IndexOf(trailing));
         using var data = SKData.CreateCopy(normalized.Bytes);
         using var codec = SKCodec.Create(data);
         Assert.Equal(SKEncodedImageFormat.Jpeg, codec!.EncodedFormat);
