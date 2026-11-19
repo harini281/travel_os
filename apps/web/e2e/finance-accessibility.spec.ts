@@ -204,7 +204,7 @@ test.describe("TravelOS finance browser journeys", () => {
     await receipt.getByLabel("Receipt date").fill("2027-07-10");
     await receipt.getByLabel("Total amount").fill("1000");
     await receipt.getByLabel("Currency").fill("LKR");
-    await receipt.getByLabel("Link expense").selectOption({ label: /Receipt-linked lunch/ });
+    await receipt.getByLabel("Link expense").selectOption({ index: 1 });
     await receipt.getByRole("button", { name: "Confirm receipt details" }).click();
     await expect(receipt).toContainText("Confirmed");
     await expect(receipt).toContainText("Playwright Test Cafe");
@@ -237,7 +237,7 @@ test.describe("TravelOS finance browser journeys", () => {
     expect(await originalFile.body()).toEqual(png);
 
     await fileInput.setInputFiles({ name: "playwright-receipt.png", mimeType: "image/png", buffer: png });
-    await uploadForm.getByLabel("Attach to expense (optional)").selectOption({ label: /Receipt-linked lunch/ });
+    await uploadForm.getByLabel("Attach to expense (optional)").selectOption({ index: 1 });
     await uploadForm.getByRole("button", { name: "Upload receipt" }).click();
     const receiptCards = page.locator(".receipt-card").filter({ hasText: "playwright-receipt.png" });
     await expect(receiptCards).toHaveCount(2);
