@@ -13,8 +13,8 @@ permissions:
   contents: read
 
 jobs:
-  codeql:
-    name: CodeQL static analysis
+  codeql-dotnet:
+    name: CodeQL — Platform API
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -30,7 +30,7 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
-          languages: csharp, javascript-typescript, python
+          languages: csharp
           build-mode: manual
       - name: Build Platform API for analysis
         run: |
@@ -40,13 +40,42 @@ jobs:
         uses: github/codeql-action/analyze@v4
         with:
           upload: false
-          output: ${{ runner.temp }}/codeql-results
+          output: ${{ runner.temp }}/codeql-dotnet-results
       - name: Preserve CodeQL results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: travelos-codeql-sarif
-          path: ${{ runner.temp }}/codeql-results
+          name: travelos-codeql-dotnet-sarif
+          path: ${{ runner.temp }}/codeql-dotnet-results
+          if-no-files-found: ignore
+          retention-days: 14
+
+  codeql-web-ai:
+    name: CodeQL — Web and AI services
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript, python
+          build-mode: none
+      - name: Analyze source code (store SARIF as workflow artifact)
+        uses: github/codeql-action/analyze@v4
+        with:
+          upload: false
+          output: ${{ runner.temp }}/codeql-web-ai-results
+      - name: Preserve CodeQL results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: travelos-codeql-web-ai-sarif
+          path: ${{ runner.temp }}/codeql-web-ai-results
           if-no-files-found: ignore
           retention-days: 14
 
