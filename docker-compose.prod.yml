@@ -1,7 +1,14 @@
+x-travelos-logging: &travelos-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *travelos-logging
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in deploy/production.env}
       POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in deploy/production.env}
@@ -17,6 +24,7 @@ services:
   migrate:
     image: postgres:16-alpine
     restart: "no"
+    logging: *travelos-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,6 +44,7 @@ services:
       context: .
       dockerfile: services/ai-api/Dockerfile
     restart: unless-stopped
+    logging: *travelos-logging
     environment:
       AI_PROVIDER: ${AI_PROVIDER:-demo}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -62,6 +71,7 @@ services:
       context: .
       dockerfile: services/platform-api/Dockerfile
     restart: unless-stopped
+    logging: *travelos-logging
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -96,6 +106,7 @@ services:
       args:
         VITE_PLATFORM_API_URL: ""
     restart: unless-stopped
+    logging: *travelos-logging
     depends_on:
       platform-api:
         condition: service_healthy
