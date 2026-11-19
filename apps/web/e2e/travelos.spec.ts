@@ -109,7 +109,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
 
     await page.getByLabel("Email address").fill(email);
     await page.getByLabel("Password").fill("DefinitelyWrong!123");
-    await page.getByRole("button", { name: /Sign in/ }).click();
+    await page.getByRole("button", { name: "Sign in →", exact: true }).click();
     await expect(page.locator(".alert.error")).toBeVisible();
     await expect(page.locator(".alert.error")).not.toBeEmpty();
 
