@@ -54,3 +54,12 @@ public sealed class PostgresFactAttribute : Xunit.FactAttribute
             Skip = "Set TRAVELOS_TEST_CONNECTION_STRING to run PostgreSQL-backed API integration tests.";
     }
 }
+
+public sealed class PostgresTheoryAttribute : Xunit.TheoryAttribute
+{
+    public PostgresTheoryAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TRAVELOS_TEST_CONNECTION_STRING")))
+            Skip = "Set TRAVELOS_TEST_CONNECTION_STRING to run PostgreSQL-backed API integration tests.";
+    }
+}
