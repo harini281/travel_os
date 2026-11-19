@@ -32,6 +32,49 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "firefox",
+      testMatch: "**/cross-browser.spec.ts",
+      use: {
+        browserName: "firefox",
+        viewport: { width: 1365, height: 768 },
+      },
+    },
+    {
+      name: "webkit",
+      testMatch: "**/cross-browser.spec.ts",
+      use: {
+        browserName: "webkit",
+        viewport: { width: 1365, height: 768 },
+      },
+    },
+    {
+      name: "mobile-chromium",
+      testMatch: "**/responsive-accessibility.spec.ts",
+      use: {
+        ...devices["Pixel 7"],
+        browserName: "chromium",
+      },
+    },
+    {
+      name: "mobile-webkit",
+      testMatch: "**/responsive-accessibility.spec.ts",
+      use: {
+        ...devices["iPhone 14"],
+        browserName: "webkit",
+      },
+    },
+    {
+      name: "tablet-chromium",
+      testMatch: "**/responsive-accessibility.spec.ts",
+      use: {
+        browserName: "chromium",
+        viewport: { width: 768, height: 1024 },
+        deviceScaleFactor: 1,
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
   ],
   webServer: {
     command: "npm run dev -- --host 127.0.0.1 --port 5173 --strictPort",
