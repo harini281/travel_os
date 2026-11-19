@@ -77,10 +77,6 @@ public static class ReceiptImageProcessor
             normalized = new NormalizedReceiptImage(bytes, sourceInfo.Width, sourceInfo.Height);
             return true;
         }
-        catch (SKException)
-        {
-            return false;
-        }
         catch (ArgumentException)
         {
             return false;
