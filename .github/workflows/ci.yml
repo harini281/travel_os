@@ -405,7 +405,7 @@ jobs:
             printf 'JWT_ISSUER=TravelOS.CI\n'
             printf 'JWT_AUDIENCE=TravelOS.CI.Client\n'
             printf 'JWT_SIGNING_KEY=%s\n' "$jwt_signing_key"
-            printf 'CORS_ALLOWED_ORIGIN=http://127.0.0.1:8088\n'
+            printf 'CORS_ALLOWED_ORIGIN=https://127.0.0.1:8088\n'
             printf 'WEB_BIND_ADDRESS=127.0.0.1\n'
             printf 'WEB_PORT=8088\n'
             printf 'AI_PROVIDER=demo\n'
