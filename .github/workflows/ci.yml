@@ -494,7 +494,7 @@ jobs:
           printf '%s\n' "$api_headers" | grep -qi '^content-security-policy:'
           printf '%s\n' "$api_headers" | grep -qi '^cache-control: no-store'
           curl --fail --silent --show-error http://127.0.0.1:8088/health
-          docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
+          docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data=={'status':'ok'}, data; print(data)"
           docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
       - name: Verify all database migrations were recorded
         run: |
