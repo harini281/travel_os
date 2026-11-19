@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
+using SkiaSharp;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
 using Xunit;
@@ -308,6 +309,96 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
         {
             if (File.Exists(filePath)) File.Delete(filePath);
         }
+    }
+
+    [PostgresFact]
+    public async Task ReceiptUpload_RejectsMimeMismatchAndSanitizesClientFileName()
+    {
+        var seed = await SeedTripAsync();
+        var png = CreatePng(32, 24);
+        var uploadPath = $"/api/v1/trips/{seed.TripId}/receipts";
+
+        using var validForm = new MultipartFormDataContent();
+        var validFile = new ByteArrayContent(png);
+        validFile.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        validForm.Add(validFile, "file", "../../sensitive-receipt.png");
+        using var validRequest = AuthorizedRequest(seed.MemberId, HttpMethod.Post, uploadPath);
+        validRequest.Content = validForm;
+
+        using var validResponse = await Client.SendAsync(validRequest);
+        Assert.Equal(HttpStatusCode.Created, validResponse.StatusCode);
+        using var result = System.Text.Json.JsonDocument.Parse(
+            await validResponse.Content.ReadAsStringAsync());
+        var receiptId = result.RootElement.GetProperty("id").GetGuid();
+        var storedName = result.RootElement.GetProperty("storedFileName").GetString();
+        var originalName = result.RootElement.GetProperty("originalFileName").GetString();
+        var contentType = result.RootElement.GetProperty("contentType").GetString();
+
+        Assert.Equal(receiptId.ToString("N") + ".jpg", storedName);
+        Assert.Equal("sensitive-receipt.png", originalName);
+        Assert.Equal("image/jpeg", contentType);
+
+        var storedPath = Path.Combine(TravelOsApiFactory.ReceiptStoragePath, storedName!);
+        Assert.True(File.Exists(storedPath));
+        using (var storedData = SKData.CreateCopy(await File.ReadAllBytesAsync(storedPath)))
+        using (var storedCodec = SKCodec.Create(storedData))
+            Assert.Equal(SKEncodedImageFormat.Jpeg, storedCodec!.EncodedFormat);
+
+        using var mismatchForm = new MultipartFormDataContent();
+        var mismatchFile = new ByteArrayContent(png);
+        mismatchFile.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        mismatchForm.Add(mismatchFile, "file", "receipt.jpg");
+        using var mismatchRequest = AuthorizedRequest(seed.MemberId, HttpMethod.Post, uploadPath);
+        mismatchRequest.Content = mismatchForm;
+
+        using var mismatchResponse = await Client.SendAsync(mismatchRequest);
+        Assert.Equal(HttpStatusCode.BadRequest, mismatchResponse.StatusCode);
+
+        await using (var verifyScope = factory.Services.CreateAsyncScope())
+        {
+            var verifyDb = verifyScope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+            Assert.Equal(1, await verifyDb.TripReceipts
+                .CountAsync(x => x.TripId == seed.TripId));
+        }
+
+        using var deleteRequest = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Delete,
+            $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}");
+        using var deleteResponse = await Client.SendAsync(deleteRequest);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.False(File.Exists(storedPath));
+    }
+
+    [PostgresFact]
+    public async Task ReceiptUpload_RejectsAFileLargerThanEightMegabytes()
+    {
+        var seed = await SeedTripAsync();
+        using var form = new MultipartFormDataContent();
+        var oversizedFile = new ByteArrayContent(new byte[8 * 1024 * 1024 + 1]);
+        oversizedFile.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+        form.Add(oversizedFile, "file", "oversized.jpg");
+        using var request = AuthorizedRequest(
+            seed.MemberId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/receipts");
+        request.Content = form;
+
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        Assert.Equal(0, await db.TripReceipts.CountAsync(x => x.TripId == seed.TripId));
+    }
+
+    private static byte[] CreatePng(int width, int height)
+    {
+        using var bitmap = new SKBitmap(width, height);
+        using var canvas = new SKCanvas(bitmap);
+        canvas.Clear(SKColors.White);
+        using var image = SKImage.FromBitmap(bitmap);
+        using var encoded = image.Encode(SKEncodedImageFormat.Png, 95);
+        Assert.NotNull(encoded);
+        return encoded.ToArray();
     }
 
     private async Task<SeededTrip> SeedTripAsync()
