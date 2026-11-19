@@ -244,8 +244,8 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
         estimatedCost = (decimal?)null,
         currencyCode = (string?)null,
         sortOrder = 2,
-        startTime,
-        endTime
+        startTime = startTime + ":00",
+        endTime = endTime + ":00"
     };
 
     private static string ScheduleUrl(Guid tripId) =>
