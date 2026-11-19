@@ -25,11 +25,22 @@ env_file="${TRAVELOS_ENV_FILE:-$repo_root/deploy/production.env}"
 [[ -r "$compose_file" ]] || fail "Compose file is not readable."
 [[ -r "$env_file" ]] || fail "Production environment file is not readable."
 
-output_root="$1"
+output_candidate="$1"
+if [[ -d "$output_candidate" ]]; then
+  output_root="$(cd -- "$output_candidate" && pwd -P)"
+else
+  output_parent="$(dirname -- "$output_candidate")"
+  [[ -d "$output_parent" ]] || fail "The backup destination parent directory must already exist."
+  output_parent="$(cd -- "$output_parent" && pwd -P)"
+  output_root="$output_parent/$(basename -- "$output_candidate")"
+fi
+case "$output_root/" in
+  "$repo_root/"*) fail "Backup output must be outside the repository." ;;
+esac
 mkdir -p -- "$output_root"
 output_root="$(cd -- "$output_root" && pwd -P)"
 case "$output_root/" in
-  "$repo_root/"*) fail "Backup output must be outside the repository." ;;
+  "$repo_root/"*) fail "Backup output must resolve outside the repository." ;;
 esac
 
 compose=(docker compose --env-file "$env_file" --file "$compose_file")
@@ -126,9 +137,10 @@ docker run --rm --network none --volume "$work_dir:/backup:ro" \
   || fail "Database dump failed its PostgreSQL archive validation."
 
 docker run --rm --network none --volumes-from "${api_container_id}:ro" \
-  --volume "$work_dir:/backup" alpine:3.20 sh -eu -c \
-  'tar -czf /backup/receipts.tar.gz -C /var/lib/travelos/receipts .' \
+  alpine:3.20 sh -eu -c 'tar -czf - -C /var/lib/travelos/receipts .' \
+  > "$work_dir/receipts.tar.gz" \
   || fail "Private receipt volume could not be archived."
+[[ -s "$work_dir/receipts.tar.gz" ]] || fail "Receipt archive is empty."
 
 docker run --rm --network none --volume "$work_dir:/backup:ro" alpine:3.20 \
   tar -tzf /backup/receipts.tar.gz >/dev/null \
