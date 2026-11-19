@@ -37,9 +37,11 @@ public static class ReceiptImageProcessor
                 _ => (SKEncodedImageFormat?)null
             };
 
+            // SkiaSharp reports zero additional frames for a static image;
+            // animated images report one or more additional frames.
             if (!expectedFormat.HasValue ||
                 codec.EncodedFormat != expectedFormat.Value ||
-                codec.FrameCount != 1)
+                codec.FrameCount > 0)
                 return false;
 
             var sourceInfo = codec.Info;
