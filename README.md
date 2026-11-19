@@ -357,6 +357,7 @@ $env:ConnectionStrings__TravelOS = "Host=localhost;Port=5432;Database=travelos_e
 $env:Jwt__Issuer = "TravelOS.Playwright"
 $env:Jwt__Audience = "TravelOS.Playwright.Client"
 $env:Jwt__SigningKey = "REPLACE_WITH_A_PRIVATE_TEST_SECRET_AT_LEAST_32_BYTES"
+$env:RateLimits__AuthPerMinute = "30" # Disposable browser test only; production default remains 10/minute.
 $env:Cors__AllowedOrigins__0 = "http://127.0.0.1:5173"
 $env:AiService__BaseUrl = "http://127.0.0.1:8011"
 $env:Receipts__StoragePath = "../../data/playwright-receipts"
