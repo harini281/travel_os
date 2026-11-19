@@ -1656,7 +1656,7 @@ export default function App() {
         }) },
       );
       setRecommendationSchedule(result);
-      if (result.slots.length) setSelectedRecommendationSlot(result.slots[0].startTime);
+      // Require a deliberate traveller choice; never preselect an advisory slot.
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to suggest a suitable time.");
     } finally { setScheduleRecommendationTitle(null); }
@@ -2546,7 +2546,7 @@ export default function App() {
                       {recommendationSchedule.slots.length > 0 ? <>
                         <label>Choose a time slot
                           <select value={selectedRecommendationSlot} onChange={event => setSelectedRecommendationSlot(event.target.value)}>
-                            {recommendationSchedule.slots.map(slot => <option key={slot.startTime} value={slot.startTime}>{slot.startTime}–{slot.endTime} · {slot.explanation}</option>)}
+                            <option value="" disabled>Select a time slot</option>\n                            {recommendationSchedule.slots.map(slot => <option key={slot.startTime} value={slot.startTime}>{slot.startTime}–{slot.endTime} · {slot.explanation}</option>)}
                           </select>
                         </label>
                         {recommendationSchedule.slots.find(slot => slot.startTime === selectedRecommendationSlot)?.explanation && <small>{recommendationSchedule.slots.find(slot => slot.startTime === selectedRecommendationSlot)?.explanation}</small>}
