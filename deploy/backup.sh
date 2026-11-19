@@ -51,6 +51,12 @@ backup_name="travelos-backup-$(date -u +%Y%m%dT%H%M%SZ)"
 final_dir="$output_root/$backup_name"
 [[ ! -e "$final_dir" ]] || fail "Backup destination already exists."
 
+command -v flock >/dev/null 2>&1 || fail "Required command not found: flock"
+lock_file="$output_root/.travelos-backup.lock"
+exec 9>"$lock_file"
+flock -n 9 || fail "Another backup is already running for this destination."
+chmod 600 "$lock_file"
+
 work_dir="$(mktemp -d "$output_root/.travelos-backup.XXXXXX")"
 chmod 700 "$work_dir"
 
@@ -108,7 +114,7 @@ trap cleanup EXIT
   || fail "PostgreSQL is not accepting connections."
 
 # Quiesce application writes while the database and receipt volume are captured.
-"${compose[@]}" stop web platform-api >/dev/null
+"${compose[@]}" stop --timeout 60 web platform-api >/dev/null
 
 "${compose[@]}" exec -T postgres sh -eu -c \
   'PGPASSWORD="$POSTGRES_PASSWORD" pg_dump --host=127.0.0.1 --format=custom --no-owner --no-acl --username="$POSTGRES_USER" --dbname="$POSTGRES_DB"' \
