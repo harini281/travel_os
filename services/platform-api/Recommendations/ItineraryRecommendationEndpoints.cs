@@ -70,75 +70,13 @@ public static class ItineraryRecommendationEndpoints
             });
         }
 
-        var timed = day.Activities
-            .Where(x => x.StartTime.HasValue && x.EndTime.HasValue)
-            .OrderBy(x => x.StartTime).ThenBy(x => x.EndTime).ToArray();
-        var conflicts = new List<object>();
-        for (var i = 0; i < timed.Length; i++)
-        {
-            for (var j = 0; j < i; j++)
-            {
-                if (timed[j].EndTime!.Value > timed[i].StartTime!.Value)
-                    conflicts.Add(new
-                    {
-                        firstActivity = timed[j].Title,
-                        secondActivity = timed[i].Title,
-                        overlapMinutes = (int)(timed[j].EndTime!.Value - timed[i].StartTime!.Value).TotalMinutes
-                    });
-            }
-        }
-
-        var slots = new List<object>();
-        var cursor = dayStart;
-        string? previousTitle = null;
-        foreach (var activity in timed)
-        {
-            var activityStart = activity.StartTime!.Value;
-            var activityEnd = activity.EndTime!.Value;
-            if (activityStart > cursor)
-            {
-                var earliest = previousTitle is null ? cursor : cursor.AddMinutes(request.BufferMinutes);
-                var latestEnd = activityStart.AddMinutes(-request.BufferMinutes);
-                if (earliest.AddMinutes(request.DurationMinutes) <= latestEnd)
-                    slots.Add(new
-                    {
-                        startTime = earliest.ToString("HH:mm"),
-                        endTime = earliest.AddMinutes(request.DurationMinutes).ToString("HH:mm"),
-                        durationMinutes = request.DurationMinutes,
-                        previousActivityTitle = previousTitle,
-                        nextActivityTitle = activity.Title,
-                        explanation = previousTitle is null
-                            ? $"Fits before {activity.Title}, leaving the selected {request.BufferMinutes}-minute buffer."
-                            : $"Fits between {previousTitle} and {activity.Title}, with the selected {request.BufferMinutes}-minute buffers."
-                    });
-            }
-
-            if (activityEnd > cursor) cursor = activityEnd;
-            previousTitle = activity.Title;
-        }
-
-        if (cursor < dayEnd)
-        {
-            var earliest = previousTitle is null ? cursor : cursor.AddMinutes(request.BufferMinutes);
-            if (earliest.AddMinutes(request.DurationMinutes) <= dayEnd)
-                slots.Add(new
-                {
-                    startTime = earliest.ToString("HH:mm"),
-                    endTime = earliest.AddMinutes(request.DurationMinutes).ToString("HH:mm"),
-                    durationMinutes = request.DurationMinutes,
-                    previousActivityTitle = previousTitle,
-                    nextActivityTitle = (string?)null,
-                    explanation = previousTitle is null
-                        ? "Fits inside the planning window you selected."
-                        : $"Fits after {previousTitle}, with the selected {request.BufferMinutes}-minute buffer."
-                });
-        }
-
-        var warnings = new List<string>();
-        if (day.Activities.Any(x => !x.StartTime.HasValue || !x.EndTime.HasValue))
-            warnings.Add("Some saved activities have no time and are not included in gap calculations.");
-        if (conflicts.Count > 0)
-            warnings.Add("The saved itinerary already contains overlapping activities. Resolve those conflicts before relying on the proposed schedule.");
+        var schedule = RecommendationSchedulePlanner.Build(
+            day.Activities.Select(activity => new RecommendationScheduleActivity(
+                activity.Title, activity.StartTime, activity.EndTime)),
+            dayStart,
+            dayEnd,
+            request.DurationMinutes,
+            request.BufferMinutes);
 
         return Results.Ok(new
         {
@@ -149,9 +87,9 @@ public static class ItineraryRecommendationEndpoints
             durationMinutes = request.DurationMinutes,
             planningWindow = new { startTime = dayStart.ToString("HH:mm"), endTime = dayEnd.ToString("HH:mm") },
             bufferMinutes = request.BufferMinutes,
-            slots = slots.Take(5).ToArray(),
-            conflicts,
-            warnings,
+            slots = schedule.Slots.Take(5).ToArray(),
+            conflicts = schedule.Conflicts,
+            warnings = schedule.Warnings,
             disclaimer = "Slots are calculated from saved activity times and the planning window you supplied. Travel time, venue opening hours, availability and live conditions are not verified. Nothing is saved until you explicitly choose a slot."
         });
     }
