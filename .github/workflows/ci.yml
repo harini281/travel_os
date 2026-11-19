@@ -296,8 +296,8 @@ jobs:
               secret = secret_file.read_text().strip()
               if secret:
                   text = text.replace(secret, "[REDACTED]")
-          text = re.sub(r"(?i)(password\\s*[=:]\\s*)[^;\\s]+", r"\\1[REDACTED]", text)
-          text = re.sub(r"(?i)(jwt(?:__|:)?signingkey\\s*[=:]\\s*)[^;\\s]+", r"\\1[REDACTED]", text)
+          text = re.sub(r"(?i)(password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)(jwt(?:__|:)?signingkey\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
           log.write_text(text)
           PY
       - name: Upload cross-browser reports, screenshots and traces
@@ -403,21 +403,21 @@ jobs:
           echo "::add-mask::$jwt_signing_key"
           env_file="$RUNNER_TEMP/travelos-ci.env"
           {
-            printf 'POSTGRES_DB=travelos\\n'
-            printf 'POSTGRES_USER=travelos\\n'
-            printf 'POSTGRES_PASSWORD=%s\\n' "$db_password"
-            printf 'TRAVELOS_CONNECTION_STRING=Host=postgres;Port=5432;Database=travelos;Username=travelos;Password=%s\\n' "$db_password"
-            printf 'JWT_ISSUER=TravelOS.CI\\n'
-            printf 'JWT_AUDIENCE=TravelOS.CI.Client\\n'
-            printf 'JWT_SIGNING_KEY=%s\\n' "$jwt_signing_key"
-            printf 'CORS_ALLOWED_ORIGIN=http://127.0.0.1:8088\\n'
-            printf 'WEB_BIND_ADDRESS=127.0.0.1\\n'
-            printf 'WEB_PORT=8088\\n'
-            printf 'AI_PROVIDER=demo\\n'
-            printf 'OPENAI_API_KEY=\\n'
-            printf 'OPENAI_MODEL=gpt-4.1-mini\\n'
-            printf 'AI_RECEIPT_PROVIDER=demo\\n'
-            printf 'FLIGHTAWARE_API_KEY=\\n'
+            printf 'POSTGRES_DB=travelos\n'
+            printf 'POSTGRES_USER=travelos\n'
+            printf 'POSTGRES_PASSWORD=%s\n' "$db_password"
+            printf 'TRAVELOS_CONNECTION_STRING=Host=postgres;Port=5432;Database=travelos;Username=travelos;Password=%s\n' "$db_password"
+            printf 'JWT_ISSUER=TravelOS.CI\n'
+            printf 'JWT_AUDIENCE=TravelOS.CI.Client\n'
+            printf 'JWT_SIGNING_KEY=%s\n' "$jwt_signing_key"
+            printf 'CORS_ALLOWED_ORIGIN=http://127.0.0.1:8088\n'
+            printf 'WEB_BIND_ADDRESS=127.0.0.1\n'
+            printf 'WEB_PORT=8088\n'
+            printf 'AI_PROVIDER=demo\n'
+            printf 'OPENAI_API_KEY=\n'
+            printf 'OPENAI_MODEL=gpt-4.1-mini\n'
+            printf 'AI_RECEIPT_PROVIDER=demo\n'
+            printf 'FLIGHTAWARE_API_KEY=\n'
           } > "$env_file"
           chmod 600 "$env_file"
           unset db_password jwt_signing_key
@@ -454,11 +454,11 @@ jobs:
           docker compose --env-file "$env_file" -f docker-compose.prod.yml ps --all
           curl --fail --silent --show-error http://127.0.0.1:8088/ -o /dev/null
           headers="$(curl --fail --silent --show-error -D - -o /dev/null http://127.0.0.1:8088/)"
-          printf '%s\\n' "$headers" | grep -qi '^content-security-policy:'
-          printf '%s\\n' "$headers" | grep -qi '^x-content-type-options: nosniff'
+          printf '%s\n' "$headers" | grep -qi '^content-security-policy:'
+          printf '%s\n' "$headers" | grep -qi '^x-content-type-options: nosniff'
           api_headers="$(curl --fail --silent --show-error -D - -o /dev/null http://127.0.0.1:8088/health)"
-          printf '%s\\n' "$api_headers" | grep -qi '^content-security-policy:'
-          printf '%s\\n' "$api_headers" | grep -qi '^cache-control: no-store'
+          printf '%s\n' "$api_headers" | grep -qi '^content-security-policy:'
+          printf '%s\n' "$api_headers" | grep -qi '^cache-control: no-store'
           curl --fail --silent --show-error http://127.0.0.1:8088/health
           docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
           docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
@@ -521,9 +521,10 @@ jobs:
           for value in env.values():
               if value:
                   text = text.replace(value, "[REDACTED]")
-          text = re.sub(r"(?i)(password\\s*[=:]\\s*)[^;\\s]+", r"\\1[REDACTED]", text)
-          text = re.sub(r"(?i)(jwt_signing_key\\s*[=:]\\s*)[^;\\s]+", r"\\1[REDACTED]", text)
-          text = re.sub(r"(?i)(postgres_password\\s*[=:]\\s*)[^;\\s]+", r"\\1[REDACTED]", text)
+          text = re.sub(r"(?i)(password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)(jwt_signing_key\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)(postgres_password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
+          text = re.sub(r"(?i)\b[0-9a-f]{96}\b", "[REDACTED]", text)
           sys.stdout.write(text)
           ' "$env_file" || true
           else
