@@ -17,13 +17,14 @@ namespace TravelOS.PlatformApi.Tests;
 public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory factory)
     : IClassFixture<TravelOsApiFactory>
 {
-    private readonly HttpClient _client = factory.CreateClient();
+    private HttpClient? _client;
+    private HttpClient Client => _client ??= factory.CreateClient();
 
     [PostgresFact]
     public async Task Schedule_RequiresAuthentication()
     {
         var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
-        using var response = await _client.PostAsJsonAsync(
+        using var response = await Client.PostAsJsonAsync(
             ScheduleUrl(seeded.TripId), ValidRequest());
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
@@ -34,7 +35,7 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
     {
         var seeded = await SeedTripAsync(addItinerary: true, addMember: true);
         using var request = AuthorizedRequest(seeded.TripId, seeded.MemberId);
-        using var response = await _client.SendAsync(request);
+        using var response = await Client.SendAsync(request);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
