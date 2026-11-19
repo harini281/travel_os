@@ -357,10 +357,12 @@ jobs:
       - name: Verify internal-only database and API ports
         run: |
           set -euo pipefail
-          ports="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml port postgres 5432 || true)"
-          test -z "$ports"
-          ports="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml port platform-api 8080 || true)"
-          test -z "$ports"
+          for service in postgres platform-api; do
+            container_id="$(docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps -q "$service")"
+            test -n "$container_id"
+            docker inspect "$container_id" --format '{{json .HostConfig.PortBindings}}' > "$RUNNER_TEMP/${service}-port-bindings.json"
+            python -c "import json,sys; bindings=json.load(open(sys.argv[1])); assert not any(bindings.values()), f'Unexpected published port bindings: {bindings}'; print(sys.argv[2] + ': no host-published ports')" "$RUNNER_TEMP/${service}-port-bindings.json" "$service"
+          done
       - name: Collect container diagnostics
         if: always()
         run: docker compose --env-file deploy/ci.env -f docker-compose.prod.yml ps --all
