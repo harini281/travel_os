@@ -437,12 +437,55 @@ For the expanded two-account suite, set `RateLimits__AuthPerMinute=30` in the **
 
 See [docs/BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md) for the Stage 46 scenario IDs, setup, diagnostics and remaining limitations.
 
+
+### Stage 47 — cross-browser, mobile and broader accessibility checks
+
+Stage 47 expands the Playwright browser matrix while preserving the full Stage 45–46 Chromium journeys.
+
+Automated browser projects:
+- **Desktop Chromium:** the complete authentication, itinerary, AI, scheduling, finance, receipts and permissions suite, plus the cross-browser smoke journey.
+- **Desktop Firefox and WebKit:** a shared browser-engine smoke journey that registers a traveller, creates a trip and timed itinerary activity, verifies persistence after refresh, checks for horizontal overflow and captures uncaught page errors.
+- **Pixel 7 Chromium and iPhone 14 WebKit:** responsive journeys for registration, dashboard, trip cards and itinerary activity creation.
+- **Tablet Chromium (768 × 1024):** the same responsive journey on a tablet-sized touch viewport.
+
+Responsive journeys check document width against the active viewport at each major screen and run axe-core WCAG 2.1 A/AA scans on registration, dashboard and itinerary states. A keyboard journey verifies Tab focus visibility, reverse navigation and Enter activation. The application now has a consistent high-contrast `:focus-visible` outline for links, buttons, inputs, selects, textareas and tab-indexed controls.
+
+#### Run the matrix locally
+
+From `apps/web`:
+
+```bash
+npm install
+npx playwright install chromium firefox webkit
+npm run typecheck
+npm run typecheck:e2e
+npm run build
+npm run test:e2e
+```
+
+Run the subsets independently:
+
+```bash
+npm run test:e2e:desktop
+npm run test:e2e:responsive
+```
+
+The same disposable PostgreSQL 16 database, test-only API configuration and deterministic AI fixture from Stages 45–46 are required. The full setup is documented in [BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md).
+
+#### CI behaviour
+
+The browser workflow installs Chromium, Firefox and WebKit with Linux dependencies. It runs the complete existing Chromium suite, desktop Firefox/WebKit journeys, and Pixel/iPhone/tablet responsive projects in the same isolated PostgreSQL-backed job. Screenshots, traces, videos, HTML reports and service logs are uploaded when the run finishes, including on failures.
+
+#### Stage 47 scope and limitations
+
+This stage adds automated engine coverage and responsive/automated accessibility checks, not a formal accessibility certification. axe checks the named registration, dashboard and itinerary states; it does not scan every dynamic panel or every route. Keyboard coverage checks a small core trip-planning interaction, not every control. Human screen-reader testing, full keyboard-only workflow testing, zoom/reflow review, high-contrast mode, Android/iOS physical devices, Safari versions outside Playwright's WebKit build and real assistive technology remain manual verification items.
+
 ## 8. What is still left?
 
 TravelOS has a substantial feature set, but a successful CI run is not a production launch. The main remaining work is:
 
 1. **Merge and release Stage 39:** review and merge [PR #41](https://github.com/harini281/travel_os/pull/41) into the intended integration branch after review.
-2. **End-to-end testing:** Stages 45–46 automate core Chromium journeys for authentication, itinerary, recommendations/scheduling, shared expenses, repayments and receipt review, with an axe-core WCAG 2.1 A/AA scan of the registration screen. Firefox, WebKit, mobile, broader accessibility/manual review and provider-specific workflows remain outstanding.
+2. **End-to-end testing:** Stages 45–47 automate Chromium journeys, Firefox/WebKit smoke coverage, mobile/tablet responsive journeys, shared finance, receipts and targeted axe-core WCAG 2.1 A/AA checks. Full assistive-technology and production-browser verification remain manual.
 3. **Live AI verification:** test Stage 39 with a real configured provider key, check cost/latency, rate limits, malformed responses and user-facing errors. Current CI tests use a mocked provider; they do not call OpenAI.
 4. **Production deployment:** configure HTTPS, managed PostgreSQL, persistent private receipt storage, secrets management, backups, logging, monitoring and a deployment pipeline.
 5. **Authentication hardening:** email verification, password reset, refresh-token/session management and MFA are not implemented.
