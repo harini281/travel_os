@@ -24,6 +24,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Typecheck
+        run: npm run typecheck
       - name: Build
         run: npm run build
 
@@ -122,6 +124,138 @@ jobs:
         env:
           TRAVELOS_TEST_CONNECTION_STRING: Host=localhost;Port=5432;Database=travelos_test;Username=postgres;Password=postgres
         run: dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+
+
+  browser-e2e:
+    name: Chromium browser end-to-end tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: travelos_e2e
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d travelos_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply migrations to disposable E2E database
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          for migration in \
+            001_initial_schema.sql \
+            002_identity_schema.sql \
+            003_itinerary_constraints.sql \
+            003_trip_invitations.sql \
+            004_trip_member_preferences.sql \
+            005_group_polls.sql \
+            006_shared_expenses.sql \
+            007_trip_repayments.sql \
+            008_trip_expense_audits.sql \
+            009_trip_receipts.sql \
+            010_currency_conversions.sql \
+            011_conversion_source_expense_date.sql \
+            012_trip_budget_alerts.sql \
+            013_trip_weather_assessments.sql \
+            014_trip_flights.sql \
+            015_flight_journey_groups.sql \
+            016_activity_schedule_times.sql \
+            017_trip_notifications.sql
+          do
+            echo "Applying $migration"
+            psql -h localhost -U postgres -d travelos_e2e -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+          done
+      - name: Install web dependencies
+        working-directory: apps/web
+        run: npm install
+      - name: Typecheck web application
+        working-directory: apps/web
+        run: npm run typecheck
+      - name: Build web application
+        working-directory: apps/web
+        run: npm run build
+      - name: Install Chromium and Linux dependencies
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+      - name: Start deterministic AI recommendation mock
+        run: |
+          set -euo pipefail
+          E2E_AI_MOCK_PORT=8011 node tests/e2e/mock-ai-server.mjs > "$RUNNER_TEMP/travelos-ai-mock.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/travelos-ai-mock.pid"
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8011/health >/dev/null; then
+              echo "AI recommendation mock is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/travelos-ai-mock.log"
+          exit 1
+      - name: Start Platform API against E2E PostgreSQL database
+        env:
+          ASPNETCORE_URLS: http://127.0.0.1:8080
+          ASPNETCORE_ENVIRONMENT: Testing
+          ConnectionStrings__TravelOS: Host=localhost;Port=5432;Database=travelos_e2e;Username=postgres;Password=postgres
+          Jwt__Issuer: TravelOS.Playwright
+          Jwt__Audience: TravelOS.Playwright.Client
+          Jwt__SigningKey: TravelOS-Playwright-Integration-Test-Signing-Key-2026
+          Cors__AllowedOrigins__0: http://127.0.0.1:5173
+          AiService__BaseUrl: http://127.0.0.1:8011
+          Receipts__StoragePath: ${{ runner.temp }}/travelos-playwright-receipts
+        run: |
+          set -euo pipefail
+          mkdir -p "$Receipts__StoragePath"
+          dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/travelos-platform-api.pid"
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
+              echo "Platform API is ready"
+              exit 0
+            fi
+            if ! kill -0 "$(cat "$RUNNER_TEMP/travelos-platform-api.pid")" 2>/dev/null; then
+              cat "$RUNNER_TEMP/travelos-platform-api.log"
+              exit 1
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/travelos-platform-api.log"
+          exit 1
+      - name: Run Chromium browser journeys
+        working-directory: apps/web
+        env:
+          CI: "true"
+          VITE_PLATFORM_API_URL: http://127.0.0.1:8080
+          E2E_API_URL: http://127.0.0.1:8080
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
+        run: npm run test:e2e
+      - name: Upload Playwright report, screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: travelos-playwright-e2e-results
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+            ${{ runner.temp }}/travelos-platform-api.log
+            ${{ runner.temp }}/travelos-ai-mock.log
+          if-no-files-found: ignore
+          retention-days: 14
 
   database-migrations:
     name: PostgreSQL migration validation

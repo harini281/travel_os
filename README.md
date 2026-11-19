@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 42 — automated tests for AI recommendation scheduling. Stages 40 and 41 remain under review in separate draft pull requests. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 45 — Playwright Chromium browser end-to-end testing. Stage 45 is under review in a separate draft pull request based on Stage 44. Stages 42–44 remain in their own draft pull requests. This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -327,12 +327,87 @@ Newly added suggestions intentionally have no invented place name, coordinates o
 
 See the Stage 40 scenarios in [the AI activity recommendations test plan](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md).
 
+
+### Stage 45 — Playwright browser end-to-end testing
+
+Stage 45 adds a dedicated Chromium browser suite alongside the existing API and database test infrastructure. The tests open the real React + Vite application, register and sign in through the real ASP.NET Core authentication endpoints, create trips and itineraries in a disposable PostgreSQL 16 database, and verify browser-visible persistence and permissions after refresh.
+
+Only the AI recommendation-generation upstream response is replaced by a deterministic local Node fixture. The React application still calls the real Platform API for recommendation requests, and all trip creation, itinerary writes, scheduling, JWT authorization and PostgreSQL persistence remain real. The fixture uses no paid AI key and includes a controlled 503 path for browser error-handling assertions.
+
+The recommendation scheduling selector now requires a deliberate choice: no slot is preselected, and **Save with this time** remains disabled until the traveller selects an available slot.
+
+#### Install and run browser tests locally
+
+From the repository root:
+
+```bash
+cd apps/web
+npm install
+npx playwright install chromium
+```
+
+Before running the browser suite, start a **disposable PostgreSQL database** and apply migrations 001–017 listed in `.github/workflows/ci.yml`. Start the Platform API with test-only configuration and the deterministic AI fixture:
+
+```powershell
+# Terminal 1 — repository root
+node tests/e2e/mock-ai-server.mjs
+
+# Terminal 2 — repository root (PowerShell shown)
+$env:ConnectionStrings__TravelOS = "Host=localhost;Port=5432;Database=travelos_e2e;Username=postgres;Password=YOUR_TEST_PASSWORD"
+$env:Jwt__Issuer = "TravelOS.Playwright"
+$env:Jwt__Audience = "TravelOS.Playwright.Client"
+$env:Jwt__SigningKey = "REPLACE_WITH_A_PRIVATE_TEST_SECRET_AT_LEAST_32_BYTES"
+$env:Cors__AllowedOrigins__0 = "http://127.0.0.1:5173"
+$env:AiService__BaseUrl = "http://127.0.0.1:8011"
+$env:Receipts__StoragePath = "../../data/playwright-receipts"
+dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile --urls http://127.0.0.1:8080
+
+# Terminal 3 — apps/web
+$env:VITE_PLATFORM_API_URL = "http://127.0.0.1:8080"
+$env:E2E_API_URL = "http://127.0.0.1:8080"
+$env:PLAYWRIGHT_BASE_URL = "http://127.0.0.1:5173"
+npm run typecheck
+npm run build
+npm run test:e2e
+```
+
+Use a separate local test database, never a production or personal database. Replace the signing-key placeholder with a private value before starting the API; do not commit it. On macOS/Linux, use `export NAME=value` for environment variables.
+
+Available Playwright commands (from `apps/web`):
+
+```bash
+npm run test:e2e
+npm run test:e2e:ui
+npm run test:e2e:report
+```
+
+#### Browser coverage
+
+- Account registration, successful authenticated access, invalid login feedback and unauthenticated API rejection.
+- Trip creation, destination/date/currency display and persistence after browser refresh.
+- Itinerary/day/activity creation, editing, deletion, approval and read-only state after refresh.
+- Deterministic recommendation cards, rationale, duration, indicative cost, verification caveats and review-before-save behaviour.
+- Planning-window and buffer settings, non-overlapping candidate slots, explicit slot choice, saving with start/end times and reload persistence.
+- No-slot handling, separate **Add without a time** behaviour and duplicate recommendation UI prevention.
+- Controlled AI upstream failure and member-vs-owner access checks through the actual API.
+
+See [docs/BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md) for scenario IDs, expected results, local setup, CI design, troubleshooting and limitations.
+
+#### CI behaviour
+
+The dedicated **Chromium browser end-to-end tests** job provisions PostgreSQL 16, applies migrations 001–017, installs Playwright Chromium, starts the deterministic AI fixture, starts the Platform API with test-only JWT settings and runs the browser suite against Vite. The job uploads the HTML report, failure screenshots, traces and service logs even when tests fail. Existing web typecheck/build, AI API, Platform API build, Platform API unit tests, PostgreSQL integration tests and migration-validation jobs remain enabled.
+
+#### Known limitations and remaining manual checks
+
+Chromium is the only automated browser project in Stage 45. Firefox, WebKit, mobile layouts, keyboard-only accessibility and assistive-technology tests remain manual/future work. The deterministic AI fixture validates the contract and error path, not live model quality, provider pricing, latency or availability. External mapping, weather, routing, opening-hours and flight providers are not verified by these browser journeys. Production deployment, HTTPS, secrets handling, real-provider AI verification and full operational recovery still need review.
+
+
 ## 8. What is still left?
 
 TravelOS has a substantial feature set, but a successful CI run is not a production launch. The main remaining work is:
 
 1. **Merge and release Stage 39:** review and merge [PR #41](https://github.com/harini281/travel_os/pull/41) into the intended integration branch after review.
-2. **End-to-end testing:** add automated API/integration tests for authentication, trip permissions, itinerary edits, group expenses, recommendations and provider failure cases; manually test the full browser workflows.
+2. **End-to-end testing:** Stage 45 adds automated Chromium journeys for account access, trip and itinerary management, AI recommendation review, explicit time-slot selection, persistence, member permissions and provider failures. Cross-browser, accessibility, responsive-device and broader manual checks remain outstanding.
 3. **Live AI verification:** test Stage 39 with a real configured provider key, check cost/latency, rate limits, malformed responses and user-facing errors. Current CI tests use a mocked provider; they do not call OpenAI.
 4. **Production deployment:** configure HTTPS, managed PostgreSQL, persistent private receipt storage, secrets management, backups, logging, monitoring and a deployment pipeline.
 5. **Authentication hardening:** email verification, password reset, refresh-token/session management and MFA are not implemented.
@@ -372,6 +447,7 @@ infrastructure            Deployment and infrastructure assets
 - Stage 39 pull request: https://github.com/harini281/travel_os/pull/41
 - CI workflow: [TravelOS CI](.github/workflows/ci.yml)
 - AI recommendation test plan: [AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md](docs/AI_ACTIVITY_RECOMMENDATIONS_TEST_PLAN.md)
+- Browser end-to-end test plan: [BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md)
 
 
 ### Stage 42 — Recommendation scheduling tests
