@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 47 — cross-browser, mobile and accessibility testing. Stage 47 is under review in a separate draft pull request based on Stage 46. Stages 45–46 and earlier stages remain in their own draft pull requests. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 49 — production security hardening is in progress on a separate draft pull request based on Stage 48. Stage 48 container deployment validation is complete. Earlier stages remain in their own pull requests. This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -594,3 +594,10 @@ The web app is bound to `127.0.0.1:8088` by default. Configure a trusted TLS rev
 CI now validates the Compose configuration, builds all three application images, starts the complete disposable stack, checks web/API/AI health and verifies that all 18 ordered migrations were recorded. See [the Stage 48 deployment test plan](docs/PRODUCTION_DEPLOYMENT_TEST_PLAN.md).
 
 This is a container deployment foundation, not a public production launch. DNS/TLS hosting, managed secrets, backups and restore drills, vulnerability scanning, centralized observability, load testing and operational review remain required.
+
+
+## Stage 49 — Production security hardening
+
+Stage 49 tightens production startup configuration, browser/API response headers and Docker network boundaries. Production startup now requires explicit JWT issuer/audience values, a non-placeholder signing key of at least 32 bytes and exact HTTPS CORS origins. The web container is isolated from the AI API and database; the Platform API bridges the frontend, backend and data networks. CI verifies the security headers, host port exposure and network separation.
+
+See [docs/PRODUCTION_SECURITY_HARDENING_TEST_PLAN.md](docs/PRODUCTION_SECURITY_HARDENING_TEST_PLAN.md). This is hardening groundwork, not a security certification or production launch.
