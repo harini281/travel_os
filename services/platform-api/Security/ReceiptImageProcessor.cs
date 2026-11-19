@@ -57,12 +57,13 @@ public static class ReceiptImageProcessor
                 outputInfo.BytesSize > MaximumDecodedBytes)
                 return false;
 
-            using var bitmap = new SKBitmap(outputInfo);
-            if (bitmap.GetPixels() == IntPtr.Zero)
-                return false;
-
-            var decodeResult = codec.GetPixels(outputInfo, bitmap.GetPixels());
-            if (decodeResult != SKCodecResult.Success)
+            // SKBitmap.Decode uses the platform codec's supported pixel format
+            // conversion. Input dimensions are bounded above before this allocation.
+            using var bitmap = SKBitmap.Decode(data);
+            if (bitmap is null ||
+                bitmap.Width != sourceInfo.Width ||
+                bitmap.Height != sourceInfo.Height ||
+                bitmap.GetPixels() == IntPtr.Zero)
                 return false;
 
             using var image = SKImage.FromBitmap(bitmap);
@@ -76,6 +77,10 @@ public static class ReceiptImageProcessor
 
             normalized = new NormalizedReceiptImage(bytes, sourceInfo.Width, sourceInfo.Height);
             return true;
+        }
+        catch (SKException)
+        {
+            return false;
         }
         catch (ArgumentException)
         {
