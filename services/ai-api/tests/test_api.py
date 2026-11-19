@@ -60,12 +60,10 @@ def planner_payload():
     }),
 ])
 def test_ai_routes_reject_missing_internal_service_token(path, payload):
-    response = client.post(
-        path,
-        json=payload,
-        headers={"X-TravelOS-Service-Token": ""},
-    )
+    unauthenticated_client = TestClient(app)
+    response = unauthenticated_client.post(path, json=payload)
     assert response.status_code == 401
+    assert TEST_SERVICE_TOKEN not in response.text
 
 
 @pytest.mark.parametrize("path,payload", [
@@ -85,9 +83,12 @@ def test_ai_routes_reject_incorrect_internal_service_token(path, payload):
     assert response.status_code == 401
 
 
-def test_health_remains_public_for_container_health_checks():
-    response = client.get("/health", headers={"X-TravelOS-Service-Token": ""})
+def test_health_remains_public_and_does_not_disclose_provider_configuration():
+    response = TestClient(app).get("/health")
     assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert "modelConfigured" not in response.text
+    assert "openai" not in response.text.lower()
 
 
 def test_ai_routes_fail_closed_when_internal_token_is_not_configured(monkeypatch):
