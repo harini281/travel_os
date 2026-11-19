@@ -62,10 +62,19 @@ export async function apiContextFor(page: Page) {
 
 
 export async function createItineraryAndDay(page: Page, dayDate: string) {
-  const createButton = page.getByRole("button", { name: /Create itinerary/ });
-  if (await createButton.isVisible().catch(() => false)) await createButton.click();
+  const toolbar = page.locator(".itinerary-toolbar");
+  const emptyState = page.locator(".itinerary-empty");
 
-  await expect(page.locator(".itinerary-toolbar")).toBeVisible();
+  // Wait for the selected trip's itinerary request to resolve in slower engines
+  // before deciding whether the workspace must be created.
+  await expect(page.locator(".itinerary-toolbar, .itinerary-empty")).toBeVisible();
+
+  const createButton = emptyState.getByRole("button", { name: /Create itinerary/ });
+  if (await createButton.isVisible().catch(() => false)) {
+    await createButton.click();
+  }
+
+  await expect(toolbar).toBeVisible();
   const addDay = page.getByRole("button", { name: /Add a day/ });
   if (await addDay.isVisible().catch(() => false)) {
     await addDay.click();
