@@ -116,7 +116,6 @@ networks:
     driver: bridge
   backend:
     driver: bridge
-    internal: true
   data:
     driver: bridge
     internal: true
