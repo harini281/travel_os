@@ -7,6 +7,58 @@ namespace TravelOS.PlatformApi.Tests;
 public sealed class ProductionSecurityConfigurationTests
 {
     [Fact]
+    public void Production_requires_a_database_connection_string()
+    {
+        var configuration = BuildConfiguration();
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateDatabaseConnectionString(configuration, production: true));
+
+        Assert.Contains("ConnectionStrings:TravelOS", exception.Message);
+    }
+
+    [Fact]
+    public void Production_rejects_malformed_database_connection_strings()
+    {
+        var configuration = BuildConfiguration(("ConnectionStrings:TravelOS", "not-a-postgres-connection-string"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateDatabaseConnectionString(configuration, production: true));
+    }
+
+    [Theory]
+    [InlineData("Host=postgres;Database=travelos;Username=travelos_app;Password=secret")]
+    [InlineData("Host=db.example.test;Port=5432;Database=travelos;Username=travelos_app;Password=secret")]
+    public void Production_accepts_complete_postgres_connection_strings(string connectionString)
+    {
+        var configuration = BuildConfiguration(
+            ("ConnectionStrings:TravelOS", connectionString),
+            ("TRAVELOS_APP_DB_USER", "travelos_app"));
+
+        ProductionSecurityConfiguration.ValidateDatabaseConnectionString(configuration, production: true);
+    }
+
+    [Fact]
+    public void Production_rejects_a_connection_string_using_another_database_role()
+    {
+        var configuration = BuildConfiguration(
+            ("ConnectionStrings:TravelOS", "Host=postgres;Database=travelos;Username=travelos_admin;Password=secret"),
+            ("TRAVELOS_APP_DB_USER", "travelos_app"));
+
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateDatabaseConnectionString(configuration, production: true));
+
+        Assert.Contains("TRAVELOS_APP_DB_USER", exception.Message);
+    }
+
+    [Fact]
+    public void Development_does_not_require_a_database_connection_string_at_startup()
+    {
+        ProductionSecurityConfiguration.ValidateDatabaseConnectionString(
+            BuildConfiguration(), production: false);
+    }
+
+    [Fact]
     public void Production_requires_a_configured_https_origin()
     {
         var configuration = BuildConfiguration(("Jwt:Issuer", "travelos-prod"), ("Jwt:Audience", "travelos-web"));

@@ -32,7 +32,9 @@ using TravelOS.PlatformApi.Recommendations;
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
-ProductionSecurityConfiguration.ValidateJwt(builder.Configuration, builder.Environment.IsProduction());
+var isProduction = builder.Environment.IsProduction();
+ProductionSecurityConfiguration.ValidateJwt(builder.Configuration, isProduction);
+ProductionSecurityConfiguration.ValidateDatabaseConnectionString(builder.Configuration, isProduction);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
 
 var healthChecks = builder.Services.AddHealthChecks();

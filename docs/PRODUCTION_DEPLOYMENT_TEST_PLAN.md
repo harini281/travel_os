@@ -16,7 +16,7 @@ The web container proxies /api/* and /health to the Platform API. The browser us
 
 ## Configuration
 1. Copy deploy/production.env.example to deploy/production.env.
-2. Replace the database password and JWT signing key with unique, randomly generated values. Use a URL-safe database password for this first deployment template.
+2. Replace the migration-administrator password, the separate application-role password and the JWT signing key with unique, randomly generated values. Use URL-safe database passwords. The API uses the non-superuser application role; the migration runner uses the privileged bootstrap administrator. For existing PostgreSQL volumes, keep the original bootstrap role name/password until a separately reviewed role transition is complete; see the Stage 50 operations runbook.
 3. Set CORS_ALLOWED_ORIGIN to the exact HTTPS origin users will visit.
 4. Keep AI_PROVIDER=demo unless live AI has been separately reviewed, budgeted and configured.
 5. Keep FlightAware unset unless its account, pricing and usage limits have been reviewed.
