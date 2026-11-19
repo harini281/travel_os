@@ -897,3 +897,16 @@
 .dashboard .main-panel .content-wrap .ai-planner-card .ai-disclaimer{
   color:#e8eee9!important;
 }
+
+/* Stage 47 follow-up: the AI planner sits inside .content-wrap but not
+   .main-panel on every itinerary route. Keep its dark-card text light after
+   the general dashboard contrast overrides above. */
+.dashboard .content-wrap .ai-planner-card .ai-planner-heading .eyebrow {
+  color: #f4c68d !important;
+}
+.dashboard .content-wrap .ai-planner-card .ai-planner-heading p:last-child,
+.dashboard .content-wrap .ai-planner-card .ai-options label,
+.dashboard .content-wrap .ai-planner-card .ai-disclaimer {
+  color: #e8eee9 !important;
+}
+
