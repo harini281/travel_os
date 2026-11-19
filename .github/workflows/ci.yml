@@ -100,7 +100,7 @@ jobs:
             fi
             sleep 2
           done
-          docker logs travelos-postgres 2>&1 | sed -E 's/(password|PASSWORD)=([^[:space:]]+)/\1=[REDACTED]/g'
+          docker logs travelos-postgres 2>&1 | python -c 'import pathlib,sys; secret=pathlib.Path(sys.argv[1]).read_text().strip(); text=sys.stdin.read(); sys.stdout.write(text.replace(secret, "[REDACTED]") if secret else text)' "$RUNNER_TEMP/travelos-postgres-password"
           exit 1
       - name: Prepare integration-test database
         run: |
@@ -183,7 +183,7 @@ jobs:
             fi
             sleep 2
           done
-          docker logs travelos-postgres 2>&1 | sed -E 's/(password|PASSWORD)=([^[:space:]]+)/\1=[REDACTED]/g'
+          docker logs travelos-postgres 2>&1 | python -c 'import pathlib,sys; secret=pathlib.Path(sys.argv[1]).read_text().strip(); text=sys.stdin.read(); sys.stdout.write(text.replace(secret, "[REDACTED]") if secret else text)' "$RUNNER_TEMP/travelos-postgres-password"
           exit 1
       - name: Apply migrations to disposable E2E database
         run: |
@@ -299,6 +299,7 @@ jobs:
           text = re.sub(r"(?i)(password\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
           text = re.sub(r"(?i)(jwt(?:__|:)?signingkey\s*[=:]\s*)[^;\s]+", r"\1[REDACTED]", text)
           log.write_text(text)
+          text = re.sub(r"(?i)\b[0-9a-f]{96}\b", "[REDACTED]", text)
           PY
       - name: Upload cross-browser reports, screenshots and traces
         if: always()
@@ -309,6 +310,7 @@ jobs:
             apps/web/playwright-report/
             apps/web/test-results/
             !apps/web/test-results/**/*.zip
+            !apps/web/playwright-report/**/*.zip
             ${{ runner.temp }}/travelos-platform-api.log
             ${{ runner.temp }}/travelos-ai-mock.log
           if-no-files-found: ignore
@@ -350,7 +352,7 @@ jobs:
             fi
             sleep 2
           done
-          docker logs travelos-postgres 2>&1 | sed -E 's/(password|PASSWORD)=([^[:space:]]+)/\1=[REDACTED]/g'
+          docker logs travelos-postgres 2>&1 | python -c 'import pathlib,sys; secret=pathlib.Path(sys.argv[1]).read_text().strip(); text=sys.stdin.read(); sys.stdout.write(text.replace(secret, "[REDACTED]") if secret else text)' "$RUNNER_TEMP/travelos-postgres-password"
           exit 1
       - name: Apply all database migrations
         run: |
@@ -440,6 +442,7 @@ jobs:
           uname -m
           cat /etc/os-release
           docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml run --rm --no-deps platform-api sh -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec sh -c "echo --- $1; ldd \"$1\" || true" _ {} \\;'
           for image in $(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images -q | sort -u); do
             docker image inspect "$image" --format 'Image={{.Id}} OS={{.Os}} Architecture={{.Architecture}} Digests={{json .RepoDigests}}'
           done
