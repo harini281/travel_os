@@ -4,7 +4,7 @@
 
 Stage 45 adds Chromium browser journeys for the critical traveller workflows already implemented in TravelOS. The browser uses the real React + Vite application, ASP.NET Core Platform API, JWT authentication and a disposable PostgreSQL 16 database.
 
-Only the AI recommendation-generation upstream response is replaced by a deterministic local Node.js fixture. The browser still calls the real Platform API for recommendation generation, and all trip, itinerary, authorization, scheduling and persistence operations remain connected to PostgreSQL through the real API.
+Only the AI recommendation-generation upstream response is replaced by a deterministic local Node.js fixture. The browser still calls the real Platform API for recommendation generation, and all trip, itinerary, finance, receipt, authorization, scheduling and persistence operations remain connected to PostgreSQL through the real API. The browser job sets `RateLimits__AuthPerMinute=30` to accommodate the combined multi-account test suite; the application default remains 10 authentication requests per minute when this setting is absent.
 
 The suite is intentionally not connected to a paid AI account, production database, or live travel supplier.
 
@@ -212,7 +212,7 @@ npm run build
 npm run test:e2e
 ```
 
-The `test:e2e` script now runs strict TypeScript checking for the Playwright test files and configuration before starting the browser suite. Start the same disposable PostgreSQL database, deterministic AI fixture and test-configured Platform API documented in the Stage 45 setup section.
+The disposable browser API is configured with an authentication request allowance of 30/minute to account for the 2-account registration/login journey in the suite. The normal application default remains 10/minute when no configuration override is supplied. The `test:e2e` script now runs strict TypeScript checking for the Playwright test files and configuration before starting the browser suite. Start the same disposable PostgreSQL database, deterministic AI fixture and test-configured Platform API documented in the Stage 45 setup section.
 
 ### Stage 46 limitations
 
