@@ -1,4 +1,5 @@
-using System.Security.Cryptography;\nusing Microsoft.AspNetCore.Hosting;
+using System.Security.Cryptography;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 
