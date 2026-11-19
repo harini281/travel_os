@@ -27,7 +27,9 @@ public static class ReceiptEndpoints
         var group = endpoints.MapGroup("/api/v1/trips/{tripId:guid}/receipts")
             .WithTags("Trip receipts").RequireAuthorization().RequireRateLimiting("receipt-upload");
         group.MapGet("/", ListAsync);
-        group.MapPost("/", UploadAsync).DisableAntiforgery();
+        group.MapPost("/", UploadAsync)
+            .DisableAntiforgery()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(9 * 1024 * 1024));
         group.MapGet("/{receiptId:guid}/file", FileAsync);
         group.MapPost("/{receiptId:guid}/confirm", ConfirmAsync);
         group.MapDelete("/{receiptId:guid}", DeleteAsync);
@@ -188,6 +190,8 @@ public static class ReceiptEndpoints
     private static string SafeFileName(string? name)
     {
         var clean = Path.GetFileName(name ?? "receipt").Replace("\\", "");
+        clean = new string(clean.Where(character => !char.IsControl(character)).ToArray()).Trim();
+        if (string.IsNullOrWhiteSpace(clean)) clean = "receipt";
         return clean.Length > 255 ? clean[..255] : clean;
     }
 
