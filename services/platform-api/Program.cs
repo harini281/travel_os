@@ -35,6 +35,7 @@ builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 var isProduction = builder.Environment.IsProduction();
 ProductionSecurityConfiguration.ValidateJwt(builder.Configuration, isProduction);
 ProductionSecurityConfiguration.ValidateDatabaseConnectionString(builder.Configuration, isProduction);
+ProductionSecurityConfiguration.ValidateAiServiceToken(builder.Configuration, isProduction);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
 
 var healthChecks = builder.Services.AddHealthChecks();
