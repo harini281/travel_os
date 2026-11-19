@@ -431,6 +431,10 @@ npm run test:e2e
 
 The `test:e2e` script runs `typecheck:e2e` before launching Chromium. CI's existing browser job therefore fails on TypeScript errors in the Playwright specs as well as browser assertion failures. The existing disposable PostgreSQL 16, test-only JWT settings, real Platform API and deterministic AI fixture configuration from Stage 45 are unchanged.
 
+For the expanded two-account suite, set `RateLimits__AuthPerMinute=30` in the **test-only** Platform API environment to avoid shared CI IP collisions during repeated registrations and sign-ins. The application retains its normal default of 10 requests per minute when the override is absent. Do not carry the test override into production.
+
+**Latest Stage 46 validation:** [GitHub Actions run #44500311672](https://github.com/harini281/travel_os/actions/runs/44500311672) completed successfully. All seven CI jobs passed, and the combined Stage 45–46 Chromium suite reported **7 passed** (four original browser journeys and three new finance/accessibility journeys). The workflow uploaded the Playwright result bundle as artifact `travelos-playwright-e2e-results`.
+
 See [docs/BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md) for the Stage 46 scenario IDs, setup, diagnostics and remaining limitations.
 
 ## 8. What is still left?
