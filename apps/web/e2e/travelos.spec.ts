@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { API_URL, apiContextFor, addActivityThroughBrowser, createItineraryAndDay, createTripThroughBrowser, openTrip, registerThroughBrowser, signInThroughBrowser, uniqueEmail } from "./helpers.ts";
+import { API_URL, apiContextFor, addActivityThroughBrowser, createItineraryAndDay, createTripThroughBrowser, openTrip, registerThroughBrowser, signInThroughBrowser, TEST_PASSWORD, uniqueEmail } from "./helpers.ts";
 
 test.describe("TravelOS browser end-to-end journeys", () => {
   test("registers, signs in, rejects bad credentials and protects authenticated API access", async ({ page }) => {
