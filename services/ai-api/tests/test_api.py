@@ -34,22 +34,43 @@ def planner_payload():
     }
 
 
-def test_ai_routes_reject_missing_internal_service_token():
+@pytest.mark.parametrize("path,payload", [
+    ("/api/v1/planner/drafts", planner_payload()),
+    ("/api/v1/planner/recommendations", recommendation_payload()),
+    ("/api/v1/receipts/extract", {
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    }),
+])
+def test_ai_routes_reject_missing_internal_service_token(path, payload):
     response = client.post(
-        "/api/v1/planner/drafts",
-        json=planner_payload(),
+        path,
+        json=payload,
         headers={"X-TravelOS-Service-Token": ""},
     )
     assert response.status_code == 401
 
 
-def test_ai_routes_reject_incorrect_internal_service_token():
+@pytest.mark.parametrize("path,payload", [
+    ("/api/v1/planner/drafts", planner_payload()),
+    ("/api/v1/planner/recommendations", recommendation_payload()),
+    ("/api/v1/receipts/extract", {
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    }),
+])
+def test_ai_routes_reject_incorrect_internal_service_token(path, payload):
     response = client.post(
-        "/api/v1/planner/drafts",
-        json=planner_payload(),
+        path,
+        json=payload,
         headers={"X-TravelOS-Service-Token": "incorrect-service-token"},
     )
     assert response.status_code == 401
+
+
+def test_health_remains_public_for_container_health_checks():
+    response = client.get("/health", headers={"X-TravelOS-Service-Token": ""})
+    assert response.status_code == 200
 
 
 def test_ai_routes_fail_closed_when_internal_token_is_not_configured(monkeypatch):
