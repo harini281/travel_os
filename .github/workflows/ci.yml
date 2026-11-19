@@ -215,6 +215,7 @@ jobs:
           Jwt__Issuer: TravelOS.Playwright
           Jwt__Audience: TravelOS.Playwright.Client
           Jwt__SigningKey: TravelOS-Playwright-Integration-Test-Signing-Key-2026
+          RateLimits__AuthPerMinute: 30
           Cors__AllowedOrigins__0: http://127.0.0.1:5173
           AiService__BaseUrl: http://127.0.0.1:8011
           Receipts__StoragePath: ${{ runner.temp }}/travelos-playwright-receipts
