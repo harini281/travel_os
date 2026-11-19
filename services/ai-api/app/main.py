@@ -1,6 +1,9 @@
 from fastapi import FastAPI
 from .schemas import PlannerRequest, HealthResponse, DraftResponse, RecommendationRequest, RecommendationResponse
+from .configuration import validate_ai_provider_configuration
 from .provider import PlannerProvider
+
+validate_ai_provider_configuration()
 
 app = FastAPI(title="TravelOS AI API", version="0.2.0")
 provider = PlannerProvider()
