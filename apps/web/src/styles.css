@@ -867,3 +867,22 @@
   color:#526058!important;
   opacity:1;
 }
+
+
+/* Explicit high-specificity selectors for itinerary map and AI planner text. */
+.dashboard .main-panel .content-wrap p,
+.dashboard .main-panel .content-wrap small,
+.dashboard .main-panel .content-wrap span,
+.dashboard .main-panel .content-wrap label,
+.dashboard .main-panel .content-wrap legend,
+.dashboard .main-panel .content-wrap a,
+.dashboard .main-panel .content-wrap button:not(.btn-primary){
+  color:#34443b!important;
+}
+.dashboard .main-panel .content-wrap .itinerary-map-empty{
+  color:#34443b!important;
+}
+.dashboard .main-panel .content-wrap button.btn-primary,
+.dashboard .main-panel .content-wrap button.btn-primary *{
+  color:#fff!important;
+}
