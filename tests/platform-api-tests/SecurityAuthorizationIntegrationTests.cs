@@ -560,6 +560,33 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
             .Where(x => x.Id == pollId).Select(x => x.Status).SingleAsync());
     }
 
+    [PostgresFact]
+    public async Task ReceiptUpload_RejectsOutsiderWithoutPersistingFileOrRecord()
+    {
+        var seed = await SeedTripAsync();
+        var storageRoot = TravelOsApiFactory.ReceiptStoragePath;
+        Directory.CreateDirectory(storageRoot);
+        var filesBefore = Directory.GetFiles(storageRoot).ToHashSet(StringComparer.Ordinal);
+        var png = CreatePng(16, 16);
+
+        using var form = new MultipartFormDataContent();
+        var file = new ByteArrayContent(png);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        form.Add(file, "file", "outsider-receipt.png");
+        using var request = AuthorizedRequest(
+            seed.OutsiderId, HttpMethod.Post,
+            $"/api/v1/trips/{seed.TripId}/receipts");
+        request.Content = form;
+
+        using var response = await Client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        Assert.Equal(0, await db.TripReceipts.CountAsync(x => x.TripId == seed.TripId));
+        Assert.Equal(filesBefore, Directory.GetFiles(storageRoot).ToHashSet(StringComparer.Ordinal));
+    }
+
     private static byte[] CreatePng(int width, int height)
     {
         using var bitmap = new SKBitmap(width, height);
