@@ -241,7 +241,7 @@ test.describe("TravelOS finance browser journeys", () => {
     await uploadForm.getByRole("button", { name: "Upload receipt" }).click();
     const receiptCards = page.locator(".receipt-card").filter({ hasText: "playwright-receipt.png" });
     await expect(receiptCards).toHaveCount(2);
-    await expect(receiptCards.filter({ hasText: "Possible duplicate" })).toBeVisible();
+    await expect(receiptCards.filter({ hasText: "Possible duplicate" })).toHaveCount(2);
 
     await page.reload();
     await openTrip(page, tripName);
