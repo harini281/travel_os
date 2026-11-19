@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 46 — finance and accessibility browser testing. Stage 46 is under review in a separate draft pull request based on Stage 45. Stage 45 remains in its own open draft pull request; Stages 42–44 remain separate drafts. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 47 — cross-browser, mobile and accessibility testing. Stage 47 is under review in a separate draft pull request based on Stage 46. Stages 45–46 and earlier stages remain in their own draft pull requests. This is an active development project, not yet a production-ready booking platform.
 
 ## 1. Features implemented
 
@@ -479,6 +479,9 @@ The browser workflow installs Chromium, Firefox and WebKit with Linux dependenci
 #### Stage 47 scope and limitations
 
 This stage adds automated engine coverage and responsive/automated accessibility checks, not a formal accessibility certification. axe checks the named registration, dashboard and itinerary states; it does not scan every dynamic panel or every route. Keyboard coverage checks a small core trip-planning interaction, not every control. Human screen-reader testing, full keyboard-only workflow testing, zoom/reflow review, high-contrast mode, Android/iOS physical devices, Safari versions outside Playwright's WebKit build and real assistive technology remain manual verification items.
+ 
+**Stage 47 validation:** [GitHub Actions run #44510651024](https://github.com/harini281/travel_os/actions/runs/44510651024) completed successfully on commit `4fe728cb80625e0ced82c959520f0c708451b51d`. All seven CI jobs passed. The combined Chromium, Firefox, WebKit, Pixel 7, iPhone 14 and tablet Playwright matrix reported **16 passed in 2.7 minutes**. Platform API unit tests reported 10 passed and 14 PostgreSQL-dependent cases skipped in the unit-only job; the separate PostgreSQL integration job passed all 24 tests. AI API tests reported 18 passed with one warning. The browser report, screenshots/traces and service logs are retained in artifact [`travelos-playwright-e2e-results` #14523596375](https://github.com/harini281/travel_os/actions/runs/44510651024/artifacts/14523596375).
+
 
 ## 8. What is still left?
 
