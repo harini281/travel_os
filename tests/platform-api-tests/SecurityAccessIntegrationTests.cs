@@ -149,10 +149,10 @@ public sealed class TripAccessSecurityIntegrationTests(TravelOsApiFactory factor
         foreach (var route in memberScopedRoutes)
         {
             using var memberRequest = AuthorizedRequest(memberId, HttpMethod.Get, route);
-            using var memberResponse = await Client.SendAsync(memberRequest);
+            using var memberRouteResponse = await Client.SendAsync(memberRequest);
             Assert.True(
-                memberResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
-                $"Current member was unexpectedly blocked from {route}: {(int)memberResponse.StatusCode}");
+                memberRouteResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.NoContent,
+                $"Current member was unexpectedly blocked from {route}: {(int)memberRouteResponse.StatusCode}");
 
             using var outsiderRequest = AuthorizedRequest(outsiderId, HttpMethod.Get, route);
             using var outsiderResourceResponse = await Client.SendAsync(outsiderRequest);
