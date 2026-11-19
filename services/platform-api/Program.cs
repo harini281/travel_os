@@ -30,6 +30,9 @@ using TravelOS.PlatformApi.Notifications;
 using TravelOS.PlatformApi.Recommendations;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+
+ProductionSecurityConfiguration.ValidateJwt(builder.Configuration, builder.Environment.IsProduction());
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
 
 var healthChecks = builder.Services.AddHealthChecks();
@@ -62,8 +65,6 @@ var issuer = builder.Configuration["Jwt:Issuer"] ?? "TravelOS";
 var audience = builder.Configuration["Jwt:Audience"] ?? "TravelOS.Client";
 var signingKey = builder.Configuration["Jwt:SigningKey"]
     ?? throw new InvalidOperationException("Configure Jwt:SigningKey with a secret of at least 32 bytes.");
-if (Encoding.UTF8.GetByteCount(signingKey) < 32)
-    throw new InvalidOperationException("Jwt:SigningKey must contain at least 32 bytes.");
 
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -85,8 +86,8 @@ builder.Services
         };
     });
 
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? new[] { "http://localhost:5173" };
+var allowedOrigins = ProductionSecurityConfiguration.GetAllowedOrigins(
+    builder.Configuration, builder.Environment.IsProduction());
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("web", policy =>
@@ -234,6 +235,18 @@ builder.Services.AddHttpClient("ai-planner", client =>
 });
 
 var app = builder.Build();
+
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'";
+    context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
+    context.Response.Headers["Cache-Control"] = "no-store";
+    await next();
+});
 
 app.UseCors("web");
 app.UseAuthentication();
