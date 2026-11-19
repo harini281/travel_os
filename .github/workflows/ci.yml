@@ -129,6 +129,7 @@ jobs:
   browser-e2e:
     name: Cross-browser, mobile and accessibility E2E tests
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16
