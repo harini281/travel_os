@@ -69,7 +69,7 @@ public sealed class JwtSecurityIntegrationTests(TravelOsApiFactory factory)
             : TravelOsApiFactory.TestSigningKey;
         var issuer = variant == "wrong-issuer" ? "TravelOS.WrongIssuer" : TravelOsApiFactory.TestIssuer;
         var audience = variant == "wrong-audience" ? "TravelOS.WrongAudience" : TravelOsApiFactory.TestAudience;
-        var notBefore = variant == "not-before" ? now.AddHours(1) : now.AddMinutes(-1);
+        var notBefore = variant == "not-before" ? now.AddHours(1) : now.AddHours(-2);
         var expires = variant == "expired" ? now.AddHours(-1) : now.AddHours(2);
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
