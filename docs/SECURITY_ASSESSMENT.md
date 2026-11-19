@@ -3,6 +3,7 @@
 **Assessment date:** 19 November 2026  
 **Repository:** https://github.com/harini281/travel_os  
 **Branch:** `stage51-security-testing`  
+**Current branch head at this update:** `5c761176955dfbb3d610f134aef8c6de4b774cc4`  
 **Baseline:** `stage50-production-readiness`  
 **Completed application validation baseline:** `2ceec4dbb85ef10d8d2144f8d5bcf37ab6e2de9f`  
 **Trivy policy-coverage upgrade:** `324929de999809ec834494adbd3adf225b9fd0aa`  
@@ -177,11 +178,13 @@ Never expose `AI_SERVICE_TOKEN` to the browser or place it in a `VITE_*` variabl
 
 ### Latest Trivy policy compatibility update
 
-Commit `324929de999809ec834494adbd3adf225b9fd0aa` pins each Trivy action to `v0.76.2` (the 5 November 2026 release). This addresses the Trivy 0.70 warning that the AWS CloudFront logging policy required Trivy 0.72+. The new branch-head workflow runs were queued when this report was written:
-- [TravelOS Security Assessment — run 44559376151](https://github.com/harini281/travel_os/actions/runs/44559376151) — queued.
-- [TravelOS CI — run 44559376142](https://github.com/harini281/travel_os/actions/runs/44559376142) — queued.
+Commit `324929de999809ec834494adbd3adf225b9fd0aa` pins each Trivy action to `v0.76.2` (the 5 November 2026 release). The Trivy filesystem/config job passed on [Security Assessment run 44559363790](https://github.com/harini281/travel_os/actions/runs/44559363790), with no warning that the CloudFront logging policy was skipped. That run’s container job nevertheless failed before image scans completed because the AI Dockerfile ran `ldconfig` after switching to UID 10001. The issue was corrected in `aadca97e81a72984e48cae12641d129c4123d41f` by moving linker-cache validation before the runtime user switch; the final runtime still executes as UID 10001.
 
-The branch subsequently received a null-safe preference normalization change at `a40c73ef36b6693a7a9ce05a789bd5e2e4604155`; its exact-head build/security workflows are also pending. Do not transfer the prior baseline PASS status to this new head until its runs complete.
+The branch also includes null-safe preference normalization at `a40c73ef36b6693a7a9ce05a789bd5e2e4604155` and the EXIF metadata regression test at `656cca56c16f126248bd42b38f0716f7dd2c5665`. The latest branch-head runs after those changes were queued:
+- [TravelOS Security Assessment — run 44560328623](https://github.com/harini281/travel_os/actions/runs/44560328623) — queued.
+- [TravelOS CI — run 44560328630](https://github.com/harini281/travel_os/actions/runs/44560328630) — queued.
+
+Do not call the exact branch head fully verified until those runs complete. Do not transfer the prior baseline PASS status to this new head until its runs complete.
 
 ### Earlier failed runs and regressions corrected
 
@@ -228,6 +231,6 @@ The repository still targets .NET 8. A migration must be a separately reviewed c
 
 ## 8. Assessment conclusion
 
-**FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes CI and the configured security gates, including CodeQL uploads, dependency audits and all three image scans. The baseline also passes 79 PostgreSQL integration tests and 16 browser E2E journeys. The Trivy 0.76.2 policy-coverage rerun is still in progress/queued; the repository still targets unsupported .NET 8. Branch protection, independent testing and several operational controls remain outstanding.
+**FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes CI and the configured security gates, including CodeQL uploads, dependency audits and all three image scans. The baseline also passes 79 PostgreSQL integration tests and 16 browser E2E journeys. The Trivy 0.76.2 configuration scan has passed on commit `324929d` with no CloudFront-policy skip warning; the full security workflow on that commit failed only because the AI image build hit the `ldconfig` permission error. That ordering is corrected in `aadca97`; the exact-head reruns for the later EXIF test and documentation changes are queued. The repository still targets unsupported .NET 8. Branch protection, independent testing and several operational controls remain outstanding.
 
 This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
