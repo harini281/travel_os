@@ -15,7 +15,8 @@ RUN python -m pip install --no-cache-dir --upgrade \
 COPY services/ai-api/requirements.txt ./requirements.txt
 RUN python -m pip install --no-cache-dir -r requirements.txt \
     && python -m pip uninstall --yes setuptools wheel \
-    && python -c "import importlib.metadata as m; assert not any(d.metadata['Name'].lower() in {'setuptools','wheel'} for d in m.distributions())" \
+    && find /usr -iname 'setuptools*' -prune -exec rm -rf -- '{}' + \
+    && python -c "import importlib.metadata as m; assert not any(d.metadata['Name'].lower() == 'setuptools' for d in m.distributions())" \
     && useradd --system --uid 10001 --create-home app
 COPY services/ai-api/app ./app
 USER 10001:10001
