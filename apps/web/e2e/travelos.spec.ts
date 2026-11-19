@@ -201,6 +201,27 @@ test.describe("TravelOS browser end-to-end journeys", () => {
     const selectedEnd = slotMatch![2];
     expect(selectedEnd <= "10:00" || selectedStart >= "11:00").toBeTruthy();
 
+    // Read the saved itinerary through the real API before explicit confirmation.
+    // The suggestion endpoint must remain advisory and must not add a database row.
+    const ownerSession = await apiContextFor(page);
+    const tripsResponse = await page.request.get(`${API_URL}/api/v1/trips`, { headers: ownerSession.headers });
+    expect(tripsResponse.ok()).toBeTruthy();
+    const trips = await tripsResponse.json() as Array<{ id: string; name: string }>;
+    const activeTrip = trips.find(item => item.name === tripName);
+    expect(activeTrip).toBeTruthy();
+    const savedBeforeConfirmation = await page.request.get(
+      `${API_URL}/api/v1/trips/${activeTrip!.id}/itinerary`,
+      { headers: ownerSession.headers },
+    );
+    expect(savedBeforeConfirmation.ok()).toBeTruthy();
+    const persistedBeforeConfirmation = await savedBeforeConfirmation.json() as {
+      days: Array<{ activities: Array<{ title: string }> }>;
+    };
+    expect(persistedBeforeConfirmation.days[0].activities).toHaveLength(1);
+    expect(persistedBeforeConfirmation.days[0].activities.some(
+      activity => activity.title === "Botanical Garden Walk",
+    )).toBe(false);
+
     await saveWithTime.click()
     const savedGarden = dayCard.locator(".activity-row").filter({ hasText: "Botanical Garden Walk" });
     await expect(savedGarden).toBeVisible();
