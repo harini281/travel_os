@@ -98,6 +98,40 @@ public sealed class ReceiptImageProcessorTests
         Assert.Equal(SKEncodedImageFormat.Jpeg, codec!.EncodedFormat);
     }
 
+    [Fact]
+    public void TryNormalize_ReencodingDiscardsExifMetadata()
+    {
+        var jpeg = CreateImage(SKEncodedImageFormat.Jpeg, 32, 24);
+        var exifSignature = Encoding.ASCII.GetBytes("Exif\0\0");
+        var exifPayload = exifSignature.Concat(new byte[]
+        {
+            0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00
+        }).ToArray();
+        var segmentLength = checked((ushort)(exifPayload.Length + 2));
+        var app1Segment = new byte[4 + exifPayload.Length];
+        app1Segment[0] = 0xFF;
+        app1Segment[1] = 0xE1;
+        app1Segment[2] = (byte)(segmentLength >> 8);
+        app1Segment[3] = (byte)(segmentLength & 0xFF);
+        exifPayload.CopyTo(app1Segment, 4);
+
+        // Insert an EXIF APP1 marker immediately after the JPEG SOI marker.
+        var source = new byte[jpeg.Length + app1Segment.Length];
+        jpeg.AsSpan(0, 2).CopyTo(source);
+        app1Segment.CopyTo(source, 2);
+        jpeg.AsSpan(2).CopyTo(source.AsSpan(2 + app1Segment.Length));
+        Assert.NotEqual(-1, source.AsSpan().IndexOf(exifSignature));
+
+        Assert.True(ReceiptImageProcessor.TryNormalize(source, "image/jpeg", out var normalized));
+        Assert.NotNull(normalized);
+        Assert.Equal(-1, normalized.Bytes.AsSpan().IndexOf(exifSignature));
+
+        using var normalizedData = SKData.CreateCopy(normalized.Bytes);
+        using var normalizedCodec = SKCodec.Create(normalizedData);
+        Assert.NotNull(normalizedCodec);
+        Assert.Equal(SKEncodedImageFormat.Jpeg, normalizedCodec.EncodedFormat);
+    }
+
     private static byte[] CreateImage(SKEncodedImageFormat format, int width, int height)
     {
         using var bitmap = new SKBitmap(width, height);
