@@ -24,6 +24,34 @@ public static class ProductionSecurityConfiguration
             throw new InvalidOperationException("Production Jwt:SigningKey must be a unique, randomly generated secret, not an example or placeholder.");
     }
 
+    public static void ValidateDatabaseConnectionString(IConfiguration configuration, bool production)
+    {
+        var connectionString = configuration.GetConnectionString("TravelOS");
+        if (!production) return;
+
+        if (string.IsNullOrWhiteSpace(connectionString))
+            throw new InvalidOperationException("Production requires ConnectionStrings:TravelOS.");
+
+        Npgsql.NpgsqlConnectionStringBuilder parsed;
+        try
+        {
+            parsed = new Npgsql.NpgsqlConnectionStringBuilder(connectionString);
+        }
+        catch (ArgumentException)
+        {
+            throw new InvalidOperationException("Production ConnectionStrings:TravelOS is not a valid PostgreSQL connection string.");
+        }
+
+        if (string.IsNullOrWhiteSpace(parsed.Host) ||
+            string.IsNullOrWhiteSpace(parsed.Database) ||
+            string.IsNullOrWhiteSpace(parsed.Username) ||
+            string.IsNullOrWhiteSpace(parsed.Password))
+        {
+            throw new InvalidOperationException(
+                "Production PostgreSQL configuration must include host, database, username and password.");
+        }
+    }
+
     public static string[] GetAllowedOrigins(IConfiguration configuration, bool production)
     {
         var origins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
