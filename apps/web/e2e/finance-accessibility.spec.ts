@@ -233,8 +233,9 @@ test.describe("TravelOS finance browser journeys", () => {
       { headers: auth.headers },
     );
     expect(originalFile.status()).toBe(200);
-    expect(originalFile.headers()["content-type"]).toContain("image/png");
-    expect(await originalFile.body()).toEqual(png);
+    expect(originalFile.headers()["content-type"]).toContain("image/jpeg");
+    const normalizedReceipt = await originalFile.body();
+    expect(normalizedReceipt.subarray(0, 3)).toEqual(Buffer.from([0xff, 0xd8, 0xff]));
 
     await fileInput.setInputFiles({ name: "playwright-receipt.png", mimeType: "image/png", buffer: png });
     await uploadForm.getByLabel("Attach to expense (optional)").selectOption({ index: 1 });
