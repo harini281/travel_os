@@ -1,0 +1,46 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      web-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /services/ai-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      ai-api-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: nuget
+    directory: /services/platform-api
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      platform-api-dependencies:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      container-base-images:
+        patterns: ["*"]
