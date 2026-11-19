@@ -24,6 +24,15 @@ public static class ProductionSecurityConfiguration
             throw new InvalidOperationException("Production Jwt:SigningKey must be a unique, randomly generated secret, not an example or placeholder.");
     }
 
+    public static void ValidateAiServiceToken(IConfiguration configuration, bool production)
+    {
+        var token = configuration["AI_SERVICE_TOKEN"];
+        if (production && (string.IsNullOrWhiteSpace(token) || token.Length < 32))
+            throw new InvalidOperationException("Production requires AI_SERVICE_TOKEN with at least 32 characters for internal AI API authentication.");
+        if (!string.IsNullOrWhiteSpace(token) && token.Length < 32)
+            throw new InvalidOperationException("AI_SERVICE_TOKEN must contain at least 32 characters.");
+    }
+
     public static void ValidateDatabaseConnectionString(IConfiguration configuration, bool production)
     {
         var connectionString = configuration.GetConnectionString("TravelOS");
