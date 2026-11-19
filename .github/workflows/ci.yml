@@ -436,7 +436,7 @@ jobs:
           docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml create
           docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
           platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --quiet platform-api)"
-          if [ -z "$platform_image" ] || [ "$(printf '%s\\n' "$platform_image" | grep -c .)" -ne 1 ]; then
+          if [ -z "$platform_image" ] || [ "$(printf '%s\n' "$platform_image" | grep -c .)" -ne 1 ]; then
             echo "::error::Compose did not return exactly one Platform API image ID after creating service containers."
             docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
             exit 1
@@ -452,14 +452,12 @@ jobs:
           fi
           echo "Resolved and validated the Platform API image ID."
           docker image inspect "$platform_image_id" --format 'Platform API image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
-          docker run --rm --entrypoint sh "$platform_image_id" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \\;'
+          docker run --rm --entrypoint sh "$platform_image_id" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \;'
           while IFS= read -r image; do
             [ -n "$image" ] || continue
             if ! docker image inspect "$image" >/dev/null 2>&1; then echo "::error::Compose reported an invalid local image ID: $image"; exit 1; fi
             docker image inspect "$image" --format 'Compose image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
           done < <(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --quiet | sort -u)
-            docker image inspect "$image" --format 'Image={{.Id}} OS={{.Os}} Architecture={{.Architecture}} Digests={{json .RepoDigests}}'
-          done
       - name: Start deployment stack
         run: |
           set +x
