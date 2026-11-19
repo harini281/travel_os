@@ -308,6 +308,7 @@ jobs:
           path: |
             apps/web/playwright-report/
             apps/web/test-results/
+            !apps/web/test-results/**/*.zip
             ${{ runner.temp }}/travelos-platform-api.log
             ${{ runner.temp }}/travelos-ai-mock.log
           if-no-files-found: ignore
