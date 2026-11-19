@@ -27,10 +27,12 @@ public static class ProductionSecurityConfiguration
     public static void ValidateAiServiceToken(IConfiguration configuration, bool production)
     {
         var token = configuration["AI_SERVICE_TOKEN"];
-        if (production && (string.IsNullOrWhiteSpace(token) || token.Length < 32))
-            throw new InvalidOperationException("Production requires AI_SERVICE_TOKEN with at least 32 characters for internal AI API authentication.");
-        if (!string.IsNullOrWhiteSpace(token) && token.Length < 32)
-            throw new InvalidOperationException("AI_SERVICE_TOKEN must contain at least 32 characters.");
+        if (production && (string.IsNullOrWhiteSpace(token) || token.Length < 32 ||
+            IsPlaceholder(token) || token.Distinct().Count() < 12))
+            throw new InvalidOperationException("Production requires a unique, randomly generated AI_SERVICE_TOKEN of at least 32 characters.");
+        if (!string.IsNullOrWhiteSpace(token) &&
+            (token.Length < 32 || string.Equals(token, configuration["Jwt:SigningKey"], StringComparison.Ordinal)))
+            throw new InvalidOperationException("AI_SERVICE_TOKEN must contain at least 32 characters and must be different from the JWT signing key.");
     }
 
     public static void ValidateDatabaseConnectionString(IConfiguration configuration, bool production)
