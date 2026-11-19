@@ -126,7 +126,7 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            docker run --rm --network host --env PGPASSWORD="$PGPASSWORD" --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Run PostgreSQL-backed API integration tests
         run: |
@@ -372,7 +372,7 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            docker run --rm --network host --env PGPASSWORD="$PGPASSWORD" --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Stop isolated PostgreSQL and remove credentials
         if: always()
@@ -433,18 +433,31 @@ jobs:
           dotnet --info || true
           uname -m
           cat /etc/os-release
+          docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml create
           docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
-          platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --format json | python -c 'import json,sys; rows=json.load(sys.stdin); matches=[r.get("ID","") for r in rows if r.get("Service")=="platform-api" and r.get("ID")]; print(matches[0] if len(matches)==1 else "")')"
-          if [ -z "$platform_image" ] || ! docker image inspect "$platform_image" >/dev/null 2>&1; then
-            echo "::error::Unable to resolve a valid local image ID for Compose service platform-api; refusing to invoke docker run with an empty or invalid image reference."
+          platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --quiet platform-api)"
+          if [ -z "$platform_image" ] || [ "$(printf '%s\\n' "$platform_image" | grep -c .)" -ne 1 ]; then
+            echo "::error::Compose did not return exactly one Platform API image ID after creating service containers."
             docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
             exit 1
           fi
-          echo "Resolved Platform API image ID."
-          docker image inspect "$platform_image" --format 'Platform API image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
-          docker run --rm --entrypoint sh "$platform_image" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \;'
-          for image in $(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --format json | python -c 'import json,sys; print("\n".join(sorted({r.get("ID","") for r in json.load(sys.stdin) if r.get("ID")})))'); do
-            if ! docker image inspect "$image" >/dev/null 2>&1; then echo "::error::Compose reported an invalid local image ID."; exit 1; fi
+          if ! docker image inspect "$platform_image" >/dev/null 2>&1; then
+            echo "::error::Compose returned a Platform API image reference that Docker cannot inspect; refusing to invoke docker run."
+            exit 1
+          fi
+          platform_image_id="$(docker image inspect --format '{{.Id}}' "$platform_image")"
+          if [[ ! "$platform_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::Docker returned an invalid Platform API image ID; refusing to invoke docker run."
+            exit 1
+          fi
+          echo "Resolved and validated the Platform API image ID."
+          docker image inspect "$platform_image_id" --format 'Platform API image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
+          docker run --rm --entrypoint sh "$platform_image_id" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \\;'
+          while IFS= read -r image; do
+            [ -n "$image" ] || continue
+            if ! docker image inspect "$image" >/dev/null 2>&1; then echo "::error::Compose reported an invalid local image ID: $image"; exit 1; fi
+            docker image inspect "$image" --format 'Compose image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
+          done < <(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --quiet | sort -u)
             docker image inspect "$image" --format 'Image={{.Id}} OS={{.Os}} Architecture={{.Architecture}} Digests={{json .RepoDigests}}'
           done
       - name: Start deployment stack
