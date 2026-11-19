@@ -36,7 +36,7 @@ jobs:
         run: |
           dotnet restore services/platform-api/TravelOS.PlatformApi.csproj
           dotnet build services/platform-api/TravelOS.PlatformApi.csproj --no-restore --configuration Release
-      - name: Analyze source code (store SARIF as workflow artifact)
+      - name: Analyze source code and upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/analyze@v4
         with:
           output: ${{ runner.temp }}/codeql-dotnet-results
@@ -64,7 +64,7 @@ jobs:
         with:
           languages: javascript-typescript, python
           build-mode: none
-      - name: Analyze source code (store SARIF as workflow artifact)
+      - name: Analyze source code and upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/analyze@v4
         with:
           output: ${{ runner.temp }}/codeql-web-ai-results
