@@ -94,6 +94,9 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddAuthorization();
+var authRateLimitPerMinute = builder.Configuration.GetValue("RateLimits:AuthPerMinute", 10);
+if (authRateLimitPerMinute is < 1 or > 1000)
+    throw new InvalidOperationException("RateLimits:AuthPerMinute must be between 1 and 1000.");
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -102,7 +105,7 @@ builder.Services.AddRateLimiter(options =>
             partitionKey: context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
             factory: _ => new FixedWindowRateLimiterOptions
             {
-                PermitLimit = 10,
+                PermitLimit = authRateLimitPerMinute,
                 Window = TimeSpan.FromMinutes(1),
                 QueueLimit = 0,
                 AutoReplenishment = true
