@@ -38,6 +38,13 @@ ProductionSecurityConfiguration.ValidateDatabaseConnectionString(builder.Configu
 ProductionSecurityConfiguration.ValidateAiServiceToken(builder.Configuration, isProduction);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
 
+builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 9 * 1024 * 1024;
+    options.MultipartHeadersLengthLimit = 16 * 1024;
+    options.ValueLengthLimit = 16 * 1024;
+});
+
 var healthChecks = builder.Services.AddHealthChecks();
 
 if (!string.IsNullOrWhiteSpace(connectionString))
