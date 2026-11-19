@@ -76,8 +76,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos_test
@@ -128,7 +126,7 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            psql -h localhost -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD="$PGPASSWORD" --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Run PostgreSQL-backed API integration tests
         run: |
@@ -159,8 +157,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos_e2e
@@ -326,8 +322,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install PostgreSQL client
-        run: sudo apt-get update && sudo apt-get install -y postgresql-client
       - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos
@@ -378,7 +372,7 @@ jobs:
             017_trip_notifications.sql
           do
             echo "Applying $migration"
-            psql -h localhost -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+            docker run --rm --network host --env PGPASSWORD="$PGPASSWORD" --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
           done
       - name: Stop isolated PostgreSQL and remove credentials
         if: always()
@@ -440,9 +434,17 @@ jobs:
           uname -m
           cat /etc/os-release
           docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
-          platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images -q platform-api)"
+          platform_image="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --format json | python -c 'import json,sys; rows=json.load(sys.stdin); matches=[r.get("ID","") for r in rows if r.get("Service")=="platform-api" and r.get("ID")]; print(matches[0] if len(matches)==1 else "")')"
+          if [ -z "$platform_image" ] || ! docker image inspect "$platform_image" >/dev/null 2>&1; then
+            echo "::error::Unable to resolve a valid local image ID for Compose service platform-api; refusing to invoke docker run with an empty or invalid image reference."
+            docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images
+            exit 1
+          fi
+          echo "Resolved Platform API image ID."
+          docker image inspect "$platform_image" --format 'Platform API image: {{.Id}} OS={{.Os}} Architecture={{.Architecture}}'
           docker run --rm --entrypoint sh "$platform_image" -c 'dotnet --info; echo "Runtime executable dependencies:"; ldd "$(command -v dotnet)" || true; echo "Application native libraries:"; find /app -type f -name "*.so" -exec ldd {} \;'
-          for image in $(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images -q | sort -u); do
+          for image in $(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml images --format json | python -c 'import json,sys; print("\n".join(sorted({r.get("ID","") for r in json.load(sys.stdin) if r.get("ID")})))'); do
+            if ! docker image inspect "$image" >/dev/null 2>&1; then echo "::error::Compose reported an invalid local image ID."; exit 1; fi
             docker image inspect "$image" --format 'Image={{.Id}} OS={{.Os}} Architecture={{.Architecture}} Digests={{json .RepoDigests}}'
           done
       - name: Start deployment stack
