@@ -42,6 +42,7 @@ public static class ProductionSecurityConfiguration
             throw new InvalidOperationException("Production ConnectionStrings:TravelOS is not a valid PostgreSQL connection string.");
         }
 
+        var applicationRole = configuration["TRAVELOS_APP_DB_USER"];
         if (string.IsNullOrWhiteSpace(parsed.Host) ||
             string.IsNullOrWhiteSpace(parsed.Database) ||
             string.IsNullOrWhiteSpace(parsed.Username) ||
@@ -49,6 +50,13 @@ public static class ProductionSecurityConfiguration
         {
             throw new InvalidOperationException(
                 "Production PostgreSQL configuration must include host, database, username and password.");
+        }
+
+        if (string.IsNullOrWhiteSpace(applicationRole) ||
+            !string.Equals(parsed.Username, applicationRole, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Production ConnectionStrings:TravelOS must use the configured TRAVELOS_APP_DB_USER runtime role.");
         }
     }
 
