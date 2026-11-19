@@ -9,7 +9,7 @@ RUN apt-get update \
 
 # Keep tooling packages in the runtime layer at versions with current security fixes.
 RUN python -m pip install --no-cache-dir --upgrade \
-    "pip" "wheel>=0.46.2" "jaraco.context>=6.1.0"
+    "pip" "setuptools>=78.1.1" "wheel>=0.46.2" "jaraco.context>=6.1.0"
 
 COPY services/ai-api/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt \
