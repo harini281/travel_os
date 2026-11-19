@@ -4,7 +4,8 @@
 **Repository:** https://github.com/harini281/travel_os  
 **Branch:** `stage51-security-testing`  
 **Baseline:** `stage50-production-readiness`  
-**Current branch head at this update:** `324929de999809ec834494adbd3adf225b9fd0aa`  
+**Completed application validation baseline:** `2ceec4dbb85ef10d8d2144f8d5bcf37ab6e2de9f`  
+**Trivy policy-coverage upgrade:** `324929de999809ec834494adbd3adf225b9fd0aa`  
 **Draft PR:** [#53 — Stage 51: Security verification and hardening](https://github.com/harini281/travel_os/pull/53)
 
 > **Overall result: FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes its CI and security gates, but the current head still has a fresh Trivy-policy-coverage rerun queued, .NET 8 is out of support, branch protection is disabled, and independent staging security testing has not been performed. This is a repository-level assessment, not an independent audit, certification or penetration test.
@@ -36,7 +37,7 @@ Exact completed security evidence on the same commit:
 - Trivy configuration scan — the job passed its HIGH/CRITICAL gate, but Trivy 0.70 warned that one AWS CloudFront logging policy requiring Trivy 0.72+ was skipped. This is a policy-coverage limitation, not a clean result for that skipped rule.
 - Platform API, AI API and web container image scans — all passed the HIGH/CRITICAL gate. The AI image was rebuilt as a multi-stage image so builder/package-manager layers do not enter the final runtime; the web runtime uses the refreshed NGINX unprivileged/Alpine 3.24 base.
 
-Because of the skipped Trivy policy, the current head pins Trivy `v0.76.2` for all five Trivy action uses. Fresh CI/security runs triggered by that version pin are queued/in progress. Do not call the Trivy configuration coverage final until that newer run passes and the CloudFront rule is no longer skipped.
+Because of the skipped Trivy policy, commit `324929de999809ec834494adbd3adf225b9fd0aa` pins Trivy `v0.76.2` for all five Trivy action uses. [Security run 44559363790](https://github.com/harini281/travel_os/actions/runs/44559363790) is in progress against that pin; [run 44559565380](https://github.com/harini281/travel_os/actions/runs/44559565380) is queued for the later documentation-only head. Do not call the Trivy configuration coverage final until the new scanner run passes and the CloudFront rule is no longer skipped.
 
 The final source also received a null-safe normalization change in `Preferences/PreferenceEndpoints.cs` after the completed baseline; the current-head build/test rerun for that small change is queued/in progress.
 
@@ -223,8 +224,6 @@ The repository still targets .NET 8. A migration must be a separately reviewed c
 
 ## 8. Assessment conclusion
 
-**FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes CI and the configured security gates, including CodeQL uploads, dependency audits and all three image scans. The baseline also passes 79 PostgreSQL integration tests and 16 browser E2E journeys. The current branch head still needs its Trivy 0.76.2 re-run, and it still targets an unsupported .NET 8 runtime. Branch protection, independent testing and several operational controls remain outstanding.
-
-This report does not certify TravelOS as secure and does not describe the work as a penetration test.
+**FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes CI and the configured security gates, including CodeQL uploads, dependency audits and all three image scans. The baseline also passes 79 PostgreSQL integration tests and 16 browser E2E journeys. The Trivy 0.76.2 policy-coverage rerun is still in progress/queued; the repository still targets unsupported .NET 8. Branch protection, independent testing and several operational controls remain outstanding.
 
 This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
