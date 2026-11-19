@@ -804,3 +804,13 @@
 .recommendation-schedule p{color:#68796c;font-size:10px;line-height:1.55}
 .recommendation-schedule small{display:block;color:#829184;font-size:9px;line-height:1.55}
 .recommendation-added{display:inline-block;margin-top:9px;color:#42734b;font-size:10px;font-weight:700}
+
+/* Stage 46 — accessible contrast on the authentication screen */
+.auth-card > .eyebrow{color:#79502f}
+.auth-card > .muted{color:#59655d}
+.auth-tabs button{color:#566158}
+.auth-tabs button.active{color:#27372f}
+.auth-card .field-hint{color:#566258}
+.auth-card .btn-primary{background:#80512f;color:#fff}
+.auth-card .btn-primary:hover{background:#694126}
+.auth-card .auth-legal{color:#5d685f}
