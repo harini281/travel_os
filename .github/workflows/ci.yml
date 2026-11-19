@@ -127,8 +127,9 @@ jobs:
 
 
   browser-e2e:
-    name: Chromium browser end-to-end tests
+    name: Cross-browser, mobile and accessibility E2E tests
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:16
@@ -190,9 +191,9 @@ jobs:
       - name: Build web application
         working-directory: apps/web
         run: npm run build
-      - name: Install Chromium and Linux dependencies
+      - name: Install Chromium, Firefox, WebKit and Linux dependencies
         working-directory: apps/web
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium firefox webkit
       - name: Start deterministic AI recommendation mock
         run: |
           set -euo pipefail
@@ -237,7 +238,7 @@ jobs:
           done
           cat "$RUNNER_TEMP/travelos-platform-api.log"
           exit 1
-      - name: Run Chromium browser journeys
+      - name: Run Chromium, Firefox, WebKit, mobile and tablet journeys
         working-directory: apps/web
         env:
           CI: "true"
@@ -245,7 +246,7 @@ jobs:
           E2E_API_URL: http://127.0.0.1:8080
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
         run: npm run test:e2e
-      - name: Upload Playwright report, screenshots and traces
+      - name: Upload cross-browser reports, screenshots and traces
         if: always()
         uses: actions/upload-artifact@v4
         with:

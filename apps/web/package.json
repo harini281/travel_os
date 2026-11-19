@@ -10,7 +10,9 @@
     "test:e2e": "npm run typecheck:e2e && playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:report": "playwright show-report playwright-report",
-    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json"
+    "typecheck:e2e": "tsc --noEmit -p tsconfig.e2e.json",
+    "test:e2e:desktop": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:e2e:responsive": "playwright test --project=mobile-chromium --project=mobile-webkit --project=tablet-chromium"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",

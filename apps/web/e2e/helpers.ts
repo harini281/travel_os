@@ -62,10 +62,29 @@ export async function apiContextFor(page: Page) {
 
 
 export async function createItineraryAndDay(page: Page, dayDate: string) {
-  const createButton = page.getByRole("button", { name: /Create itinerary/ });
-  if (await createButton.isVisible().catch(() => false)) await createButton.click();
+  const toolbar = page.locator(".itinerary-toolbar");
+  const emptyState = page.locator(".itinerary-empty");
 
-  await expect(page.locator(".itinerary-toolbar")).toBeVisible();
+  // Wait for the selected trip's itinerary request to resolve in slower engines
+  // before deciding whether the workspace must be created.
+  await expect(page.locator(".itinerary-toolbar, .itinerary-empty")).toBeVisible();
+
+  const createButton = emptyState.getByRole("button", { name: /Create itinerary/ });
+  if (await createButton.isVisible().catch(() => false)) {
+    const createResponsePromise = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return /^\/api\/v1\/trips\/[^/]+\/itinerary$/.test(url.pathname)
+        && response.request().method() === "POST";
+    }, { timeout: 30_000 });
+    await createButton.click();
+    const response = await createResponsePromise;
+    if (!response.ok()) {
+      throw new Error(`Create itinerary failed (${response.status()}): ${await response.text()}`);
+    }
+  }
+
+  // Allow slower browser engines to finish loading the new itinerary after the POST.
+  await expect(toolbar).toBeVisible({ timeout: 30_000 });
   const addDay = page.getByRole("button", { name: /Add a day/ });
   if (await addDay.isVisible().catch(() => false)) {
     await addDay.click();
