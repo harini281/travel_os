@@ -332,3 +332,64 @@ def test_recommendation_request_rejects_oversized_context():
             currency="EUR",
             existingActivities=["x" * 241],
         )
+
+
+def test_ai_provider_configuration_accepts_demo_mode():
+    from app.configuration import validate_ai_provider_configuration
+
+    validate_ai_provider_configuration({})
+
+
+@pytest.mark.parametrize("variable,value", [
+    ("AI_PROVIDER", "unsupported"),
+    ("AI_RECEIPT_PROVIDER", "third-party-guess"),
+])
+def test_ai_provider_configuration_rejects_unknown_modes(variable, value):
+    from app.configuration import validate_ai_provider_configuration
+
+    with pytest.raises(RuntimeError, match="must be either"):
+        validate_ai_provider_configuration({variable: value})
+
+
+@pytest.mark.parametrize("planner_mode,receipt_mode", [
+    ("openai", "demo"),
+    ("demo", "openai"),
+])
+def test_ai_provider_configuration_requires_key_for_live_modes(planner_mode, receipt_mode):
+    from app.configuration import validate_ai_provider_configuration
+
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        validate_ai_provider_configuration({
+            "AI_PROVIDER": planner_mode,
+            "AI_RECEIPT_PROVIDER": receipt_mode,
+            "OPENAI_API_KEY": "",
+        })
+
+
+def test_ai_provider_configuration_accepts_live_provider_with_https_endpoint():
+    from app.configuration import validate_ai_provider_configuration
+
+    validate_ai_provider_configuration({
+        "AI_PROVIDER": "openai",
+        "AI_RECEIPT_PROVIDER": "demo",
+        "OPENAI_API_KEY": "test-only-not-a-real-key",
+        "OPENAI_MODEL": "gpt-4.1-mini",
+        "OPENAI_BASE_URL": "https://api.openai.com/v1",
+    })
+
+
+@pytest.mark.parametrize("base_url", [
+    "http://api.openai.com/v1",
+    "https://user:password@example.com/v1",
+    "https://example.com/v1?token=secret",
+    "https://example.com/v1#fragment",
+])
+def test_ai_provider_configuration_rejects_unsafe_live_endpoint(base_url):
+    from app.configuration import validate_ai_provider_configuration
+
+    with pytest.raises(RuntimeError, match="OPENAI_BASE_URL"):
+        validate_ai_provider_configuration({
+            "AI_PROVIDER": "openai",
+            "OPENAI_API_KEY": "test-only-not-a-real-key",
+            "OPENAI_BASE_URL": base_url,
+        })
