@@ -296,19 +296,13 @@ The GitHub Actions workflow starts a clean PostgreSQL 16 service and applies mig
 
 ### Latest verified CI result
 
-<badge color="success">All 4 CI jobs passed</badge>
+<badge color="warning">Stage 51 validation in progress</badge>
 
-GitHub Actions run **#136** for the Stage 39 pull request completed successfully on 19 November 2026:
+The Stage 50 baseline CI run [#44529642937](https://github.com/harini281/travel_os/actions/runs/44529642937) passed all eight jobs on commit `071e737db16ac5dce2f23180bf981b818f4f2d03`. That is historical baseline evidence, not verification of Stage 51.
 
-| Check | Result |
-|---|---|
-| Web TypeScript check and Vite build | PASS |
-| ASP.NET Core Platform API build | PASS |
-| AI API automated tests | PASS — 18 passed, 1 warning (Stage 39 run) |
-| Platform API unit tests | Added in Stage 42; CI result pending |
-| PostgreSQL migrations 001–017 | PASS |
+Stage 51 adds a separate [security assessment workflow](.github/workflows/security.yml) covering CodeQL, npm/pip/NuGet dependency audits, Trivy filesystem/secret/configuration scans and container image scans. See the [Stage 51 security assessment plan](docs/STAGE51_SECURITY_ASSESSMENT_PLAN.md) and [assessment report](docs/STAGE51_SECURITY_ASSESSMENT_REPORT.md).
 
-These are the checks currently automated in CI. They do **not** mean every user journey, external provider integration, deployed environment or production security scenario has been end-to-end tested.
+The first Stage 51 runs exposed issues in the newly added scanner/dependency setup. Those are being corrected; **do not treat Stage 51 as validated until the latest branch-head CI and security workflow both complete successfully and their findings are reviewed**. Automated checks are not a professional penetration test or security certification.
 
 ## 7. Stage 39 — AI activity recommendations
 
