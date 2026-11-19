@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 — security verification and remediation is in review on `stage51-security-testing`, based on Stage 50. PRs #51 (Stage 49) and #52 (Stage 50) are historical merged PRs; they have not been changed or merged as part of Stage 51. A separate Stage 51 draft PR is being prepared. This remains an active development project, not approved for public production.
+> **Current development status:** Stage 51 — security verification and remediation is in review on `stage51-security-testing`, based on Stage 50. PRs #51 (Stage 49) and #52 (Stage 50) are historical merged PRs; they have not been changed or merged as part of Stage 51. A separate Stage 51 draft PR is open as [#53](https://github.com/harini281/travel_os/pull/53). This remains an active development project, not approved for public production.
 
 ## 1. Features implemented
 
