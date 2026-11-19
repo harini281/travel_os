@@ -34,6 +34,8 @@ services:
       PGDATABASE: ${POSTGRES_DB:?Set POSTGRES_DB}
       PGUSER: ${POSTGRES_USER:?Set POSTGRES_USER}
       PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      TRAVELOS_APP_DB_USER: ${TRAVELOS_APP_DB_USER:?Set TRAVELOS_APP_DB_USER}
+      TRAVELOS_APP_DB_PASSWORD: ${TRAVELOS_APP_DB_PASSWORD:?Set TRAVELOS_APP_DB_PASSWORD}
     volumes:
       - ./database/migrations:/migrations:ro
       - ./deploy/migrate.sh:/migrate.sh:ro
@@ -83,6 +85,7 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__TravelOS: ${TRAVELOS_CONNECTION_STRING:?Set TRAVELOS_CONNECTION_STRING}
+      TRAVELOS_APP_DB_USER: ${TRAVELOS_APP_DB_USER:?Set TRAVELOS_APP_DB_USER}
       Jwt__Issuer: ${JWT_ISSUER:?Set JWT_ISSUER}
       Jwt__Audience: ${JWT_AUDIENCE:?Set JWT_AUDIENCE}
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY}
