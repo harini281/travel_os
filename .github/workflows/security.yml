@@ -125,6 +125,7 @@ jobs:
       - name: Scan dependencies and secrets
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.2
           scan-type: fs
           scan-ref: .
           scanners: vuln,secret
@@ -136,6 +137,7 @@ jobs:
       - name: Scan infrastructure configuration
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.2
           scan-type: config
           scan-ref: .
           severity: HIGH,CRITICAL
@@ -167,6 +169,7 @@ jobs:
       - name: Scan Platform API image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.2
           scan-type: image
           image-ref: travelos-platform-api:stage51
           scanners: vuln
@@ -179,6 +182,7 @@ jobs:
       - name: Scan AI API image
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.2
           scan-type: image
           image-ref: travelos-ai-api:stage51
           scanners: vuln
@@ -193,6 +197,7 @@ jobs:
         if: always()
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: v0.76.2
           scan-type: image
           image-ref: travelos-web:stage51
           scanners: vuln
