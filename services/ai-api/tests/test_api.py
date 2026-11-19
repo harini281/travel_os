@@ -98,11 +98,12 @@ def test_ai_routes_fail_closed_when_internal_token_is_not_configured(monkeypatch
     assert "not configured" in response.json()["detail"]
 
 
-def test_health_is_demo_only_by_default():
+def test_health_is_minimal_and_public_by_default():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["mode"] == "demo"
-    assert response.json()["modelConfigured"] is False
+    assert response.json() == {"status": "ok"}
+    assert "mode" not in response.json()
+    assert "modelConfigured" not in response.json()
 
 
 def test_planner_returns_explicit_demo_response_by_default():
