@@ -90,6 +90,164 @@ public sealed class RecommendationScheduleEndpointTests(TravelOsApiFactory facto
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [PostgresFact]
+    public async Task CreateItinerary_RejectsDuplicateItinerary()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary");
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [PostgresFact]
+    public async Task AddDay_OwnerCanAddDayWithinTripDateRange()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/days",
+            new { dayNumber = 2, date = "2026-12-02" });
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        var itineraryId = await db.Itineraries.Where(i => i.TripId == seeded.TripId)
+            .Select(i => i.Id).SingleAsync();
+        Assert.Equal(2, await db.ItineraryDays.CountAsync(x => x.ItineraryId == itineraryId));
+    }
+
+    [PostgresFact]
+    public async Task AddDay_RejectsTripMember()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: true);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.MemberId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/days",
+            new { dayNumber = 2, date = "2026-12-02" });
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [PostgresFact]
+    public async Task AddActivity_OwnerCanSaveTimedActivity()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/days/{seeded.DayId}/activities",
+            ActivityBody("Botanical garden", "14:00", "15:30"));
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        var saved = await db.Activities.SingleAsync(x =>
+            x.ItineraryDayId == seeded.DayId && x.Title == "Botanical garden");
+        Assert.Equal(new TimeOnly(14, 0), saved.StartTime);
+        Assert.Equal(new TimeOnly(15, 30), saved.EndTime);
+        Assert.Equal(90, saved.DurationMinutes);
+    }
+
+    [PostgresFact]
+    public async Task AddActivity_RejectsTripMember()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: true);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.MemberId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/days/{seeded.DayId}/activities",
+            ActivityBody("Member attempt", "14:00", "15:00"));
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [PostgresFact]
+    public async Task Approve_OwnerCanApproveItineraryAndApprovalIsPersisted()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/approve");
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        var itinerary = await db.Itineraries.SingleAsync(x => x.TripId == seeded.TripId);
+        Assert.Equal(seeded.OwnerId, itinerary.ApprovedByUserId);
+        Assert.NotNull(itinerary.ApprovedAt);
+    }
+
+    [PostgresFact]
+    public async Task AddActivity_RejectsChangesAfterItineraryApproval()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: false, approved: true);
+        using var request = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Post,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/days/{seeded.DayId}/activities",
+            ActivityBody("Late change", "14:00", "15:00"));
+        using var response = await Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [PostgresFact]
+    public async Task UpdateAndDeleteActivity_OwnerCanManageUnapprovedActivity()
+    {
+        var seeded = await SeedTripAsync(addItinerary: true, addMember: false);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        var activityId = await db.Activities
+            .Where(x => x.ItineraryDayId == seeded.DayId)
+            .Select(x => x.Id)
+            .SingleAsync();
+
+        using var update = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Put,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/activities/{activityId}",
+            ActivityBody("Updated museum visit", "10:15", "11:45"));
+        using var updateResponse = await Client.SendAsync(update);
+        Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+        Assert.Equal("Updated museum visit", await db.Activities
+            .Where(x => x.Id == activityId).Select(x => x.Title).SingleAsync());
+
+        using var delete = AuthorizedApiRequest(
+            seeded.TripId, seeded.OwnerId, HttpMethod.Delete,
+            $"/api/v1/trips/{seeded.TripId}/itinerary/activities/{activityId}");
+        using var deleteResponse = await Client.SendAsync(delete);
+        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
+        Assert.False(await db.Activities.AnyAsync(x => x.Id == activityId));
+    }
+
+    private HttpRequestMessage AuthorizedApiRequest(
+        Guid tripId, Guid userId, HttpMethod method, string path, object? body = null)
+    {
+        var request = new HttpRequestMessage(method, path);
+        if (body is not null) request.Content = JsonContent.Create(body);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CreateToken(userId));
+        return request;
+    }
+
+    private static object ActivityBody(string title, string startTime, string endTime) => new
+    {
+        title,
+        description = "Integration test activity",
+        placeName = "Colombo",
+        latitude = (decimal?)null,
+        longitude = (decimal?)null,
+        durationMinutes = (int?)90,
+        estimatedCost = (decimal?)null,
+        currencyCode = (string?)null,
+        sortOrder = 2,
+        startTime = startTime + ":00",
+        endTime = endTime + ":00"
+    };
+
     private static string ScheduleUrl(Guid tripId) =>
         $"/api/v1/trips/{tripId}/itinerary/recommendations/schedule";
 
