@@ -379,6 +379,5 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.HasIndex(x => new { x.TripId, x.ScheduledDepartureUtc });
         });
 
-        base.OnModelCreating(modelBuilder);
     }
 }

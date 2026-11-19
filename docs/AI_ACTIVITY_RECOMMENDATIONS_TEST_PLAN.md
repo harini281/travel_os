@@ -111,3 +111,26 @@ The xUnit suite validates:
 6. Invalid planning windows, durations below 15 or above 720 minutes, and buffers below 0 or above 240 minutes.
 
 The planner is a pure calculation component; this suite does not test HTTP authentication, database ownership checks, EF Core persistence or browser interaction. Those remain integration/manual verification tasks.
+
+
+## Stage 43 — PostgreSQL-backed API integration tests
+
+The integration tests use `WebApplicationFactory<Program>` and a disposable PostgreSQL database. GitHub Actions provisions PostgreSQL 16 and applies all migrations before running the tests.
+
+Covered HTTP scenarios:
+1. An unauthenticated request receives 401.
+2. A trip member receives 404 from the owner-only scheduling endpoint.
+3. The owner receives a valid slot for an editable itinerary.
+4. The suggestion request leaves the saved activity count unchanged.
+5. An approved itinerary receives 409.
+6. A trip without an itinerary receives 409.
+7. An invalid duration receives 400.
+
+To run locally, use a disposable PostgreSQL database with all migrations applied:
+
+```bash
+TRAVELOS_TEST_CONNECTION_STRING="Host=localhost;Port=5432;Database=travelos_test;Username=postgres;Password=your-test-password"
+dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
+```
+
+When `TRAVELOS_TEST_CONNECTION_STRING` is absent, PostgreSQL-backed tests are skipped; pure planner unit tests continue to execute. Never use a production database for integration tests.
