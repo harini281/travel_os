@@ -62,12 +62,13 @@ Install these before starting:
 
 ## 4. Configuration files
 
-There are **two example environment files** to copy. Do not commit real secrets.
+There are **three example environment files** to copy. Do not commit real secrets.
 
 | File | What it configures | Required? |
 |---|---|---|
 | `.env.example` → `.env` (repository root) | Local PostgreSQL container values and reference settings for the API/AI services | Yes for the documented Docker setup |
 | `apps/web/.env.example` → `apps/web/.env.local` | Browser's platform API URL | Yes |
+| `deploy/production.env.example` → `deploy/production.env` | Production Compose settings; keep the copied file out of Git and protect it with restrictive permissions | Only for the production-style Compose stack |
 | `services/platform-api/appsettings.json` | Non-secret .NET logging/default configuration | Already present |
 | `services/platform-api/Properties/launchSettings.json` | Local API profile and port 8080 | Already present |
 | `services/ai-api/requirements.txt` | Python service dependencies | Already present |
@@ -91,7 +92,7 @@ The API process needs these environment variables. The root `.env` file is read 
 
 ### AI service settings
 
-Set these in the terminal where Uvicorn is started. The Python service does **not** automatically read the repository root `.env` file.
+Set these in the terminal where Uvicorn is started. The Python service does **not** automatically read the repository root `.env` file. The service now rejects unsupported provider mode values and fails startup when a live provider is selected without OPENAI_API_KEY or when its provider base URL is not HTTPS.
 
 | Variable | Purpose |
 |---|---|
@@ -601,3 +602,15 @@ This is a container deployment foundation, not a public production launch. DNS/T
 Stage 49 tightens production startup configuration, browser/API response headers and Docker network boundaries. Production startup now requires explicit JWT issuer/audience values, a non-placeholder signing key of at least 32 bytes and exact HTTPS CORS origins. The web container is isolated from the AI API and database; the Platform API bridges the frontend, backend and data networks. CI verifies the security headers, host port exposure and network separation.
 
 See [docs/PRODUCTION_SECURITY_HARDENING_TEST_PLAN.md](docs/PRODUCTION_SECURITY_HARDENING_TEST_PLAN.md). This is hardening groundwork, not a security certification or production launch.
+
+## Stage 50 — Production readiness and release preparation
+
+Stage 50 adds fail-fast production PostgreSQL configuration validation, ignores deploy/production.env, validates live AI-provider configuration at AI service startup, and provides encrypted database/receipt backup utilities with archive integrity checks. Compose now bounds local JSON-file log growth. These controls improve release preparation; they do not create hosting infrastructure or make the application production-ready.
+
+Operational guidance:
+- Production operations runbook: docs/PRODUCTION_OPERATIONS_RUNBOOK.md
+- Production release readiness checklist: docs/PRODUCTION_RELEASE_READINESS_CHECKLIST.md
+
+Create encrypted backups with deploy/backup.sh to an output directory outside the repository. Verify an encrypted backup with deploy/verify-backup.sh. The verification command checks checksums, decryption and archive structure; it is not a substitute for a full restore drill into an isolated PostgreSQL database and receipt-storage directory.
+
+Stage 50 does not deploy publicly, change production credentials, select a cloud provider, provision infrastructure or merge Stage 49 PR #51. Managed secrets, TLS ingress, off-host backup retention, restore drills, centralized observability, vulnerability scanning/SBOM, external-provider/privacy approvals, load testing and formal release sign-off remain explicit production gates.
