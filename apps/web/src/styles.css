@@ -850,3 +850,20 @@
 .dashboard .trip-card-foot{color:#526058!important}
 .dashboard .btn-primary{background:#24342d!important;color:#fff!important}
 .dashboard .btn-primary:hover{background:#17251e!important;color:#fff!important}
+
+
+/* Stage 47: itinerary workspace contrast remediation.
+   These are text-only overrides for low-contrast helper labels and metadata found
+   by axe in the actual trip workspace. Primary buttons retain white-on-dark text. */
+.dashboard .content-wrap :is(p,small,span,label,legend,a,button:not(.btn-primary)){
+  color:#34443b!important;
+}
+.dashboard .content-wrap .btn-primary,
+.dashboard .content-wrap .btn-primary :is(span,small){
+  color:#fff!important;
+}
+.dashboard .content-wrap input::placeholder,
+.dashboard .content-wrap textarea::placeholder{
+  color:#526058!important;
+  opacity:1;
+}
