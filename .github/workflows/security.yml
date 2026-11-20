@@ -143,9 +143,9 @@ jobs:
           severity: HIGH,CRITICAL
           format: sarif
           output: trivy-configuration.sarif
-          # Preserve pre-existing configuration findings for review without hiding them.
-          # New HIGH/CRITICAL items are reviewed from the SARIF artifact before release.
-          exit-code: "0"
+          # HIGH/CRITICAL configuration findings must fail the security workflow.
+          # Triage existing findings explicitly with documented, narrow exceptions.
+          exit-code: "1"
       - name: Preserve Trivy reports
         if: always()
         uses: actions/upload-artifact@v6
