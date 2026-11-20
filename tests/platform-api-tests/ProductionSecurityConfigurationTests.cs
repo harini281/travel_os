@@ -7,6 +7,60 @@ namespace TravelOS.PlatformApi.Tests;
 public sealed class ProductionSecurityConfigurationTests
 {
     [Fact]
+    public void Production_requires_a_long_internal_ai_service_token()
+    {
+        var exception = Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateAiServiceToken(BuildConfiguration(), production: true));
+
+        Assert.Contains("AI_SERVICE_TOKEN", exception.Message);
+    }
+
+    [Fact]
+    public void Production_rejects_a_short_internal_ai_service_token()
+    {
+        var configuration = BuildConfiguration(("AI_SERVICE_TOKEN", "short"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateAiServiceToken(configuration, production: true));
+    }
+
+    [Fact]
+    public void Production_accepts_a_long_internal_ai_service_token()
+    {
+        var configuration = BuildConfiguration(("AI_SERVICE_TOKEN", "0123456789abcdef0123456789abcdef0123456789abcdef"));
+
+        ProductionSecurityConfiguration.ValidateAiServiceToken(configuration, production: true);
+    }
+
+    [Fact]
+    public void Production_rejects_a_placeholder_internal_ai_token()
+    {
+        var configuration = BuildConfiguration(
+            ("AI_SERVICE_TOKEN", "REPLACE_WITH_A_UNIQUE_RANDOM_INTERNAL_SERVICE_TOKEN_AT_LEAST_32_CHARS"));
+
+        Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateAiServiceToken(configuration, production: true));
+    }
+
+    [Fact]
+    public void Internal_ai_token_must_not_reuse_the_jwt_signing_key()
+    {
+        var token = "0123456789abcdef0123456789abcdef0123456789abcdef";
+        var configuration = BuildConfiguration(
+            ("AI_SERVICE_TOKEN", token),
+            ("Jwt:SigningKey", token));
+
+        Assert.Throws<InvalidOperationException>(
+            () => ProductionSecurityConfiguration.ValidateAiServiceToken(configuration, production: false));
+    }
+
+    [Fact]
+    public void Development_allows_the_internal_ai_token_to_be_configured_later()
+    {
+        ProductionSecurityConfiguration.ValidateAiServiceToken(BuildConfiguration(), production: false);
+    }
+
+    [Fact]
     public void Production_requires_a_database_connection_string()
     {
         var configuration = BuildConfiguration();

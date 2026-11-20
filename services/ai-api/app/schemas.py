@@ -65,9 +65,9 @@ class ItinerarySuggestion(BaseModel):
 
 
 class HealthResponse(BaseModel):
+    # Public container liveness response deliberately omits provider mode,
+    # model identity and credential-configuration state.
     status: Literal["ok"] = "ok"
-    mode: Literal["demo", "openai"] = "demo"
-    modelConfigured: bool = False
 
 
 class DraftResponse(BaseModel):

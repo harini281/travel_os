@@ -47,6 +47,7 @@ The file is ignored by Git. Never commit it, paste it into issues, print it in C
 | `WEB_PORT` | Yes | Host-local port for the TLS ingress to reach |
 | `AI_PROVIDER` | Yes | `demo` by default; use `openai` only after model, cost, privacy and data-transfer review |
 | `AI_RECEIPT_PROVIDER` | Yes | `demo` by default; receipt images leave the platform when live extraction is enabled |
+| `AI_SERVICE_TOKEN` | Yes | Unique random 32+ character shared credential between Platform API and AI API; distinct from JWT signing key; server-side only |
 | `OPENAI_API_KEY` | Conditional | Required when either AI provider mode is `openai`; server-side only |
 | `OPENAI_MODEL` | Conditional | Non-empty model name when a live provider is enabled |
 | `OPENAI_BASE_URL` | Optional | Defaults to the OpenAI API; live mode requires an HTTPS URL without embedded credentials/query/fragment |

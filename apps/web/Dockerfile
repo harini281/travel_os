@@ -6,7 +6,8 @@ COPY apps/web/ ./
 ARG VITE_PLATFORM_API_URL=
 ENV VITE_PLATFORM_API_URL=$VITE_PLATFORM_API_URL
 RUN npm run build
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+FROM nginx/nginx-unprivileged:1.31.9-alpine3.24 AS runtime
+USER 101
 COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /workspace/dist/ /usr/share/nginx/html/
 EXPOSE 8080

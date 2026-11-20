@@ -11,6 +11,8 @@ Use `PASS`, `FAIL`, `NOT RUN` or `NOT APPLICABLE` for each gate. A documented fe
 | Production database settings fail fast | Stage 50 validates PostgreSQL connection presence, syntax, host, database, username, password and application-role identity | Implemented; CI verification pending |
 | Runtime database least privilege | Migration administrator is separated from the API login; CI checks the runtime role is not superuser/CREATEDB/CREATEROLE/replication/BYPASSRLS and cannot write migration history | Implemented; target permissions pending review |
 | JWT issuer/audience/signing key and exact HTTPS CORS | Stage 49 validation + unit tests | Implemented; target values not verified |
+| Platform-to-AI service authentication | Stage 51 shared token required for planner/receipt endpoints; health endpoint remains public; production requires a unique 32+ character token | Implemented; target secret injection and rotation pending |
+| Supported .NET runtime | Current Platform API target is .NET 8, which reached end of support on 10 November 2026 | Blocker; migrate to a supported LTS runtime before production |
 | No committed production environment files | `deploy/production.env` added to Git ignore rules | Implemented; repository scan pending |
 | Managed secret injection and rotation | Not provided by Compose | Blocker |
 | TLS ingress, DNS, firewall and trusted proxy | Must be supplied by hosting operator | Blocker |

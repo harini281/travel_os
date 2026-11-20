@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using TravelOS.PlatformApi.Security;
 using TravelOS.PlatformApi.Data;
 
 namespace TravelOS.PlatformApi.Recommendations;
@@ -217,8 +218,12 @@ public static class ItineraryRecommendationEndpoints
                 }
             };
 
-            using var response = await client.PostAsJsonAsync(
-                "/api/v1/planner/recommendations", aiRequest, cancellationToken: ct);
+            using var serviceRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/planner/recommendations")
+            {
+                Content = JsonContent.Create(aiRequest)
+            };
+            serviceRequest.AddAiServiceAuthentication(configuration);
+            using var response = await client.SendAsync(serviceRequest, ct);
 
             if (!response.IsSuccessStatusCode)
             {

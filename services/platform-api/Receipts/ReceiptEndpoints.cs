@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
+using TravelOS.PlatformApi.Security;
 
 namespace TravelOS.PlatformApi.Receipts;
 
@@ -26,7 +27,9 @@ public static class ReceiptEndpoints
         var group = endpoints.MapGroup("/api/v1/trips/{tripId:guid}/receipts")
             .WithTags("Trip receipts").RequireAuthorization().RequireRateLimiting("receipt-upload");
         group.MapGet("/", ListAsync);
-        group.MapPost("/", UploadAsync).DisableAntiforgery();
+        group.MapPost("/", UploadAsync)
+            .DisableAntiforgery()
+            .WithMetadata(new Microsoft.AspNetCore.Mvc.RequestSizeLimitAttribute(9 * 1024 * 1024));
         group.MapGet("/{receiptId:guid}/file", FileAsync);
         group.MapPost("/{receiptId:guid}/confirm", ConfirmAsync);
         group.MapDelete("/{receiptId:guid}", DeleteAsync);
@@ -84,9 +87,19 @@ public static class ReceiptEndpoints
 
         await using var input = new MemoryStream();
         await file.CopyToAsync(input, ct);
-        var bytes = input.ToArray();
-        if (bytes.Length == 0 || !HasValidSignature(bytes, contentType, signature))
+        var uploadedBytes = input.ToArray();
+        if (uploadedBytes.Length == 0 || !HasValidSignature(uploadedBytes, contentType, signature))
             return Results.BadRequest(new { message = "The uploaded file content does not match its declared image type." });
+
+        if (!ReceiptImageProcessor.TryNormalize(uploadedBytes, contentType, out var normalized))
+            return Results.BadRequest(new { message = "The uploaded file is not a valid supported image or exceeds the image dimension limit." });
+
+        // Store and forward only a fully decoded image, re-encoded to strip metadata
+        // and any trailing/polyglot content from the original upload.
+        var bytes = normalized!.Bytes;
+        contentType = "image/jpeg";
+        if (bytes.Length > MaxFileBytes)
+            return Results.BadRequest(new { message = "The normalized receipt image exceeds the 8 MB limit." });
 
         var sha = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
         var duplicate = await db.TripReceipts.AsNoTracking()
@@ -114,9 +127,14 @@ public static class ReceiptEndpoints
             {
                 try
                 {
-                    var response = await clients.CreateClient("ai-receipts").PostAsJsonAsync(
-                        $"{aiBaseUrl}/api/v1/receipts/extract",
-                        new ReceiptExtractionPayload(contentType, Convert.ToBase64String(bytes)), ct);
+                    using var request = new HttpRequestMessage(
+                        HttpMethod.Post, $"{aiBaseUrl}/api/v1/receipts/extract")
+                    {
+                        Content = JsonContent.Create(
+                            new ReceiptExtractionPayload(contentType, Convert.ToBase64String(bytes)))
+                    };
+                    request.AddAiServiceAuthentication(config);
+                    using var response = await clients.CreateClient("ai-receipts").SendAsync(request, ct);
                     if (response.IsSuccessStatusCode)
                     {
                         var extraction = await response.Content.ReadFromJsonAsync<ReceiptExtractionResult>(cancellationToken: ct);
@@ -172,6 +190,8 @@ public static class ReceiptEndpoints
     private static string SafeFileName(string? name)
     {
         var clean = Path.GetFileName(name ?? "receipt").Replace("\\", "");
+        clean = new string(clean.Where(character => !char.IsControl(character)).ToArray()).Trim();
+        if (string.IsNullOrWhiteSpace(clean)) clean = "receipt";
         return clean.Length > 255 ? clean[..255] : clean;
     }
 

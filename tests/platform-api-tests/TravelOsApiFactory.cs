@@ -10,6 +10,8 @@ public sealed class TravelOsApiFactory : WebApplicationFactory<Program>
     public static readonly string TestSigningKey = Convert.ToHexString(RandomNumberGenerator.GetBytes(48));
     public const string TestIssuer = "TravelOS.IntegrationTests";
     public const string TestAudience = "TravelOS.IntegrationTests.Client";
+    public static readonly string ReceiptStoragePath = Path.Combine(
+        Path.GetTempPath(), "travelos-security-receipts-" + Guid.NewGuid().ToString("N"));
 
     static TravelOsApiFactory()
     {
@@ -24,6 +26,8 @@ public sealed class TravelOsApiFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("Jwt__Issuer", TestIssuer);
         Environment.SetEnvironmentVariable("Jwt__Audience", TestAudience);
         Environment.SetEnvironmentVariable("Jwt__SigningKey", TestSigningKey);
+        Environment.SetEnvironmentVariable("Receipts__StoragePath", ReceiptStoragePath);
+        Directory.CreateDirectory(ReceiptStoragePath);
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -49,6 +53,15 @@ public sealed class TravelOsApiFactory : WebApplicationFactory<Program>
 public sealed class PostgresFactAttribute : Xunit.FactAttribute
 {
     public PostgresFactAttribute()
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TRAVELOS_TEST_CONNECTION_STRING")))
+            Skip = "Set TRAVELOS_TEST_CONNECTION_STRING to run PostgreSQL-backed API integration tests.";
+    }
+}
+
+public sealed class PostgresTheoryAttribute : Xunit.TheoryAttribute
+{
+    public PostgresTheoryAttribute()
     {
         if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("TRAVELOS_TEST_CONNECTION_STRING")))
             Skip = "Set TRAVELOS_TEST_CONNECTION_STRING to run PostgreSQL-backed API integration tests.";

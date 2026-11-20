@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 49 — production security hardening is in progress on a separate draft pull request based on Stage 48. Stage 48 container deployment validation is complete. Earlier stages remain in their own pull requests. This is an active development project, not yet a production-ready booking platform.
+> **Current development status:** Stage 51 security verification is complete on commit `b9f86b69f567159ca66cb3297f56602e7876af2a`. [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109) and [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) both passed all jobs. PRs #51 (Stage 49) and #52 (Stage 50) are historical and were not changed. Stage 51 remains in draft PR [#53](https://github.com/harini281/travel_os/pull/53). **Not approved for public production:** the app still targets unsupported .NET 8, branch protection is disabled, and independent staging security testing is outstanding.
 
 ## 1. Features implemented
 
@@ -43,7 +43,7 @@ TravelOS is a multi-service travel-planning platform built with React, ASP.NET C
 | Layer | Technology |
 |---|---|
 | Web client | React, TypeScript, Vite, Leaflet |
-| Platform API | ASP.NET Core 8, C#, Entity Framework Core |
+| Platform API | ASP.NET Core 8 (current target; unsupported after November 2026), C#, Entity Framework Core |
 | Database | PostgreSQL 16, Npgsql |
 | AI service | Python 3.11+, FastAPI, Pydantic, OpenAI Responses API (optional) |
 | Maps and travel data | OpenStreetMap, OSRM, Open-Meteo, Frankfurter; optional FlightAware |
@@ -55,7 +55,7 @@ Install these before starting:
 
 - Git
 - Node.js 22+
-- .NET 8 SDK
+- .NET 8 SDK (needed to build the current branch; runtime is out of support — migrate to .NET 10 before production)
 - Python 3.11+
 - Docker Desktop / Docker Engine with Docker Compose
 - PostgreSQL client tools (`psql`) for applying migrations manually
@@ -71,7 +71,8 @@ There are **three example environment files** to copy. Do not commit real secret
 | `deploy/production.env.example` → `deploy/production.env` | Production Compose settings; keep the copied file out of Git and protect it with restrictive permissions | Only for the production-style Compose stack |
 | `services/platform-api/appsettings.json` | Non-secret .NET logging/default configuration | Already present |
 | `services/platform-api/Properties/launchSettings.json` | Local API profile and port 8080 | Already present |
-| `services/ai-api/requirements.txt` | Python service dependencies | Already present |
+| `services/ai-api/requirements.txt` | AI service runtime dependencies | Already present |
+| `services/ai-api/requirements-dev.txt` | Runtime dependencies plus pytest for local/CI tests | Already present |
 | `docker-compose.yml` | PostgreSQL container, port, volume and initial SQL scripts | Already present |
 | `.github/workflows/ci.yml` | Automated build, test and migration checks | Already present |
 
@@ -87,6 +88,7 @@ The API process needs these environment variables. The root `.env` file is read 
 | `Jwt__SigningKey` | Unique secret of at least 32 bytes; mandatory |
 | `Cors__AllowedOrigins__0` | Exact web origin, normally `http://localhost:5173` |
 | `AiService__BaseUrl` | AI service URL, normally `http://localhost:8001` |
+| `AI_SERVICE_TOKEN` | Shared server-only credential (32+ characters) sent by the Platform API to the AI API; never expose it to the browser |
 | `Receipts__StoragePath` | Private receipt storage directory |
 | `FLIGHTAWARE_API_KEY` | Optional FlightAware AeroAPI key for live flight refresh |
 
@@ -100,6 +102,7 @@ Set these in the terminal where Uvicorn is started. The Python service does **no
 | `OPENAI_API_KEY` | Required only when enabling OpenAI itinerary generation/recommendations |
 | `OPENAI_MODEL` | Optional model override; example: `gpt-4.1-mini` |
 | `AI_RECEIPT_PROVIDER` | Receipt extraction provider; keep `demo` unless deliberately configured |
+| `AI_SERVICE_TOKEN` | Same server-only token configured in the Platform API process; protects planner and receipt routes. The health endpoint remains unauthenticated for container health checks |
 
 Stage 39 returns no generated suggestions in demo mode. To use live AI recommendations, configure `AI_PROVIDER=openai` and `OPENAI_API_KEY`. Provider usage may incur charges. Never put an AI or FlightAware key in a `VITE_*` frontend variable.
 
@@ -177,7 +180,25 @@ If you have an older database volume, **do not blindly rerun migrations or delet
 
 ### Step 2 — Start the Platform API
 
-Open a new terminal:
+Open a new terminal. Set a unique random internal service token of at least 32 characters; use exactly the same value in the AI API terminal in Step 3. The value below is an instruction, not a reusable secret:
+
+PowerShell:
+
+```powershell
+$serviceToken = [Convert]::ToHexString([Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
+$env:AI_SERVICE_TOKEN = $serviceToken
+Write-Output "Copy this one-time local value into the AI API terminal: $serviceToken"
+```
+
+Bash:
+
+```bash
+export AI_SERVICE_TOKEN="$(openssl rand -hex 32)"
+printf 'Copy this one-time local value into the AI API terminal: %s\\n' "$AI_SERVICE_TOKEN"
+```
+
+Copy the generated value into the AI API terminal in Step 3. Do not add it to source control, frontend configuration, screenshots, or shared logs. The value in `.env.example` is only a placeholder.
+
 
 ```powershell
 cd services/platform-api
@@ -196,9 +217,10 @@ For macOS/Linux, use `export VARIABLE=value` instead of PowerShell's `$env:VARIA
 
 ### Step 3 — Start the AI API
 
-Open another terminal from the repository root:
+Open another terminal from the repository root. Paste the one-time value generated in Step 2, then start the AI API. Keep the token server-side; never create a `VITE_*` variable for it.
 
 ```powershell
+$env:AI_SERVICE_TOKEN = "PASTE_THE_SAME_RANDOM_VALUE_FROM_STEP_2"
 cd services/ai-api
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
@@ -270,7 +292,7 @@ dotnet build services/platform-api/TravelOS.PlatformApi.csproj --configuration R
 ### AI API tests
 
 ```bash
-python -m pip install -r services/ai-api/requirements.txt
+python -m pip install -r services/ai-api/requirements-dev.txt
 python -m pytest -q
 ```
 
@@ -280,19 +302,13 @@ The GitHub Actions workflow starts a clean PostgreSQL 16 service and applies mig
 
 ### Latest verified CI result
 
-<badge color="success">All 4 CI jobs passed</badge>
+<badge color="warning">Final Stage 51 runs pending</badge>
 
-GitHub Actions run **#136** for the Stage 39 pull request completed successfully on 19 November 2026:
+The historical Stage 50 baseline run [#44529642937](https://github.com/harini281/travel_os/actions/runs/44529642937) passed all eight jobs on commit `071e737db16ac5dce2f23180bf981b818f4f2d03`. It is not evidence that Stage 51 passes.
 
-| Check | Result |
-|---|---|
-| Web TypeScript check and Vite build | PASS |
-| ASP.NET Core Platform API build | PASS |
-| AI API automated tests | PASS — 18 passed, 1 warning (Stage 39 run) |
-| Platform API unit tests | Added in Stage 42; CI result pending |
-| PostgreSQL migrations 001–017 | PASS |
+Stage 51's final verification runs are recorded in [`docs/SECURITY_ASSESSMENT.md`](docs/SECURITY_ASSESSMENT.md). The report distinguishes completed scans from failed checks and still-pending results. Configuration-scan SARIF requires explicit triage; a workflow step configured to preserve baseline findings is not proof that the configuration is clean.
 
-These are the checks currently automated in CI. They do **not** mean every user journey, external provider integration, deployed environment or production security scenario has been end-to-end tested.
+The source-level fixes and test expansions are not a professional penetration test, independent security audit or production sign-off. Do not deploy publicly while the .NET 8 end-of-support blocker and other documented release gates remain open.
 
 ## 7. Stage 39 — AI activity recommendations
 
@@ -614,3 +630,19 @@ Operational guidance:
 Create encrypted backups with deploy/backup.sh to an output directory outside the repository. Verify an encrypted backup with deploy/verify-backup.sh. The verification command checks checksums, decryption and archive structure; it is not a substitute for a full restore drill into an isolated PostgreSQL database and receipt-storage directory.
 
 Stage 50 does not deploy publicly, change production credentials, select a cloud provider, provision infrastructure or merge Stage 49 PR #51. Managed secrets, TLS ingress, off-host backup retention, restore drills, centralized observability, vulnerability scanning/SBOM, external-provider/privacy approvals, load testing and formal release sign-off remain explicit production gates.
+
+
+## Stage 51 — Security verification and remediation
+
+Stage 51 adds a shared server-only token boundary to the internal AI API, receipt image decoding and re-encoding, request and pixel limits, cross-user PostgreSQL regression tests, CodeQL/dependency/Trivy workflows and weekly Dependabot updates.
+
+**Stage 51 verification: PASS. Production approval: BLOCKED.** Exact current-head validation passed all eight CI jobs and all five security jobs. Results: 49 unit tests passed (27 PostgreSQL-only skips), 80 PostgreSQL-backed tests passed, 48 AI API tests passed, and 16 browser E2E journeys passed. Trivy 0.76.2 passed the configuration and all three container-image HIGH/CRITICAL gates; both CodeQL SARIF reports uploaded to GitHub Code Scanning. See [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109), [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) and the detailed [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md).
+
+This is repository-level validation, not an independent penetration test or security certification. Public production remains blocked because the application still targets unsupported .NET 8, branch protection is disabled, independent staging security testing has not been completed, and operational controls such as persistent Data Protection keys and receipt-storage lifecycle management remain outstanding.
+
+Read:
+- [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md)
+- [Security Response Guide](docs/SECURITY_RESPONSE_GUIDE.md)
+- [Stage 51 Security Assessment Plan](docs/STAGE51_SECURITY_ASSESSMENT_PLAN.md)
+
+Do not deploy the current .NET 8 target publicly. Review the .NET 10 LTS migration plan in the security assessment; the major upgrade was intentionally not mixed into this security-testing change.

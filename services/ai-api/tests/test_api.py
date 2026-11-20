@@ -1,4 +1,8 @@
 from datetime import date
+import os
+
+TEST_SERVICE_TOKEN = "test-only-travelos-internal-service-token-32-bytes"
+os.environ.setdefault("AI_SERVICE_TOKEN", TEST_SERVICE_TOKEN)
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
@@ -13,7 +17,24 @@ from app.schemas import (
     PlannerRequest,
 )
 
-client = TestClient(app)
+client = TestClient(app, headers={"X-TravelOS-Service-Token": os.environ["AI_SERVICE_TOKEN"]})
+
+
+def recommendation_payload():
+    return {
+        "destination": "Lisbon",
+        "activityDate": "2027-05-01",
+        "currency": "EUR",
+        "travellerCount": 2,
+        "interests": ["food", "architecture"],
+        "travelPace": "balanced",
+        "dailyBudgetRemaining": 120,
+        "question": "Suggest an indoor alternative because rain is forecast.",
+        "focus": "weather",
+        "existingActivities": ["Walk around Alfama"],
+        "weatherContext": ["High precipitation probability; outdoor walking may be uncomfortable."],
+        "planningContext": ["One afternoon slot is free."],
+    }
 
 
 def planner_payload():
@@ -30,11 +51,78 @@ def planner_payload():
     }
 
 
-def test_health_is_demo_only_by_default():
+@pytest.mark.parametrize("path,payload", [
+    ("/api/v1/planner/drafts", planner_payload()),
+    ("/api/v1/planner/recommendations", recommendation_payload()),
+    ("/api/v1/receipts/extract", {
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    }),
+])
+def test_ai_routes_reject_missing_internal_service_token(path, payload):
+    unauthenticated_client = TestClient(app)
+    response = unauthenticated_client.post(path, json=payload)
+    assert response.status_code == 401
+    assert TEST_SERVICE_TOKEN not in response.text
+
+
+@pytest.mark.parametrize("path,payload", [
+    ("/api/v1/planner/drafts", planner_payload()),
+    ("/api/v1/planner/recommendations", recommendation_payload()),
+    ("/api/v1/receipts/extract", {
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    }),
+])
+def test_ai_routes_reject_incorrect_internal_service_token(path, payload):
+    response = client.post(
+        path,
+        json=payload,
+        headers={"X-TravelOS-Service-Token": "incorrect-service-token"},
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.parametrize("path,payload", [
+    ("/api/v1/planner/drafts", planner_payload()),
+    ("/api/v1/planner/recommendations", recommendation_payload()),
+    ("/api/v1/receipts/extract", {
+        "contentType": "image/jpeg",
+        "imageBase64": "a" * 100,
+    }),
+])
+@pytest.mark.parametrize("malformed_token", ["", "not-a-jwt", "Bearer not-a-token", "%%%"])
+def test_ai_routes_reject_malformed_present_service_tokens(path, payload, malformed_token):
+    response = TestClient(app).post(
+        path,
+        json=payload,
+        headers={"X-TravelOS-Service-Token": malformed_token},
+    )
+    assert response.status_code == 401
+    assert TEST_SERVICE_TOKEN not in response.text
+
+
+def test_health_remains_public_and_does_not_disclose_provider_configuration():
+    response = TestClient(app).get("/health")
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+    assert "modelConfigured" not in response.text
+    assert "openai" not in response.text.lower()
+
+
+def test_ai_routes_fail_closed_when_internal_token_is_not_configured(monkeypatch):
+    monkeypatch.delenv("AI_SERVICE_TOKEN", raising=False)
+    response = client.post("/api/v1/planner/drafts", json=planner_payload())
+    assert response.status_code == 503
+    assert "not configured" in response.json()["detail"]
+
+
+def test_health_is_minimal_and_public_by_default():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json()["mode"] == "demo"
-    assert response.json()["modelConfigured"] is False
+    assert response.json() == {"status": "ok"}
+    assert "mode" not in response.json()
+    assert "modelConfigured" not in response.json()
 
 
 def test_planner_returns_explicit_demo_response_by_default():
@@ -210,23 +298,6 @@ def test_receipt_provider_openai_mode_requires_key(monkeypatch):
     })
     assert response.status_code == 503
     assert "OPENAI_API_KEY" in response.json()["detail"]
-
-
-def recommendation_payload():
-    return {
-        "destination": "Lisbon",
-        "activityDate": "2027-05-01",
-        "currency": "EUR",
-        "travellerCount": 2,
-        "interests": ["food", "architecture"],
-        "travelPace": "balanced",
-        "dailyBudgetRemaining": 120,
-        "question": "Suggest an indoor alternative because rain is forecast.",
-        "focus": "weather",
-        "existingActivities": ["Walk around Alfama"],
-        "weatherContext": ["High precipitation probability; outdoor walking may be uncomfortable."],
-        "planningContext": ["One afternoon slot is free."],
-    }
 
 
 def test_recommendations_are_explicitly_demo_only_without_ai_provider():

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
+using TravelOS.PlatformApi.Security;
 
 namespace TravelOS.PlatformApi.Itineraries;
 
@@ -635,8 +636,12 @@ public static class ItineraryEndpoints
                 travelPace = request.TravelPace
             };
 
-            using var response = await client.PostAsJsonAsync(
-                "/api/v1/planner/drafts", aiRequest, cancellationToken: ct);
+            using var serviceRequest = new HttpRequestMessage(HttpMethod.Post, "/api/v1/planner/drafts")
+            {
+                Content = JsonContent.Create(aiRequest)
+            };
+            serviceRequest.AddAiServiceAuthentication(configuration);
+            using var response = await client.SendAsync(serviceRequest, ct);
 
             if (!response.IsSuccessStatusCode)
             {

@@ -40,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r services/ai-api/requirements.txt
+          pip install -r services/ai-api/requirements-dev.txt
       - name: Validate operational scripts and production env-file ignore rules
         run: |
           bash -n deploy/backup.sh deploy/verify-backup.sh
@@ -261,12 +261,14 @@ jobs:
           set -euo pipefail
           postgres_password="$(cat "$RUNNER_TEMP/travelos-postgres-password")"
           jwt_signing_key="$(openssl rand -hex 48)"
+          ai_service_token="$(openssl rand -hex 48)"
           echo "::add-mask::$jwt_signing_key"
+          echo "::add-mask::$ai_service_token"
           mkdir -p "$Receipts__StoragePath"
           export ConnectionStrings__TravelOS="Host=localhost;Port=5432;Database=travelos_e2e;Username=postgres;Password=$postgres_password"
-          env Jwt__SigningKey="$jwt_signing_key" dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
+          env Jwt__SigningKey="$jwt_signing_key" AI_SERVICE_TOKEN="$ai_service_token" dotnet run --project services/platform-api/TravelOS.PlatformApi.csproj --configuration Release --no-launch-profile > "$RUNNER_TEMP/travelos-platform-api.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/travelos-platform-api.pid"
-          unset jwt_signing_key postgres_password ConnectionStrings__TravelOS
+          unset jwt_signing_key ai_service_token postgres_password ConnectionStrings__TravelOS
           for attempt in $(seq 1 90); do
             if curl -fsS http://127.0.0.1:8080/health >/dev/null; then
               echo "Platform API is ready"
@@ -427,6 +429,7 @@ jobs:
             printf 'OPENAI_API_KEY=\n'
             printf 'OPENAI_MODEL=gpt-4.1-mini\n'
             printf 'AI_RECEIPT_PROVIDER=demo\n'
+            printf 'AI_SERVICE_TOKEN=%s\n' "$(openssl rand -hex 48)"
             printf 'FLIGHTAWARE_API_KEY=\n'
           } > "$env_file"
           chmod 600 "$env_file"
@@ -491,7 +494,7 @@ jobs:
           printf '%s\n' "$api_headers" | grep -qi '^content-security-policy:'
           printf '%s\n' "$api_headers" | grep -qi '^cache-control: no-store'
           curl --fail --silent --show-error http://127.0.0.1:8088/health
-          docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data['mode']=='demo', data; print(data)"
+          docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T ai-api python -c "import json,urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8001/health')); assert data=={'status':'ok'}, data; print(data)"
           docker compose --env-file "$env_file" -f docker-compose.prod.yml exec -T platform-api sh -c 'test -w /var/lib/travelos/receipts'
       - name: Verify all database migrations were recorded
         run: |
