@@ -87,7 +87,7 @@ Return 404 where the existing API intentionally hides resource existence; preser
 5. Retain the full reports and compare image digests. Do not mark a vulnerability fixed merely because a Dockerfile constraint changed.
 6. If no fix exists, record the exposure, mitigations, owner, expiry date and risk acceptance by an authorized decision-maker. Do not silently suppress the finding.
 
-For the Stage 51 assessment, a historical AI image scan reported three HIGH CVEs in `jaraco.context`, `setuptools` and `wheel`. The branch raised minimum versions; a fresh image build and scan are required to close the finding.
+For Stage 51, earlier AI image scans reported HIGH CVEs in `jaraco.context`, `setuptools` and `wheel`, and the previous web image had multiple HIGH/CRITICAL OS-package findings. The subsequent Stage 51 workflow on commit `193e1ac351a4f4cc0e911affe42f1d86f02f3474` completed successfully for the AI, Platform API and web Trivy image scans. Treat this as a dated scan result only; scan the exact release image digests again before deployment. The Trivy configuration scan runs with `exit-code: 0`, so its success does not mean findings would fail the workflow.
 
 ## 8. GitHub Actions / repository compromise
 
