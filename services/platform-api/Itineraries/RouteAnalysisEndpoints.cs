@@ -37,6 +37,7 @@ public static class RouteAnalysisEndpoints
             });
 
         var itinerary = await db.Itineraries.AsNoTracking()
+            .AsSplitQuery()
             .Include(x => x.Days).ThenInclude(x => x.Activities)
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.Version)
