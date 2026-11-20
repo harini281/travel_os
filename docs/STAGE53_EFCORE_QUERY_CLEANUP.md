@@ -16,7 +16,7 @@ Those patterns can produce large joined result sets (cartesian row multiplicatio
 
 - Add `AsSplitQuery()` to the three itinerary aggregate reads in `ItineraryEndpoints` (schedule analysis, itinerary retrieval and approval).
 - Add `AsSplitQuery()` to the two itinerary aggregate reads used by recommendation scheduling/generation.
-- Add `AsSplitQuery()` to the itinerary aggregate reads used by opening-hours analysis and route analysis.
+- Add `AsSplitQuery()` to the itinerary aggregate reads used by opening-hours analysis, route analysis and the trip-assistant context projection.
 - Add `AsSplitQuery()` to the group-poll listing query which loads options and votes.
 - Do not set a global `UseQuerySplittingBehavior` default.
 - In the `Testing` environment only, turn `MultipleCollectionIncludeWarning` into an exception to prevent this warning from silently returning in future PostgreSQL integration tests.
