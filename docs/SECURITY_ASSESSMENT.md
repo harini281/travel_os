@@ -1,58 +1,50 @@
 # TravelOS — Stage 51 Security Assessment
 
-**Assessment date:** 19 November 2026  
+**Assessment date:** 20 November 2026  
 **Repository:** https://github.com/harini281/travel_os  
 **Branch:** `stage51-security-testing`  
-**Current branch head at this update:** `5c761176955dfbb3d610f134aef8c6de4b774cc4`  
+**Current validated head:** `b9f86b69f567159ca66cb3297f56602e7876af2a`  
 **Baseline:** `stage50-production-readiness`  
-**Completed application validation baseline:** `2ceec4dbb85ef10d8d2144f8d5bcf37ab6e2de9f`  
-**Trivy policy-coverage upgrade:** `324929de999809ec834494adbd3adf225b9fd0aa`  
 **Draft PR:** [#53 — Stage 51: Security verification and hardening](https://github.com/harini281/travel_os/pull/53)
 
-> **Overall result: FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes its CI and security gates, but the current head still has a fresh Trivy-policy-coverage rerun queued, .NET 8 is out of support, branch protection is disabled, and independent staging security testing has not been performed. This is a repository-level assessment, not an independent audit, certification or penetration test.
+> **Stage 51 verification: PASS. Production approval: BLOCKED.** The exact current branch head passed all eight CI jobs and all five security jobs. The 0.76.2 Trivy scans passed for all three images, the configuration scan completed without the previously observed skipped-policy warning, and the EXIF metadata regression test passed. This assessment still does not approve public production: the Platform API remains on unsupported .NET 8, branch protection is disabled, and independent staging security testing has not been performed. This is repository-level verification, not an independent audit, certification or penetration test.
 
 ## 1. Executive result
 
-The Stage 51 branch is based on Stage 50 with no base-branch divergence. The draft PR currently targets `stage50-production-readiness`, remains open and unmerged, and preserves the existing branch/commit history. PRs #51 and #52 were historical Stage 49/50 PRs; they were not changed or merged as part of this work.
+The Stage 51 branch is based on Stage 50 with no base-branch divergence. Draft PR #53 targets `stage50-production-readiness`, remains open and unmerged, and preserves the existing branch/commit history. PRs #51 and #52 were historical Stage 49/50 PRs; they were not changed or merged as part of this work.
 
-The completed validation baseline is commit `2ceec4dbb85ef10d8d2144f8d5bcf37ab6e2de9f`:
+Exact current-head validation:
+- [TravelOS CI run 44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109) — **PASS**, all eight jobs.
+- [TravelOS Security Assessment run 44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) — **PASS**, all five jobs.
 
-- [CI run 44558532457](https://github.com/harini281/travel_os/actions/runs/44558532457) — **PASS** across all eight jobs.
-- [Security Assessment run 44558532472](https://github.com/harini281/travel_os/actions/runs/44558532472) — **PASS** across all five jobs.
-
-Exact completed CI evidence:
+CI evidence on commit `b9f86b69f567159ca66cb3297f56602e7876af2a`:
 - Platform API build — passed.
-- Platform API unit tests — **48 passed, 0 failed, 27 skipped**. The skipped cases are PostgreSQL-backed tests and are run by the separate database job.
-- PostgreSQL-backed integration suite — **79 passed, 0 failed**.
-- AI API tests — **48 passed, 1 warning**.
+- Platform API unit tests — **49 passed, 0 failed, 27 skipped**. The skipped tests require PostgreSQL and run in the separate integration job.
+- PostgreSQL-backed full test run — **80 passed, 0 failed**.
+- Receipt image EXIF APP1 marker-removal regression test — passed in the PostgreSQL-backed test run.
+- AI API tests — **48 passed, 1 warning** (Starlette/httpx deprecation).
 - Web typecheck/build — passed.
-- PostgreSQL migrations — passed.
+- PostgreSQL migration validation — passed.
 - Container deployment build and smoke test — passed, including web/API/AI health, migrations recorded and internal port/network isolation checks.
-- Browser E2E — **16 passed, 0 failed**, including Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit, tablet Chromium and the receipt upload/confirmation/duplicate flow.
+- Browser E2E — **16 passed, 0 failed**, covering Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit and tablet Chromium. Receipt upload, invalid content rejection, confirmation and duplicate-image detection passed.
 
-Exact completed security evidence on the same commit:
-- CodeQL Platform API — passed and SARIF uploaded successfully to GitHub Code Scanning.
-- CodeQL Web and AI — passed and SARIF uploaded successfully to GitHub Code Scanning.
-- NuGet/npm/Python dependency audit — passed; npm reported 0 vulnerabilities, pip-audit reported no known vulnerabilities, and the NuGet high/critical gate passed.
+Security evidence on the same commit:
+- CodeQL Platform API — passed; SARIF uploaded to GitHub Code Scanning.
+- CodeQL Web and AI — passed; SARIF uploaded to GitHub Code Scanning.
+- NuGet/npm/Python dependency audit — passed; npm reported 0 vulnerabilities and pip-audit reported no known vulnerabilities. NuGet high/critical gate passed.
 - Filesystem and secret scan — passed.
-- Trivy configuration scan — the job passed its HIGH/CRITICAL gate, but Trivy 0.70 warned that one AWS CloudFront logging policy requiring Trivy 0.72+ was skipped. This is a policy-coverage limitation, not a clean result for that skipped rule.
-- Platform API, AI API and web container image scans — all passed the HIGH/CRITICAL gate. The AI image was rebuilt as a multi-stage image so builder/package-manager layers do not enter the final runtime; the web runtime uses the refreshed NGINX unprivileged/Alpine 3.24 base.
+- Trivy configuration scan — passed with Trivy `v0.76.2`. The prior Trivy 0.70 CloudFront logging-policy skip warning was not present in the current run.
+- Trivy Platform API, AI API and web container image scans — all passed the HIGH/CRITICAL gate. The AI image uses a multi-stage build and the final runtime runs as UID 10001; the web runtime uses unprivileged NGINX on Alpine 3.24.
 
-Because of the skipped Trivy policy, commit `324929de999809ec834494adbd3adf225b9fd0aa` pins Trivy `v0.76.2` for all five Trivy action uses. A follow-up image build on that commit failed because `ldconfig` ran after the Dockerfile switched to UID 10001; the error was `Can't create temporary cache file /etc/ld.so.cache~: Permission denied`. Commit `aadca97e81a72984e48cae12641d129c4123d41f` moves the linker-cache/import validation before the privilege drop while keeping the final runtime process non-root. The exact-head validation workflows are now queued:
-- [TravelOS CI — run 44559967580](https://github.com/harini281/travel_os/actions/runs/44559967580).
-- [TravelOS Security Assessment — run 44559968042](https://github.com/harini281/travel_os/actions/runs/44559968042).
-
-Do not call Trivy 0.76.2 configuration coverage final until that exact-head scan passes and the CloudFront rule is no longer skipped.
-
-The final source also received null-safe normalization in `Preferences/PreferenceEndpoints.cs` (commit `a40c73ef36b6693a7a9ce05a789bd5e2e4604155`). The latest CI rerun will validate that change together with the corrected AI image Dockerfile.
+**Stage 51 verification is complete on the current head.** The remaining items are release-readiness and operational controls, not failed Stage 51 CI/security checks.
 
 | Category | Result | Evidence and limits |
 |---|---|---|
 | AI API service authentication | **PASS** | All three internal POST routes require the service token; missing, wrong and malformed-present tokens are rejected; missing server configuration fails closed; public health returns only `{"status":"ok"}`. AI API tests passed. |
-| Receipt image security | **PASS for tested controls; residual limits** | Format/signature checks, full decode, dimension/pixel/decoded-byte ceilings, animation rejection, JPEG re-encoding, generated storage names and access checks are implemented. Unit/integration/E2E receipt journeys passed. No peak-memory/performance stress test or malware scan is evidenced. |
-| Authorization / IDOR | **PASS for exercised matrix; not exhaustive** | 79 PostgreSQL integration tests passed, including multi-user trips, expenses, repayments, invitations, preferences, polls/votes, receipt file/confirmation/delete and outsider upload side-effect cases. Not every route and HTTP verb has its own negative-access test. |
-| CodeQL / dependency / secret automation | **PASS on baseline; current Trivy policy rerun pending** | Both CodeQL analyses uploaded SARIF; dependency, filesystem/secret and Trivy image gates passed. The earlier Trivy config scan skipped one policy due to outdated scanner; Trivy 0.76.2 is now pinned and the current-head rerun is pending. |
-| Container image security | **PASS on baseline** | All three images passed Trivy HIGH/CRITICAL gates after moving to current image bases and a multi-stage AI runtime. This is a time-specific scan, not proof that no vulnerabilities exist. |
+| Receipt image security | **PASS for tested controls; residual limits** | Format/signature checks, full decode, dimensions/pixel/decoded-byte ceilings, animation rejection, JPEG re-encoding, EXIF marker removal, generated storage names and access checks are implemented and tested. No peak-memory stress test or malware scanner is evidenced. |
+| Authorization / IDOR | **PASS for exercised matrix; not exhaustive** | 80 PostgreSQL-backed tests passed, including multi-user trips, expenses, repayments, invitations, preferences, polls/votes, receipt file/confirmation/delete and outsider-upload side-effect cases. Not every route and HTTP verb has its own negative-access test. |
+| CodeQL / dependency / secret automation | **PASS** | Both CodeQL analyses uploaded SARIF; dependency, filesystem/secret, Trivy configuration and container-image gates passed on the same current head. |
+| Container image security | **PASS at scan time** | All three images passed Trivy 0.76.2 HIGH/CRITICAL gates. This is a time-specific scan, not proof that future images have no vulnerabilities. |
 | Runtime support | **FAIL — production blocker** | Platform API/tests, Docker and CI still target .NET 8, which ended support on 10 November 2026. Migration to .NET 10 LTS has not been performed or compatibility-tested. |
 | Production readiness | **FAIL / BLOCKED** | Unsupported .NET 8, branch protection disabled, independent staging assessment not performed, plus operational residuals listed below. |
 
@@ -65,9 +57,9 @@ Reviewed the Stage 50-to-Stage 51 changed files, including:
 - CI/security workflows, Dependabot, production Compose and environment templates.
 - README, Stage 51 security plan, security assessment and response guide.
 
-All active API/IDOR testing used generated identities, fake AI providers and a disposable PostgreSQL test database. No production database, real customer data, public deployment, third-party provider or external host was actively probed. No destructive testing or load/DoS testing was performed.
+All active API/IDOR testing used generated identities, fake AI providers and disposable PostgreSQL test databases. No production database, real customer data, public deployment, third-party provider or external host was actively probed. No destructive testing or load/DoS testing was performed.
 
-The GitHub Actions runs cited below are the evidence record. Skipped, queued and unavailable steps are not counted as passes.
+The GitHub Actions runs cited below are the evidence record. Skipped tests are described separately and are not counted as passes.
 
 ## 3. Findings
 
@@ -176,15 +168,45 @@ Never expose `AI_SERVICE_TOKEN` to the browser or place it in a `VITE_*` variabl
 - PASS: Trivy Platform API, AI API and web container images at the HIGH/CRITICAL threshold.
 - SARIF artifacts: C# `14545139248`; Web/AI `14547585066`. Trivy filesystem/config artifact: `14546990802`.
 
-### Latest Trivy policy compatibility update
+### Exact current-head verification — commit `b9f86b69f567159ca66cb3297f56602e7876af2a`
 
-Commit `324929de999809ec834494adbd3adf225b9fd0aa` pins each Trivy action to `v0.76.2` (the 5 November 2026 release). The Trivy filesystem/config job passed on [Security Assessment run 44559363790](https://github.com/harini281/travel_os/actions/runs/44559363790), with no warning that the CloudFront logging policy was skipped. That run’s container job nevertheless failed before image scans completed because the AI Dockerfile ran `ldconfig` after switching to UID 10001. The issue was corrected in `aadca97e81a72984e48cae12641d129c4123d41f` by moving linker-cache validation before the runtime user switch; the final runtime still executes as UID 10001.
+[TravelOS CI — run 44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109) — **PASS**:
+- PASS: Platform API build.
+- PASS: Platform API unit tests — 49 passed, 0 failed, 27 skipped (PostgreSQL-only cases are exercised by the separate integration job).
+- PASS: PostgreSQL-backed full test run — 80 passed, 0 failed. The EXIF APP1 marker-removal regression test passed.
+- PASS: AI API tests — 48 passed, 1 deprecation warning.
+- PASS: Web typecheck/build.
+- PASS: PostgreSQL migrations.
+- PASS: Container deployment build and smoke test — web/API/AI health, migrations, internal-only ports and service network isolation passed.
+- PASS: Browser E2E — 16 passed, 0 failed across Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit and tablet Chromium. Receipt upload/confirmation/duplicate detection and accessibility journeys passed.
 
-The branch also includes null-safe preference normalization at `a40c73ef36b6693a7a9ce05a789bd5e2e4604155` and the EXIF metadata regression test at `656cca56c16f126248bd42b38f0716f7dd2c5665`. The latest branch-head runs after those changes were queued:
-- [TravelOS Security Assessment — run 44560328623](https://github.com/harini281/travel_os/actions/runs/44560328623) — queued.
-- [TravelOS CI — run 44560328630](https://github.com/harini281/travel_os/actions/runs/44560328630) — queued.
+[TravelOS Security Assessment — run 44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) — **PASS**:
+- PASS: CodeQL — Platform API; SARIF upload completed.
+- PASS: CodeQL — Web and AI; SARIF upload completed.
+- PASS: NuGet/npm/Python dependency audit. npm reported 0 vulnerabilities; pip-audit reported no known vulnerabilities; NuGet high/critical gate passed.
+- PASS: Filesystem/secret scan.
+- PASS: Trivy configuration scan using `v0.76.2`; no CloudFront policy-skip warning was emitted.
+- PASS: Trivy Platform API, AI API and web container images at the HIGH/CRITICAL threshold.
+- Retained artifacts: C# SARIF `14549991289`; Web/AI SARIF `14550795829`; Trivy filesystem/config `14549217178`.
 
-Do not call the exact branch head fully verified until those runs complete. Do not transfer the prior baseline PASS status to this new head until its runs complete.
+### Earlier failures and their verified corrections
+
+- Earlier Platform API build failed because `SKException` was unavailable; the catch reference was removed and the final API build passed.
+- A receipt test assertion failed compilation; the byte-array assertion was corrected and the final test jobs passed.
+- The deployment smoke test expected an old AI-health `mode` field; the workflow assertion was aligned to the minimal public health response and the final deployment smoke passed.
+- The original E2E receipt fixture expected PNG bytes even though the API intentionally re-encodes receipt uploads as JPEG; the test now validates JPEG and the browser journey passed.
+- An earlier AI image scan retained a second vulnerable setuptools copy. A multi-stage image was introduced and the final AI image scan passed.
+- The refreshed web image moved away from the old Alpine 3.21 base; the final Alpine 3.24.4 web image scan passed.
+- The first Trivy 0.76.2 configuration attempt revealed a Docker build failure because `ldconfig` ran after `USER 10001`. The command was moved before the privilege drop while preserving a non-root final runtime; the exact current-head build and scan passed.
+- An EXIF APP1 marker-removal regression test was added and passed on the exact current head.
+
+### Failed / skipped / unavailable distinctions
+
+- The final CI and security workflow runs above are both completed and green on the same commit.
+- The 27 skips in the unit-only job are PostgreSQL-dependent test cases; the separate PostgreSQL-backed full test run executed 80 tests and all passed.
+- AI API tests include one Starlette/httpx deprecation warning; it is not a test failure.
+- Build logs still emit Node.js 20 action deprecation notices, plus frontend chunk-size and Python/Starlette deprecation warnings. These are maintenance warnings, not failed security jobs.
+- No independent DAST, third-party penetration test, cloud IAM review or production deployment assessment was performed.
 
 ### Earlier failed runs and regressions corrected
 
@@ -219,18 +241,21 @@ The repository still targets .NET 8. A migration must be a separately reviewed c
 
 **Compatibility test result:** Not performed. Current project packages and tests remain .NET 8; no .NET 10 build or migration test is claimed.
 
-## 7. Production blockers
+## 7. Production blockers and next work
 
-1. **Unsupported .NET 8 runtime.** Platform API/tests, Docker images and workflow SDKs still target .NET 8, which ended support on 10 November 2026. Migrate to .NET 10 LTS in a separately reviewed change and run the full suite on it.
-2. **Current-head validation.** The completed green CI/security baseline is commit `2ceec4d`; Trivy 0.76.2 and null-safe preference changes are later commits. Their exact-head workflows must pass before the branch is called fully validated.
-3. **Branch protection is disabled.** Enable required pull-request review and required CI/security checks before production promotion.
-4. **No independent security test.** Obtain an authorized independent staging assessment/penetration test; this repository review and automated test suite are not a penetration test.
-5. **Operational security controls.** Configure a persistent Data Protection key ring, private receipt retention/deletion reconciliation, malware scanning if required by the threat model, distributed rate limiting if running multiple replicas, and reviewed cloud IAM/ingress/backup settings.
-6. **Dependency reproducibility.** The web project uses `latest` for several direct dependencies, has no committed `package-lock.json`, and CI uses `npm install`. Commit a lockfile and use `npm ci`; retain a deliberate update process for Python and NuGet ranges.
-7. **Scanner maintenance.** Validate the pinned Trivy 0.76.2 config scan and update deprecated Node 20-targeting GitHub Actions.
+1. **Unsupported .NET 8 runtime.** Platform API/tests, Docker images and workflow SDKs still target .NET 8, which ended support on 10 November 2026. Migrate to .NET 10 LTS in a separately reviewed follow-up stage and run the full CI/security suite on it.
+2. **Branch protection is disabled.** Enable required pull-request review and required CI/security checks before production promotion. The current GitHub connection exposes branch-protection reads only; this could not be enabled through the available repository action.
+3. **No independent security test.** Obtain an authorized independent staging assessment/penetration test; this repository review and automated test suite are not a penetration test.
+4. **Operational security controls.** Configure a persistent Data Protection key ring, private receipt retention/deletion reconciliation, malware scanning if required by the threat model, distributed rate limiting if running multiple replicas, and reviewed cloud IAM/ingress/backup settings.
+5. **Dependency reproducibility.** The web project uses `latest` for several direct dependencies, has no committed `package-lock.json`, and CI uses `npm install`. Commit a lockfile and use `npm ci`; retain a deliberate update process for Python and NuGet ranges.
+6. **Workflow maintenance.** Update deprecated Node 20-targeting GitHub Actions and resolve the Starlette/httpx warning, frontend chunk-size warning and Entity Framework multiple-collection query warnings.
 
 ## 8. Assessment conclusion
 
-**FAIL / BLOCKED for public production.** The completed Stage 51 validation baseline passes CI and the configured security gates, including CodeQL uploads, dependency audits and all three image scans. The baseline also passes 79 PostgreSQL integration tests and 16 browser E2E journeys. The Trivy 0.76.2 configuration scan has passed on commit `324929d` with no CloudFront-policy skip warning; the full security workflow on that commit failed only because the AI image build hit the `ldconfig` permission error. That ordering is corrected in `aadca97`; the exact-head reruns for the later EXIF test and documentation changes are queued. The repository still targets unsupported .NET 8. Branch protection, independent testing and several operational controls remain outstanding.
+**Stage 51 verification: PASS. Public-production approval: FAIL / BLOCKED.** The exact current branch head passed all CI jobs and all configured security jobs, including both CodeQL uploads, dependency audits, Trivy 0.76.2 configuration scanning and all three container image scans. The full PostgreSQL-backed suite passed 80 tests, the browser E2E matrix passed 16 journeys, and the EXIF metadata-removal regression passed.
+
+The remaining blockers are outside the completed Stage 51 verification scope: migrate the unsupported .NET 8 runtime to .NET 10 LTS, enable branch protection, complete operational hardening and obtain independent staging security testing.
+
+This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
 
 This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
