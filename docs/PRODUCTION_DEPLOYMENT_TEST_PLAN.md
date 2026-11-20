@@ -7,7 +7,7 @@ Provide a repeatable, portable container deployment for the existing web client,
 | Service | Image/build | Network access | Persistent data |
 |---|---|---|---|
 | Web | Unprivileged Nginx serving the Vite build | App network; only published service | None |
-| Platform API | .NET 8 ASP.NET Core runtime | App + isolated data network | Private receipt volume |
+| Platform API | .NET 10 ASP.NET Core runtime (Stage 52 target) | App + isolated data network | Private receipt volume |
 | AI API | Python 3.11 + Uvicorn | App network only | None |
 | PostgreSQL | PostgreSQL 16 Alpine | Isolated data network only | Database volume |
 | Migration runner | PostgreSQL client image | Isolated data network only | Migration history in database |
@@ -78,3 +78,9 @@ This stage is a deployment foundation, not a production launch. Still required b
 - Manual screen-reader and physical-device accessibility testing remains outside CI.
 
 Do not describe the stack as production-ready until the relevant hosting, security, operational and recovery controls have been implemented and verified.
+
+## Stage 52 — .NET 10 runtime verification
+
+The Platform API build/runtime image now targets .NET 10. The Stage 52 disposable deployment smoke test verified the .NET 10 runtime (10.0.15), successful startup of web/API/AI, all 18 recorded database migrations, and internal API/database network isolation. See [CI run 44678743033](https://github.com/harini281/travel_os/actions/runs/44678743033).
+
+This validates the repository's disposable Compose stack. It does not validate a selected public hosting environment, managed secrets, TLS ingress, backup/restore, persistent Data Protection keys or production capacity.

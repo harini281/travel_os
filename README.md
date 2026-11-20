@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 security verification is complete on commit `b9f86b69f567159ca66cb3297f56602e7876af2a`. [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109) and [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) both passed all jobs. PRs #51 (Stage 49) and #52 (Stage 50) are historical and were not changed. Stage 51 remains in draft PR [#53](https://github.com/harini281/travel_os/pull/53). **Not approved for public production:** the app still targets unsupported .NET 8, branch protection is disabled, and independent staging security testing is outstanding.
+> **Current development status:** Stage 51 security verification is complete in draft PR [#53](https://github.com/harini281/travel_os/pull/53). Stage 52 .NET 10 LTS migration has passed repository CI and security verification on source commit `09655a1` ([CI #44678743033](https://github.com/harini281/travel_os/actions/runs/44678743033), [Security #44678743097](https://github.com/harini281/travel_os/actions/runs/44678743097)); the migration remains in draft PR [#54](https://github.com/harini281/travel_os/pull/54). Public production remains blocked pending target-host verification, branch protection and independent staging security review.
 
 ## 1. Features implemented
 
@@ -43,7 +43,7 @@ TravelOS is a multi-service travel-planning platform built with React, ASP.NET C
 | Layer | Technology |
 |---|---|
 | Web client | React, TypeScript, Vite, Leaflet |
-| Platform API | ASP.NET Core 8 (current target; unsupported after November 2026), C#, Entity Framework Core |
+| Platform API | ASP.NET Core 10 (Stage 52 migration target), C#, Entity Framework Core |
 | Database | PostgreSQL 16, Npgsql |
 | AI service | Python 3.11+, FastAPI, Pydantic, OpenAI Responses API (optional) |
 | Maps and travel data | OpenStreetMap, OSRM, Open-Meteo, Frankfurter; optional FlightAware |
@@ -55,7 +55,7 @@ Install these before starting:
 
 - Git
 - Node.js 22+
-- .NET 8 SDK (needed to build the current branch; runtime is out of support — migrate to .NET 10 before production)
+- .NET 10 SDK (required for the Stage 52 migration branch)
 - Python 3.11+
 - Docker Desktop / Docker Engine with Docker Compose
 - PostgreSQL client tools (`psql`) for applying migrations manually
@@ -638,11 +638,11 @@ Stage 51 adds a shared server-only token boundary to the internal AI API, receip
 
 **Stage 51 verification: PASS. Production approval: BLOCKED.** Exact current-head validation passed all eight CI jobs and all five security jobs. Results: 49 unit tests passed (27 PostgreSQL-only skips), 80 PostgreSQL-backed tests passed, 48 AI API tests passed, and 16 browser E2E journeys passed. Trivy 0.76.2 passed the configuration and all three container-image HIGH/CRITICAL gates; both CodeQL SARIF reports uploaded to GitHub Code Scanning. See [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109), [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) and the detailed [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md).
 
-This is repository-level validation, not an independent penetration test or security certification. Public production remains blocked because the application still targets unsupported .NET 8, branch protection is disabled, independent staging security testing has not been completed, and operational controls such as persistent Data Protection keys and receipt-storage lifecycle management remain outstanding.
+This is repository-level validation, not an independent penetration test or security certification. Stage 52 has now migrated the Platform API to .NET 10 and passed CI/security verification, but public production remains blocked: branch protection is disabled, independent staging security testing has not been completed, and operational controls such as persistent Data Protection keys and receipt-storage lifecycle management remain outstanding.
 
 Read:
 - [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md)
 - [Security Response Guide](docs/SECURITY_RESPONSE_GUIDE.md)
 - [Stage 51 Security Assessment Plan](docs/STAGE51_SECURITY_ASSESSMENT_PLAN.md)
 
-Do not deploy the current .NET 8 target publicly. Review the .NET 10 LTS migration plan in the security assessment; the major upgrade was intentionally not mixed into this security-testing change.
+Do not treat Stage 52 CI/security verification as public-production approval; target-host checks, branch protection, independent staging review and the remaining operational release gates must still be closed.
