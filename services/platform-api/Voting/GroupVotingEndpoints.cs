@@ -44,6 +44,7 @@ public static class GroupVotingEndpoints
         if (expired.Count > 0) await db.SaveChangesAsync(ct);
 
         var polls = await db.GroupPolls.AsNoTracking()
+            .AsSplitQuery()
             .Include(x => x.Options)
             .Include(x => x.Votes)
             .Where(x => x.TripId == tripId)

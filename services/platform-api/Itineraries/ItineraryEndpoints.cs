@@ -48,6 +48,7 @@ public static class ItineraryEndpoints
             });
 
         var itinerary = await db.Itineraries.AsNoTracking()
+            .AsSplitQuery()
             .Include(x => x.Days).ThenInclude(x => x.Activities)
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.Version).FirstOrDefaultAsync(ct);
@@ -287,6 +288,7 @@ public static class ItineraryEndpoints
         if (trip is null) return Results.NotFound();
 
         var itinerary = await db.Itineraries.AsNoTracking()
+            .AsSplitQuery()
             .Include(x => x.Days)
             .ThenInclude(x => x.Activities)
             .Where(x => x.TripId == tripId)
@@ -526,6 +528,7 @@ public static class ItineraryEndpoints
         if (trip is null) return Results.NotFound();
 
         var itinerary = await db.Itineraries
+            .AsSplitQuery()
             .Include(x => x.Days)
             .ThenInclude(x => x.Activities)
             .OrderByDescending(x => x.Version)

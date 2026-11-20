@@ -45,6 +45,7 @@ public static class ItineraryRecommendationEndpoints
         if (trip is null) return Results.NotFound();
 
         var itinerary = await db.Itineraries.AsNoTracking()
+            .AsSplitQuery()
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.Version)
             .Include(x => x.Days).ThenInclude(x => x.Activities)
@@ -120,6 +121,7 @@ public static class ItineraryRecommendationEndpoints
         if (trip is null) return Results.NotFound();
 
         var itinerary = await db.Itineraries.AsNoTracking()
+            .AsSplitQuery()
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.Version)
             .Include(x => x.Days).ThenInclude(x => x.Activities)
