@@ -22,11 +22,11 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
@@ -42,7 +42,7 @@ jobs:
           output: ${{ runner.temp }}/codeql-dotnet-results
       - name: Preserve CodeQL results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: travelos-codeql-dotnet-sarif
           path: ${{ runner.temp }}/codeql-dotnet-results
@@ -58,7 +58,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
@@ -70,7 +70,7 @@ jobs:
           output: ${{ runner.temp }}/codeql-web-ai-results
       - name: Preserve CodeQL results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: travelos-codeql-web-ai-sarif
           path: ${{ runner.temp }}/codeql-web-ai-results
@@ -82,9 +82,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install and audit web dependencies
@@ -93,7 +93,7 @@ jobs:
           npm install --no-audit --no-fund
           npm audit --audit-level=high
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Audit Python dependencies
@@ -101,9 +101,9 @@ jobs:
           python -m pip install --upgrade pip pip-audit
           pip-audit -r services/ai-api/requirements-dev.txt
       - name: Set up .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Audit NuGet dependencies
         shell: bash
         run: |
@@ -121,7 +121,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Scan dependencies and secrets
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -148,7 +148,7 @@ jobs:
           exit-code: "0"
       - name: Preserve Trivy reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: travelos-trivy-filesystem-and-config
           path: |
@@ -163,7 +163,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Build Platform API image
         run: docker build --pull --tag travelos-platform-api:stage51 -f services/platform-api/Dockerfile .
       - name: Scan Platform API image

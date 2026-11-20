@@ -18,8 +18,8 @@ jobs:
       run:
         working-directory: apps/web
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
       - name: Install dependencies
@@ -33,8 +33,8 @@ jobs:
     name: AI API tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.11"
       - name: Install dependencies
@@ -59,10 +59,10 @@ jobs:
     name: Platform API build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Restore
         run: dotnet restore services/platform-api/TravelOS.PlatformApi.csproj
       - name: Build
@@ -72,10 +72,10 @@ jobs:
     name: Platform API unit tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Run platform API tests
         run: dotnet test tests/platform-api-tests/TravelOS.PlatformApi.Tests.csproj --configuration Release
 
@@ -83,10 +83,10 @@ jobs:
     name: Platform API PostgreSQL integration tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos_test
@@ -161,13 +161,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
       - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos_e2e
@@ -312,7 +312,7 @@ jobs:
           PY
       - name: Upload cross-browser reports, screenshots and traces
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: travelos-playwright-e2e-results
           path: |
@@ -334,7 +334,7 @@ jobs:
     name: PostgreSQL migration validation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Start isolated PostgreSQL with a per-job random password
         env:
           POSTGRES_DB: travelos
@@ -399,7 +399,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Create disposable deployment environment
         run: |
           set +x

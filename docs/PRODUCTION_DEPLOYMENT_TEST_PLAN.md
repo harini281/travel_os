@@ -7,7 +7,7 @@ Provide a repeatable, portable container deployment for the existing web client,
 | Service | Image/build | Network access | Persistent data |
 |---|---|---|---|
 | Web | Unprivileged Nginx serving the Vite build | App network; only published service | None |
-| Platform API | .NET 8 ASP.NET Core runtime | App + isolated data network | Private receipt volume |
+| Platform API | .NET 10 ASP.NET Core runtime (Stage 52 target) | App + isolated data network | Private receipt volume |
 | AI API | Python 3.11 + Uvicorn | App network only | None |
 | PostgreSQL | PostgreSQL 16 Alpine | Isolated data network only | Database volume |
 | Migration runner | PostgreSQL client image | Isolated data network only | Migration history in database |
