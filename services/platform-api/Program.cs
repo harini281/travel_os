@@ -50,7 +50,17 @@ var healthChecks = builder.Services.AddHealthChecks();
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
     builder.Services.AddDbContext<TravelOsDbContext>(options =>
-        options.UseNpgsql(connectionString));
+    {
+        options.UseNpgsql(connectionString);
+
+        // Treat multi-collection query warnings as test failures so new aggregate
+        // queries must choose an explicit split/single-query strategy.
+        if (builder.Environment.IsEnvironment("Testing"))
+        {
+            options.ConfigureWarnings(warnings =>
+                warnings.Throw(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.MultipleCollectionIncludeWarning));
+        }
+    });
     healthChecks.AddNpgSql(connectionString, name: "postgresql");
 }
 

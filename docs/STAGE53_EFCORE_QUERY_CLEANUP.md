@@ -19,6 +19,7 @@ Those patterns can produce large joined result sets (cartesian row multiplicatio
 - Add `AsSplitQuery()` to the itinerary aggregate reads used by opening-hours analysis and route analysis.
 - Add `AsSplitQuery()` to the group-poll listing query which loads options and votes.
 - Do not set a global `UseQuerySplittingBehavior` default.
+- In the `Testing` environment only, turn `MultipleCollectionIncludeWarning` into an exception to prevent this warning from silently returning in future PostgreSQL integration tests.
 - Keep the same authorization checks, projections, tracking behavior, ordering and response DTOs.
 - Do not change migrations or schema.
 
