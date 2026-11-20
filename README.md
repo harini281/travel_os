@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 — security verification and remediation is in review on `stage51-security-testing`, based on Stage 50. PRs #51 (Stage 49) and #52 (Stage 50) are historical merged PRs; they have not been changed or merged as part of Stage 51. A separate Stage 51 draft PR is open as [#53](https://github.com/harini281/travel_os/pull/53). This remains an active development project, not approved for public production.
+> **Current development status:** Stage 51 security verification is complete on commit `b9f86b69f567159ca66cb3297f56602e7876af2a`. [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109) and [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) both passed all jobs. PRs #51 (Stage 49) and #52 (Stage 50) are historical and were not changed. Stage 51 remains in draft PR [#53](https://github.com/harini281/travel_os/pull/53). **Not approved for public production:** the app still targets unsupported .NET 8, branch protection is disabled, and independent staging security testing is outstanding.
 
 ## 1. Features implemented
 
@@ -636,7 +636,9 @@ Stage 50 does not deploy publicly, change production credentials, select a cloud
 
 Stage 51 adds a shared server-only token boundary to the internal AI API, receipt image decoding and re-encoding, request and pixel limits, cross-user PostgreSQL regression tests, CodeQL/dependency/Trivy workflows and weekly Dependabot updates.
 
-**Security status: FAIL / BLOCKED — not approved for public production.** The current application still targets .NET 8, which is out of support as of this assessment date. Earlier branch-head CI failed because the receipt image processor referenced a missing SkiaSharp exception type; a narrow correction and AI container dependency updates have been pushed, but they require successful current-head CI and security scans before they can be called verified. Cross-user test coverage is improved but is not exhaustive. This work is not an independent penetration test or security certification.
+**Stage 51 verification: PASS. Production approval: BLOCKED.** Exact current-head validation passed all eight CI jobs and all five security jobs. Results: 49 unit tests passed (27 PostgreSQL-only skips), 80 PostgreSQL-backed tests passed, 48 AI API tests passed, and 16 browser E2E journeys passed. Trivy 0.76.2 passed the configuration and all three container-image HIGH/CRITICAL gates; both CodeQL SARIF reports uploaded to GitHub Code Scanning. See [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109), [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) and the detailed [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md).
+
+This is repository-level validation, not an independent penetration test or security certification. Public production remains blocked because the application still targets unsupported .NET 8, branch protection is disabled, independent staging security testing has not been completed, and operational controls such as persistent Data Protection keys and receipt-storage lifecycle management remain outstanding.
 
 Read:
 - [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md)
