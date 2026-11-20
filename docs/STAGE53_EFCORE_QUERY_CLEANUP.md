@@ -27,14 +27,30 @@ Those patterns can produce large joined result sets (cartesian row multiplicatio
 
 Split queries issue multiple SELECT statements instead of one joined query. This avoids sibling-collection row multiplication but may observe concurrent data changes between statements unless the surrounding transaction/isolation strategy prevents it. These routes are read-focused; this change deliberately avoids changing application-wide transaction behavior. Validate the loaded graph and endpoint outputs through the existing PostgreSQL integration and browser E2E suites.
 
-## Required validation
+## Validation result — PASS on implementation commit `9b36cd9346ec57f448373321fd7169bd00f8ec45`
 
-- Platform API build and unit tests.
-- All PostgreSQL-backed API tests, especially itinerary and group voting endpoints.
-- Browser E2E journeys.
-- Full deployment smoke and security workflows as regression gates.
-- Confirm that the EF Core multiple-collection warning no longer appears in the affected test scenarios.
+[TravelOS CI run 44681040370](https://github.com/harini281/travel_os/actions/runs/44681040370) — **PASS, all 8 jobs**:
+- Platform API build — passed.
+- Platform API unit tests — **49 passed, 0 failed, 27 skipped** (PostgreSQL-only tests are covered by the separate integration job).
+- PostgreSQL-backed API tests — **80 passed, 0 failed**. The log contained **zero** `MultipleCollectionIncludeWarning` messages while the test-only warning-to-exception guard was enabled.
+- PostgreSQL migrations — passed.
+- AI API tests — **48 passed**.
+- Web typecheck/build — passed.
+- Docker deployment smoke — passed: all application images built, services started and reported healthy, migration history was complete, and internal API/database network isolation checks passed.
+- Browser E2E — **16 passed, 0 failed** across Chromium, Firefox, WebKit, mobile Chromium, mobile WebKit and tablet Chromium. Receipt and accessibility journeys passed.
+
+[TravelOS Security Assessment run 44681040319](https://github.com/harini281/travel_os/actions/runs/44681040319) — **PASS, all 5 jobs**:
+- CodeQL Platform API — passed; SARIF uploaded to GitHub Code Scanning.
+- CodeQL Web and AI — passed; SARIF uploaded to GitHub Code Scanning.
+- NuGet/npm/Python dependency audit — passed.
+- Filesystem/secret/config scan — passed.
+- Trivy `v0.76.2` — Platform API, AI API and web images all passed the HIGH/CRITICAL gate; all three base-image summaries reported 0 findings at that threshold.
+
+## Trade-off
+
+Split queries issue multiple SELECT statements instead of one joined query. This avoids sibling-collection row multiplication but may observe concurrent data changes between statements unless the surrounding transaction/isolation strategy prevents it. These routes are read-focused; this change deliberately avoids changing application-wide transaction behavior.
 
 ## Status
 
-**IMPLEMENTATION PUSHED — validation pending.** This branch is separate from the completed .NET 10 migration. Do not call the warning resolved until the exact Stage 53 head passes and the PostgreSQL integration log no longer emits the targeted warning.
+**EF CORE QUERY CLEANUP: VERIFIED.** The exact implementation commit passed all 8 CI jobs and all 5 security jobs. The PostgreSQL integration suite passed 80 tests and emitted zero multiple-collection warnings with the strict test guard active. This is repository-level verification, not independent penetration testing or production approval; retain the separate operational and staging release gates.
+
