@@ -257,5 +257,3 @@ The repository still targets .NET 8. A migration must be a separately reviewed c
 The remaining blockers are outside the completed Stage 51 verification scope: migrate the unsupported .NET 8 runtime to .NET 10 LTS, enable branch protection, complete operational hardening and obtain independent staging security testing.
 
 This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
-
-This report intentionally does not certify TravelOS as secure and does not describe the work as a penetration test.
