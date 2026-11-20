@@ -3,6 +3,7 @@
 **Assessment date:** 20 November 2026  
 **Repository:** https://github.com/harini281/travel_os  
 **Assessment branch:** `stage51-security-testing`  
+**Documentation verification head:** `ba19345974a1e85e2758896a6e1090c0a61a6297`  
 **Verified Stage 51 commit:** `193e1ac351a4f4cc0e911affe42f1d86f02f3474`  
 **Baseline:** `stage50-production-readiness`  
 **Stage 51 PR:** [#53 — merged](https://github.com/harini281/travel_os/pull/53)
@@ -21,10 +22,10 @@ GitHub state was checked directly on 20 November 2026:
 
 ## 2. Exact GitHub Actions evidence
 
-Both current workflow runs are tied to Stage 51 commit `193e1ac351a4f4cc0e911affe42f1d86f02f3474` and completed successfully on 20 November 2026:
+The original Stage 51 implementation runs below are tied to commit `193e1ac351a4f4cc0e911affe42f1d86f02f3474`. After the assessment/README/runbook corrections were pushed, both workflows were re-run against the latest documentation head `ba19345974a1e85e2758896a6e1090c0a61a6297`; both completed successfully:
 
-- [TravelOS CI — run 44678346752](https://github.com/harini281/travel_os/actions/runs/44678346752): **8/8 jobs succeeded**.
-- [TravelOS Security Assessment — run 44678346761](https://github.com/harini281/travel_os/actions/runs/44678346761): **5/5 jobs succeeded**.
+- Original implementation: [TravelOS CI — run 44678346752](https://github.com/harini281/travel_os/actions/runs/44678346752), **8/8 jobs succeeded**; [Security Assessment — run 44678346761](https://github.com/harini281/travel_os/actions/runs/44678346761), **5/5 jobs succeeded**.
+- Latest documentation head: [TravelOS CI — run 44686191822](https://github.com/harini281/travel_os/actions/runs/44686191822), **8/8 jobs succeeded**; [Security Assessment — run 44686191815](https://github.com/harini281/travel_os/actions/runs/44686191815), **5/5 jobs succeeded**.
 
 ### CI jobs — 8/8
 
@@ -151,6 +152,8 @@ Migration checklist:
 **Stage 51 compatibility test result:** NOT RUN. Do not infer .NET 10 compatibility from Stage 51's .NET 8 CI.
 
 ## 7. GitHub automation and history
+
+Latest documentation-head verification (`ba19345974a1e85e2758896a6e1090c0a61a6297`): CI run [44686191822](https://github.com/harini281/travel_os/actions/runs/44686191822), 8/8 jobs successful; Security run [44686191815](https://github.com/harini281/travel_os/actions/runs/44686191815), 5/5 jobs successful. These are now completed successfully, not pending.
 
 - Current Stage 51 CI: [run 44678346752](https://github.com/harini281/travel_os/actions/runs/44678346752), 8/8 jobs successful.
 - Current Stage 51 Security: [run 44678346761](https://github.com/harini281/travel_os/actions/runs/44678346761), 5/5 jobs successful.
