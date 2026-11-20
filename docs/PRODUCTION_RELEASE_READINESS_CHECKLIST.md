@@ -1,6 +1,6 @@
 # TravelOS — Production Release Readiness Checklist
 
-**Status:** Stage 50 release preparation; no public deployment is authorized by this checklist.
+**Status:** Stage 52 .NET 10 migration passes repository CI/security validation; no public deployment is authorized by this checklist.
 
 Use `PASS`, `FAIL`, `NOT RUN` or `NOT APPLICABLE` for each gate. A documented feature is not a passed operational control unless it has been verified in the target hosting environment.
 
@@ -12,7 +12,7 @@ Use `PASS`, `FAIL`, `NOT RUN` or `NOT APPLICABLE` for each gate. A documented fe
 | Runtime database least privilege | Migration administrator is separated from the API login; CI checks the runtime role is not superuser/CREATEDB/CREATEROLE/replication/BYPASSRLS and cannot write migration history | Implemented; target permissions pending review |
 | JWT issuer/audience/signing key and exact HTTPS CORS | Stage 49 validation + unit tests | Implemented; target values not verified |
 | Platform-to-AI service authentication | Stage 51 shared token required for planner/receipt endpoints; health endpoint remains public; production requires a unique 32+ character token | Implemented; target secret injection and rotation pending |
-| Supported .NET runtime | Stage 52 migrates the Platform API, tests, Docker images and CI to .NET 10 LTS; exact-head CI/security verification is pending | Blocker until Stage 52 tests pass and target-host runtime is validated |
+| Supported .NET runtime | Platform API/tests, Docker images and CI target .NET 10 LTS; CI/security pass on source commit `09655a1` and runtime smoke reported .NET 10.0.15 | Repository verification PASS; target-host runtime/configuration review still pending |
 | No committed production environment files | `deploy/production.env` added to Git ignore rules | Implemented; repository scan pending |
 | Managed secret injection and rotation | Not provided by Compose | Blocker |
 | TLS ingress, DNS, firewall and trusted proxy | Must be supplied by hosting operator | Blocker |

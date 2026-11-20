@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 security verification is complete and remains in draft PR [#53](https://github.com/harini281/travel_os/pull/53). Stage 52 is upgrading the Platform API and CI from .NET 8 to .NET 10 LTS on branch `stage52-dotnet10-migration`. Validation is in progress; do not treat the migration as complete until the new CI and security runs pass. Public production remains blocked pending runtime validation, branch protection and independent staging security review.
+> **Current development status:** Stage 51 security verification is complete in draft PR [#53](https://github.com/harini281/travel_os/pull/53). Stage 52 .NET 10 LTS migration has passed repository CI and security verification on source commit `09655a1` ([CI #44678743033](https://github.com/harini281/travel_os/actions/runs/44678743033), [Security #44678743097](https://github.com/harini281/travel_os/actions/runs/44678743097)); the migration remains in draft PR [#54](https://github.com/harini281/travel_os/pull/54). Public production remains blocked pending target-host verification, branch protection and independent staging security review.
 
 ## 1. Features implemented
 
@@ -638,11 +638,11 @@ Stage 51 adds a shared server-only token boundary to the internal AI API, receip
 
 **Stage 51 verification: PASS. Production approval: BLOCKED.** Exact current-head validation passed all eight CI jobs and all five security jobs. Results: 49 unit tests passed (27 PostgreSQL-only skips), 80 PostgreSQL-backed tests passed, 48 AI API tests passed, and 16 browser E2E journeys passed. Trivy 0.76.2 passed the configuration and all three container-image HIGH/CRITICAL gates; both CodeQL SARIF reports uploaded to GitHub Code Scanning. See [CI run #44560832109](https://github.com/harini281/travel_os/actions/runs/44560832109), [Security Assessment run #44560831541](https://github.com/harini281/travel_os/actions/runs/44560831541) and the detailed [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md).
 
-This is repository-level validation, not an independent penetration test or security certification. Public production remains blocked pending .NET 10 runtime verification; branch protection is disabled, independent staging security testing has not been completed, and operational controls such as persistent Data Protection keys and receipt-storage lifecycle management remain outstanding.
+This is repository-level validation, not an independent penetration test or security certification. Stage 52 has now migrated the Platform API to .NET 10 and passed CI/security verification, but public production remains blocked: branch protection is disabled, independent staging security testing has not been completed, and operational controls such as persistent Data Protection keys and receipt-storage lifecycle management remain outstanding.
 
 Read:
 - [Stage 51 Security Assessment](docs/SECURITY_ASSESSMENT.md)
 - [Security Response Guide](docs/SECURITY_RESPONSE_GUIDE.md)
 - [Stage 51 Security Assessment Plan](docs/STAGE51_SECURITY_ASSESSMENT_PLAN.md)
 
-Do not deploy until Stage 52 .NET 10 CI/security verification is complete and the separate operational release gates are closed.
+Do not treat Stage 52 CI/security verification as public-production approval; target-host checks, branch protection, independent staging review and the remaining operational release gates must still be closed.
