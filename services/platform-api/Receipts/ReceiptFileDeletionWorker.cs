@@ -92,7 +92,6 @@ public sealed class ReceiptFileDeletionWorker(
 
                 // File.Delete is idempotent when the file is already absent.
                 File.Delete(path);
-                receipt.FileDeletedAt = DateTimeOffset.UtcNow;
                 db.TripReceipts.Remove(receipt);
                 await db.SaveChangesAsync(cancellationToken);
                 logger.LogInformation("Completed receipt file deletion for receipt {ReceiptId}.", receipt.Id);
