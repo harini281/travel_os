@@ -3,7 +3,6 @@
 
 ALTER TABLE "TripReceipts"
   ADD COLUMN IF NOT EXISTS "DeletionRequestedAt" timestamptz NULL,
-  ADD COLUMN IF NOT EXISTS "FileDeletedAt" timestamptz NULL,
   ADD COLUMN IF NOT EXISTS "DeletionAttempts" integer NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS "LastDeletionError" varchar(500) NULL,
   ADD COLUMN IF NOT EXISTS "NextDeletionAttemptAt" timestamptz NULL;
