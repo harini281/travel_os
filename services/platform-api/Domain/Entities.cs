@@ -233,6 +233,7 @@ public sealed class TripReceipt
     public Guid? ConfirmedByUserId { get; set; }
     public DateTimeOffset? DeletionRequestedAt { get; set; }
     public DateTimeOffset? FileDeletedAt { get; set; }
+    public DateTimeOffset? NextDeletionAttemptAt { get; set; }
     public int DeletionAttempts { get; set; }
     public string? LastDeletionError { get; set; }
 }
