@@ -609,7 +609,7 @@ The web app is bound to `127.0.0.1:8088` by default. Configure a trusted TLS rev
 
 **Important:** `deploy/production.env.example` contains placeholders, not production credentials. Copy it to `deploy/production.env`, replace every placeholder and never commit the resulting file. Keep AI integrations in demo mode until provider access, privacy and costs have been reviewed.
 
-CI now validates the Compose configuration, builds all three application images, starts the complete disposable stack, checks web/API/AI health and verifies that all 18 ordered migrations were recorded. See [the Stage 48 deployment test plan](docs/PRODUCTION_DEPLOYMENT_TEST_PLAN.md).
+CI now validates the Compose configuration, builds all three application images, starts the complete disposable stack, checks web/API/AI health and verifies that all 19 ordered migrations were recorded. See [the Stage 48 deployment test plan](docs/PRODUCTION_DEPLOYMENT_TEST_PLAN.md).
 
 This is a container deployment foundation, not a public production launch. DNS/TLS hosting, managed secrets, backups and restore drills, vulnerability scanning, centralized observability, load testing and operational review remain required.
 
