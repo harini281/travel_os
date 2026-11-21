@@ -281,6 +281,6 @@ public static class ReceiptEndpoints
         }
         // The durable request is processed by ReceiptFileDeletionWorker. A retry after
         // process restart is safe; the file is no longer downloadable once queued.
-        return Results.Accepted($"/api/v1/trips/{tripId}/receipts/{receiptId}/file-deletion");
+        return Results.Accepted(value: new { status = "deletion_queued" });
     }
 }
