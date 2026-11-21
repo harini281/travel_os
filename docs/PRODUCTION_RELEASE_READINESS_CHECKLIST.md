@@ -32,7 +32,7 @@ Use `PASS`, `FAIL`, `NOT RUN` or `NOT APPLICABLE` for each gate. A documented fe
 - Receipt deletion is recorded in PostgreSQL before the API acknowledges the request; pending receipts are hidden from list and file retrieval.
 - A hosted worker retries deletion and removes metadata only after the file is absent/deleted. A process restart can resume pending rows.
 - The worker records attempt count and exception type for operator diagnostics. It does not log receipt contents or local storage paths.
-- This is a first reliability increment, not a malware scanner, distributed job-claim protocol, orphan-file reconciliation tool, or target-volume restore drill. Those remain open until implemented and verified.
+- This is a first reliability increment, not a malware scanner, operator-facing cleanup dashboard, orphan-file reconciliation tool, or target-volume restore drill. Those remain open until implemented and verified.
 
 ## Repository-level checks
 
