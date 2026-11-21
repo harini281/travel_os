@@ -1052,7 +1052,7 @@ export default function App() {
     try {
       await api<void>(`/api/v1/trips/${selectedTrip.id}/receipts/${receipt.id}`, token, { method: "DELETE" });
       await Promise.all([loadTripReceipts(selectedTrip), loadExpenseIntelligence(selectedTrip)]);
-      setNotice("Receipt deleted.");
+      setNotice("Receipt deletion queued. The receipt will be removed after private-file cleanup.");
     } catch (err) { setError(err instanceof Error ? err.message : "Unable to delete receipt."); }
   }
 
