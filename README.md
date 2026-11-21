@@ -4,7 +4,7 @@
 
 TravelOS is a multi-service travel-planning platform built with React, ASP.NET Core, PostgreSQL and Python/FastAPI. It brings trip planning, group coordination, budgets, itinerary intelligence and AI-assisted recommendations into one workspace.
 
-> **Current development status:** Stage 51 security verification is complete in draft PR [#53](https://github.com/harini281/travel_os/pull/53). Stage 52 .NET 10 LTS migration has passed repository CI and security verification on source commit `09655a1` ([CI #44678743033](https://github.com/harini281/travel_os/actions/runs/44678743033), [Security #44678743097](https://github.com/harini281/travel_os/actions/runs/44678743097)); the migration remains in draft PR [#54](https://github.com/harini281/travel_os/pull/54). Public production remains blocked pending target-host verification, branch protection and independent staging security review.
+> **Current development status:** Stage 55 receipt lifecycle reliability is in progress on [branch `stage55-receipt-reliability`](https://github.com/harini281/travel_os/tree/stage55-receipt-reliability), building on the Stage 54 security workflow. The new durable receipt deletion flow and migration are awaiting CI verification. Stage 51 security verification is complete in draft PR [#53](https://github.com/harini281/travel_os/pull/53). Stage 52 .NET 10 LTS migration has passed repository CI and security verification on source commit `09655a1` ([CI #44678743033](https://github.com/harini281/travel_os/actions/runs/44678743033), [Security #44678743097](https://github.com/harini281/travel_os/actions/runs/44678743097)); the migration remains in draft PR [#54](https://github.com/harini281/travel_os/pull/54). Public production remains blocked pending target-host verification, branch protection and independent staging security review.
 
 ## 1. Features implemented
 
@@ -153,7 +153,8 @@ $migrations = @(
   "014_trip_flights.sql",
   "015_flight_journey_groups.sql",
   "016_activity_schedule_times.sql",
-  "017_trip_notifications.sql 018_receipt_deletion_lifecycle.sql"
+  "017_trip_notifications.sql",
+  "018_receipt_deletion_lifecycle.sql"
 )
 foreach ($migration in $migrations) {
   psql -h localhost -p 5432 -U travelos -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
