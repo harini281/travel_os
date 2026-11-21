@@ -18,14 +18,14 @@ Implement a database-backed deletion queue/state transition so that a user delet
 
 - Preserve authorization: only the uploader or trip owner may request deletion.
 - Record a deletion request durably before returning success.
-- Retry transient filesystem failures with bounded backoff and observable attempt/error metadata.
+- Retry transient filesystem failures with capped exponential backoff and observable attempt/error metadata.
 - Be idempotent across process restarts and concurrent workers.
 - Prevent receipt download once deletion has been requested.
 - Avoid exposing storage paths or internal exception details to API clients.
 - Provide an operator-visible count of pending/failed cleanup operations without exposing receipt contents.
 - Define retention and terminal-failure handling; never silently discard a failed cleanup record.
 
-Do not introduce a distributed queue dependency for the single-host Compose deployment. Keep the database as the durable source of truth, and ensure the worker can safely run in more than one API instance (for example, with PostgreSQL row locking/claim semantics).
+Do not introduce a distributed queue dependency for the single-host Compose deployment. Keep the database as the durable source of truth. A PostgreSQL transaction-scoped advisory lock serializes queue processing across API replicas; the lock is released automatically if a process or database connection fails.
 
 ### 55.2 Upload compensation and reconciliation
 
@@ -70,7 +70,7 @@ CI must validate migration ordering on a clean PostgreSQL database, API tests, i
 ## Exit criteria
 
 - [ ] Database migration is forward-only and validated on clean PostgreSQL.
-- [ ] Durable delete lifecycle and retry worker are implemented.
+- [x] Durable delete lifecycle, transaction-scoped worker lock and capped retry scheduling are implemented (automated tests and CI verification still pending).
 - [ ] Upload compensation and safe reconciliation are implemented.
 - [ ] Scanner integration contract and fail-closed production behavior are tested.
 - [ ] Decoder resource limits and stress tests are evidenced.
