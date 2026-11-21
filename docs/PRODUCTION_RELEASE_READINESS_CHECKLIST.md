@@ -19,13 +19,20 @@ Use `PASS`, `FAIL`, `NOT RUN` or `NOT APPLICABLE` for each gate. A documented fe
 | Database hosting, encryption at rest, access controls and capacity | Compose currently uses a local PostgreSQL volume | Blocker |
 | Database and private receipt backup | Encrypted backup utility added; no off-host automation | Implemented groundwork; target backup store pending |
 | Full restore drill and measured RPO/RTO | Integrity checker validates archives but is not a full restore | Blocker |
-| Receipt storage security and recovery | Named private volume; no object storage or malware scanning | Blocker |
+| Receipt storage security and recovery | Stage 55 adds a database-backed deletion request and retry worker; file cleanup still requires target-volume durability, scanner integration and restore/reconciliation evidence | Repository implementation in review; target-host validation and malware scanning remain blockers |
 | Centralized logs, metrics, tracing and alerting | Compose health checks and local log rotation only | Blocker |
 | Image provenance, vulnerability scanning and SBOM | No registry policy, scanner, SBOM or digest lock | Blocker |
 | Production load/capacity and multi-instance rate limits | Rate limits are process-local | Blocker |
 | Privacy, data retention, residency and AI provider approval | Manual legal/operational review required | Blocker |
 | Authentication lifecycle | Email verification, password reset, refresh/session management and MFA remain absent | Product/security decision required |
 | Independent security/accessibility review | CI tests are not certification | Blocker |
+
+## Stage 55 receipt lifecycle evidence
+
+- Receipt deletion is recorded in PostgreSQL before the API acknowledges the request; pending receipts are hidden from list and file retrieval.
+- A hosted worker retries deletion and removes metadata only after the file is absent/deleted. A process restart can resume pending rows.
+- The worker records attempt count and exception type for operator diagnostics. It does not log receipt contents or local storage paths.
+- This is a first reliability increment, not a malware scanner, operator-facing cleanup dashboard, orphan-file reconciliation tool, or target-volume restore drill. Those remain open until implemented and verified.
 
 ## Repository-level checks
 

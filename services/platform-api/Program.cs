@@ -195,6 +195,7 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddHostedService<ReceiptFileDeletionWorker>();
 builder.Services.AddHttpClient<FrankfurterExchangeRateProvider>(client =>
 {
     client.BaseAddress = new Uri("https://api.frankfurter.dev");
