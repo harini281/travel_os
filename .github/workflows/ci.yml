@@ -505,7 +505,7 @@ jobs:
           set -euo pipefail
           count="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc 'SELECT count(*) FROM travelos_migration_history')"
           echo "Recorded migrations: $count"
-          test "$count" = "18"
+          test "$count" = "19"
           app_role_admin_flags="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)::text FROM pg_roles WHERE rolname = 'travelos_app'")"
           echo "Application database role has elevated PostgreSQL privileges: $app_role_admin_flags"
           test "$app_role_admin_flags" = "false"
