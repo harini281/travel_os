@@ -62,7 +62,7 @@ public static class ReceiptEndpoints
         if (!TryGetUserId(principal, out var userId)) return Results.Unauthorized();
         if (!await IsMemberAsync(tripId, userId, db, ct)) return Results.NotFound();
         var receipts = await db.TripReceipts.AsNoTracking()
-            .Where(x => x.TripId == tripId).OrderByDescending(x => x.UploadedAt).ToListAsync(ct);
+            .Where(x => x.TripId == tripId && x.DeletionRequestedAt == null).OrderByDescending(x => x.UploadedAt).ToListAsync(ct);
         var hashes = receipts.GroupBy(x => x.Sha256).ToDictionary(x => x.Key, x => x.Count());
         return Results.Ok(receipts.Select(x => ToResponse(x, hashes[x.Sha256] > 1)).ToArray());
     }
@@ -216,7 +216,7 @@ public static class ReceiptEndpoints
         if (!await IsMemberAsync(tripId, userId, db, ct)) return Results.NotFound();
         var receipt = await db.TripReceipts.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == receiptId && x.TripId == tripId, ct);
-        if (receipt is null) return Results.NotFound();
+        if (receipt is null || receipt.DeletionRequestedAt is not null) return Results.NotFound();
         var path = Path.Combine(StorageRoot(config), receipt.StoredFileName);
         if (!File.Exists(path)) return Results.NotFound();
         return Results.File(path, receipt.ContentType, receipt.OriginalFileName, enableRangeProcessing: true);
@@ -274,10 +274,13 @@ public static class ReceiptEndpoints
             var owner = await db.Trips.AnyAsync(x => x.Id == tripId && x.OwnerUserId == userId, ct);
             if (!owner) return Results.Forbid();
         }
-        var path = Path.Combine(StorageRoot(config), receipt.StoredFileName);
-        db.TripReceipts.Remove(receipt);
-        await db.SaveChangesAsync(ct);
-        try { if (File.Exists(path)) File.Delete(path); } catch (IOException) { }
-        return Results.NoContent();
+        if (receipt.DeletionRequestedAt is null)
+        {
+            receipt.DeletionRequestedAt = DateTimeOffset.UtcNow;
+            await db.SaveChangesAsync(ct);
+        }
+        // The durable request is processed by ReceiptFileDeletionWorker. A retry after
+        // process restart is safe; the file is no longer downloadable once queued.
+        return Results.Accepted($"/api/v1/trips/{tripId}/receipts/{receiptId}/file-deletion");
     }
 }
