@@ -153,7 +153,7 @@ $migrations = @(
   "014_trip_flights.sql",
   "015_flight_journey_groups.sql",
   "016_activity_schedule_times.sql",
-  "017_trip_notifications.sql"
+  "017_trip_notifications.sql 018_receipt_deletion_lifecycle.sql"
 )
 foreach ($migration in $migrations) {
   psql -h localhost -p 5432 -U travelos -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
@@ -169,7 +169,7 @@ for migration in \
   006_shared_expenses.sql 007_trip_repayments.sql 008_trip_expense_audits.sql \
   009_trip_receipts.sql 010_currency_conversions.sql 011_conversion_source_expense_date.sql \
   012_trip_budget_alerts.sql 013_trip_weather_assessments.sql 014_trip_flights.sql \
-  015_flight_journey_groups.sql 016_activity_schedule_times.sql 017_trip_notifications.sql
+  015_flight_journey_groups.sql 016_activity_schedule_times.sql 017_trip_notifications.sql 018_receipt_deletion_lifecycle.sql
 do
   PGPASSWORD=change-me-local-only psql -h localhost -p 5432 -U travelos -d travelos \
     -v ON_ERROR_STOP=1 -f "database/migrations/$migration" || exit 1
@@ -298,7 +298,7 @@ python -m pytest -q
 
 ### Database migration validation
 
-The GitHub Actions workflow starts a clean PostgreSQL 16 service and applies migrations 001–017 in order. To reproduce this locally, use a fresh disposable database and apply the same migration list. Do not use a production or data-bearing database for this check.
+The GitHub Actions workflow starts a clean PostgreSQL 16 service and applies migrations 001–018 in order. To reproduce this locally, use a fresh disposable database and apply the same migration list. Do not use a production or data-bearing database for this check.
 
 ### Latest verified CI result
 
@@ -363,7 +363,7 @@ npm install
 npx playwright install chromium
 ```
 
-Before running the browser suite, start a **disposable PostgreSQL database** and apply migrations 001–017 listed in `.github/workflows/ci.yml`. Start the Platform API with test-only configuration and the deterministic AI fixture:
+Before running the browser suite, start a **disposable PostgreSQL database** and apply migrations 001–018 listed in `.github/workflows/ci.yml`. Start the Platform API with test-only configuration and the deterministic AI fixture:
 
 ```powershell
 # Terminal 1 — repository root
@@ -413,7 +413,7 @@ See [docs/BROWSER_E2E_TEST_PLAN.md](docs/BROWSER_E2E_TEST_PLAN.md) for scenario 
 
 #### CI behaviour
 
-The dedicated **Chromium browser end-to-end tests** job provisions PostgreSQL 16, applies migrations 001–017, installs Playwright Chromium, starts the deterministic AI fixture, starts the Platform API with test-only JWT settings and runs the browser suite against Vite. The job uploads the HTML report, failure screenshots, traces and service logs even when tests fail. Existing web typecheck/build, AI API, Platform API build, Platform API unit tests, PostgreSQL integration tests and migration-validation jobs remain enabled.
+The dedicated **Chromium browser end-to-end tests** job provisions PostgreSQL 16, applies migrations 001–018, installs Playwright Chromium, starts the deterministic AI fixture, starts the Platform API with test-only JWT settings and runs the browser suite against Vite. The job uploads the HTML report, failure screenshots, traces and service logs even when tests fail. Existing web typecheck/build, AI API, Platform API build, Platform API unit tests, PostgreSQL integration tests and migration-validation jobs remain enabled.
 
 #### Known limitations and remaining manual checks
 
