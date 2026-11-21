@@ -13,7 +13,7 @@ public sealed class ReceiptFileDeletionWorker(
     IConfiguration configuration,
     ILogger<ReceiptFileDeletionWorker> logger) : BackgroundService
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
     private const int BatchSize = 25;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
