@@ -71,7 +71,7 @@ CI must validate migration ordering on a clean PostgreSQL database, API tests, i
 
 - [ ] Database migration is forward-only and validated on clean PostgreSQL.
 - [x] Durable delete lifecycle, transaction-scoped worker lock and capped retry scheduling are implemented (automated tests and CI verification still pending).
-- [ ] Upload compensation and safe reconciliation are implemented.
+- [ ] Upload compensation and automated reconciliation verification are implemented. The first dry-run reconciliation worker is present; it still needs tests and operational controls.
 - [ ] Scanner integration contract and fail-closed production behavior are tested.
 - [ ] Decoder resource limits and stress tests are evidenced.
 - [ ] Authorization and restart/idempotency tests pass.
