@@ -2,7 +2,7 @@
 
 **Branch:** `stage55-receipt-reliability`  
 **Base:** `stage54-security-remediation`  
-**Status:** Implementation in progress. This document is a scope and acceptance plan, not evidence that the controls are implemented or passed.
+**Status:** Partial implementation; CI and security workflows pass for commit `56a30c2f3a8ac378604a1bc4093c8931f35e027f`. This is not a production-readiness declaration.
 
 ## Why this stage exists
 
@@ -75,7 +75,7 @@ CI must validate migration ordering on a clean PostgreSQL database, API tests, i
 - [ ] Scanner integration contract and fail-closed production behavior are tested.
 - [ ] Decoder resource limits and stress tests are evidenced.
 - [ ] Authorization and restart/idempotency tests pass.
-- [ ] CI and security workflows pass on the final Stage 55 commit.
+- [x] CI and security workflows pass on commit `56a30c2f3a8ac378604a1bc4093c8931f35e027f` (GitHub Actions run `44994871999` and `44994871985`). Re-run after any subsequent source changes.
 - [ ] Release checklist is updated with repository evidence and remaining target-host blockers.
 
 A passing CI run proves only the tested repository behavior. Target-host storage durability, scanner service availability, backup/restore, IAM, TLS and independent security review remain separate release gates.
