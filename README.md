@@ -106,11 +106,150 @@ Set these in the terminal where Uvicorn is started. The Python service does **no
 
 Stage 39 returns no generated suggestions in demo mode. To use live AI recommendations, configure `AI_PROVIDER=openai` and `OPENAI_API_KEY`. Provider usage may incur charges. Never put an AI or FlightAware key in a `VITE_*` frontend variable.
 
-## 5. Run TravelOS locally
+## 5. Run TravelOS locally (without Docker on Windows)
+
+This path runs PostgreSQL, the Platform API, the Python AI API and the React frontend directly on Windows. It does not use Docker.
+
+### Prerequisites
+
+- Git
+- Node.js 22+ and npm
+- .NET 10 SDK
+- Python 3.11+
+- PostgreSQL 16+ with Command Line Tools (psql)
+
+### Step 1 — Create the local PostgreSQL database
+
+Install PostgreSQL for Windows and make sure its Windows service is running. If psql is not recognized, add the installed PostgreSQL bin directory to this PowerShell session, adjusting the version if necessary:
+
+```powershell
+$env:Path += ";C:\Program Files\PostgreSQL\16\bin"
+psql --version
+```
+
+Connect as the PostgreSQL administrator:
+
+```powershell
+psql -h localhost -U postgres
+```
+
+At the postgres=# prompt, create a local application role and database. Replace the example password with the password you choose:
+
+```sql
+CREATE ROLE travelos WITH LOGIN PASSWORD 'CHANGE_THIS_LOCAL_PASSWORD';
+CREATE DATABASE travelos OWNER travelos;
+\q
+```
+
+Apply migrations only to a new, empty local database. Do not rerun them against a database that already contains TravelOS data.
+
+From the repository root, set the password for this PowerShell session and apply every migration in order:
+
+```powershell
+$env:PGPASSWORD = "CHANGE_THIS_LOCAL_PASSWORD"
+$migrations = @(
+  "001_initial_schema.sql",
+  "002_identity_schema.sql",
+  "003_itinerary_constraints.sql",
+  "003_trip_invitations.sql",
+  "004_trip_member_preferences.sql",
+  "005_group_polls.sql",
+  "006_shared_expenses.sql",
+  "007_trip_repayments.sql",
+  "008_trip_expense_audits.sql",
+  "009_trip_receipts.sql",
+  "010_currency_conversions.sql",
+  "011_conversion_source_expense_date.sql",
+  "012_trip_budget_alerts.sql",
+  "013_trip_weather_assessments.sql",
+  "014_trip_flights.sql",
+  "015_flight_journey_groups.sql",
+  "016_activity_schedule_times.sql",
+  "017_trip_notifications.sql",
+  "018_receipt_deletion_lifecycle.sql"
+)
+foreach ($migration in $migrations) {
+  psql -h localhost -p 5432 -U travelos -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
+  if ($LASTEXITCODE -ne 0) { throw "Migration failed: $migration" }
+}
+Remove-Item Env:PGPASSWORD
+```
+
+### Step 2 — Start the Platform API
+
+Open a PowerShell terminal at the repository root. Generate strong local-only secrets (do not commit them or share them):
+
+```powershell
+function New-TravelOsSecret {
+  $bytes = New-Object byte[] 32
+  $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+  try { $rng.GetBytes($bytes) } finally { $rng.Dispose() }
+  return [Convert]::ToBase64String($bytes)
+}
+
+$env:Jwt__SigningKey = New-TravelOsSecret
+$env:AI_SERVICE_TOKEN = New-TravelOsSecret
+$env:Jwt__Issuer = "TravelOS"
+$env:Jwt__Audience = "TravelOS.Client"
+$env:ConnectionStrings__TravelOS = "Host=localhost;Port=5432;Database=travelos;Username=travelos;Password=CHANGE_THIS_LOCAL_PASSWORD"
+$env:Cors__AllowedOrigins__0 = "http://localhost:5173"
+$env:AiService__BaseUrl = "http://localhost:8001"
+$env:Receipts__StoragePath = "$PWD/data/private-receipts"
+
+Set-Location services/platform-api
+dotnet restore
+dotnet run
+```
+
+Keep this terminal open. The API listens at http://localhost:8080. Copy the value of $env:AI_SERVICE_TOKEN into the AI API terminal in Step 3. Keep both secrets private and never put the AI token in a VITE_* variable.
+
+### Step 3 — Start the AI API
+
+Open a second PowerShell terminal at the repository root. Paste the same AI service token from Step 2:
+
+```powershell
+$env:AI_SERVICE_TOKEN = "PASTE_THE_SAME_LOCAL_TOKEN_FROM_STEP_2"
+$env:AI_PROVIDER = "demo"
+Set-Location services/ai-api
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload --port 8001
+```
+
+Demo mode does not require an OpenAI API key. It provides deterministic fallback behavior; AI-generated itinerary recommendations are unavailable until a provider is configured.
+
+### Step 4 — Start the React frontend
+
+Open a third PowerShell terminal at the repository root:
+
+```powershell
+Set-Location apps/web
+Copy-Item .env.example .env.local
+npm install
+npm run dev
+```
+
+The frontend uses VITE_PLATFORM_API_URL=http://localhost:8080.
+
+### Step 5 — Verify the local services
+
+- Web app: http://localhost:5173
+- Platform API health: http://localhost:8080/health
+- AI API health/docs: http://localhost:8001/health and http://localhost:8001/docs
+- PostgreSQL: localhost:5432
+
+Register an account only after PostgreSQL, the Platform API and the web frontend are all running. If registration shows Failed to fetch, check that the Platform API is listening on port 8080 and that its terminal has no startup exception.
+
+---
+
+## 6. Docker-based local/production-style setup
+
+The following alternative uses Docker Compose. It is not required when following the native Windows setup above.
 
 Run each service in its own terminal. The commands below use PowerShell on Windows; equivalent Bash commands are included where environment-variable syntax differs.
 
-### Step 1 — Get the code and configure PostgreSQL
+### Step 1 — Get the code and configure PostgreSQL (Docker Compose path)
 
 ```bash
 git clone https://github.com/harini281/travel_os.git
@@ -271,7 +410,7 @@ VITE_PLATFORM_API_URL=http://localhost:8080
 
 Register an account in the web app, sign in, create a trip and open its itinerary workspace. For Stage 39, create an itinerary with at least one day, then use **Improve a day in your itinerary** to request recommendations. In demo mode, the service deliberately explains that AI generation is not enabled.
 
-## 6. Run the tests and builds
+## 7. Run the tests and builds
 
 Run these from the repository root unless stated otherwise.
 
@@ -311,7 +450,7 @@ Stage 51's final verification runs are recorded in [`docs/SECURITY_ASSESSMENT.md
 
 The source-level fixes and test expansions are not a professional penetration test, independent security audit or production sign-off. Do not deploy publicly while the .NET 8 end-of-support blocker and other documented release gates remain open.
 
-## 7. Stage 39 — AI activity recommendations
+## 8. Stage 39 — AI activity recommendations
 
 The itinerary workspace can request up to six contextual activity ideas for a selected itinerary day. The request includes trip destination/date, saved activities, group interests and travel preferences, saved weather assessments and same-currency budget context.
 
