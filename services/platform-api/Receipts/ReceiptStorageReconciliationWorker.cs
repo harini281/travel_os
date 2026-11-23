@@ -44,10 +44,17 @@ public sealed class ReceiptStorageReconciliationWorker(
 
         await using var scope = scopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        var maximumFilesPerRun = Math.Clamp(
+            configuration.GetValue<int?>("Receipts:ReconciliationMaximumFilesPerRun") ?? 10_000,
+            100, 100_000);
         var knownNames = await db.TripReceipts.AsNoTracking()
+            .OrderBy(receipt => receipt.Id)
             .Select(receipt => receipt.StoredFileName)
+            .Take(maximumFilesPerRun + 1)
             .ToListAsync(cancellationToken);
-        var known = new HashSet<string>(knownNames, StringComparer.Ordinal);
+        var metadataScanTruncated = knownNames.Count > maximumFilesPerRun;
+        var known = new HashSet<string>(
+            knownNames.Take(maximumFilesPerRun), StringComparer.Ordinal);
         var minimumAgeHours = Math.Clamp(
             configuration.GetValue<int?>("Receipts:OrphanMinimumAgeHours") ?? 24, 1, 24 * 365);
         var cutoff = DateTime.UtcNow.AddHours(-minimumAgeHours);
@@ -66,9 +73,17 @@ public sealed class ReceiptStorageReconciliationWorker(
                 missingMetadataFileCount++;
         }
 
+        var scannedFileCount = 0;
+        var filesystemScanTruncated = false;
         foreach (var path in Directory.EnumerateFiles(root, "*", SearchOption.TopDirectoryOnly))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (scannedFileCount >= maximumFilesPerRun)
+            {
+                filesystemScanTruncated = true;
+                break;
+            }
+            scannedFileCount++;
             try
             {
                 var attributes = File.GetAttributes(path);
@@ -98,7 +113,8 @@ public sealed class ReceiptStorageReconciliationWorker(
         }
 
         logger.LogInformation(
-            "Receipt storage reconciliation completed. Orphans={OrphanCount}, Deleted={DeletedCount}, MissingFiles={MissingFileCount}, Failures={FailureCount}, CleanupEnabled={CleanupEnabled}, MinimumAgeHours={MinimumAgeHours}.",
-            orphanCount, deletedCount, missingMetadataFileCount, failureCount, cleanupEnabled, minimumAgeHours);
+            "Receipt storage reconciliation completed. Orphans={OrphanCount}, Deleted={DeletedCount}, MissingFiles={MissingFileCount}, Failures={FailureCount}, CleanupEnabled={CleanupEnabled}, MinimumAgeHours={MinimumAgeHours}, ScannedFiles={ScannedFiles}, MaximumFilesPerRun={MaximumFilesPerRun}, MetadataScanTruncated={MetadataScanTruncated}, FilesystemScanTruncated={FilesystemScanTruncated}.",
+            orphanCount, deletedCount, missingMetadataFileCount, failureCount, cleanupEnabled,
+            minimumAgeHours, scannedFileCount, maximumFilesPerRun, metadataScanTruncated, filesystemScanTruncated);
     }
 }
