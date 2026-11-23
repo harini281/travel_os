@@ -58,7 +58,10 @@ public sealed class ReceiptStorageReconciliationWorker(
         var minimumAgeHours = Math.Clamp(
             configuration.GetValue<int?>("Receipts:OrphanMinimumAgeHours") ?? 24, 1, 24 * 365);
         var cutoff = DateTime.UtcNow.AddHours(-minimumAgeHours);
-        var cleanupEnabled = configuration.GetValue<bool>("Receipts:OrphanCleanupEnabled");
+        var cleanupRequested = configuration.GetValue<bool>("Receipts:OrphanCleanupEnabled");
+        // Never delete based on an incomplete metadata snapshot: receipts beyond the
+        // scan cap could otherwise be mistaken for orphan files.
+        var cleanupEnabled = cleanupRequested && !metadataScanTruncated;
 
         var orphanCount = 0;
         var deletedCount = 0;
@@ -113,8 +116,8 @@ public sealed class ReceiptStorageReconciliationWorker(
         }
 
         logger.LogInformation(
-            "Receipt storage reconciliation completed. Orphans={OrphanCount}, Deleted={DeletedCount}, MissingFiles={MissingFileCount}, Failures={FailureCount}, CleanupEnabled={CleanupEnabled}, MinimumAgeHours={MinimumAgeHours}, ScannedFiles={ScannedFiles}, MaximumFilesPerRun={MaximumFilesPerRun}, MetadataScanTruncated={MetadataScanTruncated}, FilesystemScanTruncated={FilesystemScanTruncated}.",
-            orphanCount, deletedCount, missingMetadataFileCount, failureCount, cleanupEnabled,
+            "Receipt storage reconciliation completed. Orphans={OrphanCount}, Deleted={DeletedCount}, MissingFiles={MissingFileCount}, Failures={FailureCount}, CleanupEnabled={CleanupEnabled}, CleanupRequested={CleanupRequested}, MinimumAgeHours={MinimumAgeHours}, ScannedFiles={ScannedFiles}, MaximumFilesPerRun={MaximumFilesPerRun}, MetadataScanTruncated={MetadataScanTruncated}, FilesystemScanTruncated={FilesystemScanTruncated}.",
+            orphanCount, deletedCount, missingMetadataFileCount, failureCount, cleanupEnabled, cleanupRequested,
             minimumAgeHours, scannedFileCount, maximumFilesPerRun, metadataScanTruncated, filesystemScanTruncated);
     }
 }
