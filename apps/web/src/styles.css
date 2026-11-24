@@ -1387,3 +1387,28 @@
   .nearby-indoor-confirm { grid-template-columns: 1fr 1fr; }
   .nearby-indoor-confirm span { grid-column: 1 / -1; }
 }
+
+
+.nearby-weather-suggestions {
+  display: grid; gap: 10px; padding: 14px;
+  border: 1px solid #eadfce; border-radius: 12px; background: #fffdf8;
+}
+.nearby-weather-suggestions h3 { margin: 3px 0 4px; color: #354a3a; font-size: 13px; }
+.nearby-weather-suggestions > div > p:last-child { margin: 0; color: #78857b; font-size: 10px; line-height: 1.55; }
+.nearby-weather-risk {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 11px; border: 1px solid #eee6d9; border-radius: 9px; background: #fff;
+}
+.nearby-weather-risk > div { display: grid; gap: 5px; }
+.nearby-weather-risk strong { color: #46594a; font-size: 11px; }
+.nearby-weather-risk p { margin: 0; color: #788078; font-size: 10px; line-height: 1.5; }
+.nearby-weather-risk small { color: #8b938c; font-size: 9px; }
+.nearby-weather-severity { width: fit-content; border-radius: 99px; padding: 3px 7px; font-size: 8px; text-transform: uppercase; }
+.nearby-weather-severity.high { background: #f9e9e5; color: #a64d3c; }
+.nearby-weather-severity.moderate { background: #fff1d9; color: #93651d; }
+.nearby-weather-risk button {
+  flex: 0 0 auto; border: 1px solid #dce6dc; border-radius: 7px;
+  padding: 8px 10px; background: #f5f8f4; color: #48634e;
+  font: inherit; font-size: 9px; cursor: pointer;
+}
+@media(max-width:700px) { .nearby-weather-risk { align-items: flex-start; flex-direction: column; } }
