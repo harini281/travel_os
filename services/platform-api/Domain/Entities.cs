@@ -348,3 +348,18 @@ public sealed class TripNotification
     public DateTimeOffset? DismissedAt { get; set; }
     public string? DedupeKey { get; set; }
 }
+
+
+/// <summary>Immutable platform-administration event. Details contain only reviewed, non-secret metadata.</summary>
+public sealed class PlatformAdminAuditEvent
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid ActorUserId { get; set; }
+    public Guid? TargetUserId { get; set; }
+    public string Action { get; set; } = "";
+    public string TargetType { get; set; } = "user";
+    public string? TargetId { get; set; }
+    public string DetailsJson { get; set; } = "{}";
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+}
+
