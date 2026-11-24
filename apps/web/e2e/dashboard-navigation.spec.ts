@@ -14,8 +14,9 @@ test.describe("TravelOS trip dashboard navigation", () => {
       await page.getByRole("button", { name }).click();
       await expect(content).toHaveAttribute("data-trip-page", pageId);
       await expect(heading).toHaveText(title);
-      await expect(page.getByRole("button", { name }).filter({ has: page.locator("[aria-current='page']") })).toHaveCount(0);
-      await expect(page.locator(`.trip-nav button[aria-current="page"]`)).toContainText(name);
+      const activeNavItem = page.locator('.trip-nav button[aria-current="page"]');
+      await expect(activeNavItem).toHaveCount(1);
+      await expect(activeNavItem).toContainText(name);
     };
 
     await expect(content).toHaveAttribute("data-trip-page", "overview");
