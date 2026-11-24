@@ -1740,7 +1740,9 @@ export default function App() {
     } finally { setBusy(false); }
   }
 
-  if (window.location.pathname.replace(/\\/+$/, "") === "/admin") return <AdminApp />;\n\n  if (!token || !user) {
+  if (window.location.pathname.replace(/\/+$/, "") === "/admin") return <AdminApp />;
+
+  if (!token || !user) {
     return (
       <main className="auth-layout">
         <section className="auth-story">
