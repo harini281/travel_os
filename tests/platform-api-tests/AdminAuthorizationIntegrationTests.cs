@@ -11,7 +11,7 @@ namespace TravelOS.PlatformApi.Tests;
 public sealed class AdminAuthorizationIntegrationTests(TravelOsApiFactory factory)
     : IClassFixture<TravelOsApiFactory>
 {
-    [Fact]
+    [PostgresFact]
     public async Task AdminEndpoints_RejectAnonymousRequests()
     {
         using var response = await factory.CreateClient()
