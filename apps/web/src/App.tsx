@@ -1925,7 +1925,8 @@ export default function App() {
               travellers={tripMembers.length || selectedTrip.memberCount}
               onNavigate={setActiveTripPage}
             />}
-            <section className="trip-assistant-panel">
+            {activeTripPage === "overview" && <>
+<section className="trip-assistant-panel">
               <div className="trip-assistant-heading">
                 <div><p className="eyebrow">STAGE 38 · CONTEXTUAL TRIP ASSISTANT</p><h2>Your trip briefing</h2><p>Ask about your itinerary, budget, flights, weather and reminders. I’ll use the trip information saved in TravelOS.</p></div>
                 <button type="button" className="btn btn-primary" onClick={() => selectedTrip && loadTripAssistantBriefing(selectedTrip)} disabled={loadingAssistantBriefing || !isOnline}>{loadingAssistantBriefing ? "Reviewing trip…" : "Refresh briefing"}</button>
@@ -1955,6 +1956,8 @@ export default function App() {
                   <p className="trip-assistant-updated">Briefing prepared {new Date(assistantBriefing.generatedAtUtc).toLocaleString()} · Based on saved trip data</p>
                 </> : <p className="trip-assistant-empty">Your trip briefing will appear here when you open this journey.</p>}
             </section>
+
+</>}
 
 {activeTripPage === "settings" && <>
             <section className="travel-context-panel">
