@@ -32,6 +32,7 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
   const [message, setMessage] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
   const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
+  const [routeSummary, setRouteSummary] = useState<{ distanceKm: number; durationMinutes: number } | null>(null);
   const [addingPlaceId, setAddingPlaceId] = useState<number | null>(null);
   const [pendingAddPlaceId, setPendingAddPlaceId] = useState<number | null>(null);
   const [replacementActivityId, setReplacementActivityId] = useState<string>("");
@@ -105,25 +106,29 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
     if (!routes) return;
     routes.clearLayers();
     if (!selected || anchor?.latitude == null || anchor.longitude == null) {
+      setRouteSummary(null);
       setRouteStatus("idle");
       return;
     }
     const controller = new AbortController();
+    setRouteSummary(null);
     setRouteStatus("loading");
     const coordinates = `${anchor.longitude},${anchor.latitude};${selected.lon},${selected.lat}`;
     fetch(`https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=false`, { signal: controller.signal })
       .then(async response => {
         if (!response.ok) throw new Error("Driving route unavailable");
-        return await response.json() as { code?: string; routes?: Array<{ geometry?: { coordinates?: [number,number][] } }> };
+        return await response.json() as { code?: string; routes?: Array<{ distance?: number; duration?: number; geometry?: { coordinates?: [number,number][] } }> };
       })
       .then(result => {
         const geometry = result.routes?.[0]?.geometry?.coordinates;
         if (result.code !== "Ok" || !geometry?.length) throw new Error("No driving route returned");
         if (controller.signal.aborted) return;
         L.polyline(geometry.map(([lon,lat]) => [lat,lon] as [number,number]), { color: "#b47b43", weight: 5, opacity: .85 }).addTo(routes);
+        const route = result.routes?.[0];
+        if (route?.distance != null && route.duration != null) setRouteSummary({ distanceKm: route.distance / 1000, durationMinutes: route.duration / 60 });
         setRouteStatus("ready");
       })
-      .catch(() => { if (!controller.signal.aborted) setRouteStatus("unavailable"); });
+      .catch(() => { if (!controller.signal.aborted) { setRouteSummary(null); setRouteStatus("unavailable"); } });
     return () => controller.abort();
   }, [selectedPlaceId, places, anchor]);
 
@@ -277,7 +282,7 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
     <div className="nearby-indoor-map-wrap">
       <div ref={mapElement} className="nearby-indoor-map" aria-label="Map of nearby indoor places and selected itinerary activity" />
       <div className="nearby-indoor-map-legend"><span><i className="nearby-origin-key" /> Planned activity</span><span><i className="nearby-place-key" /> Indoor place</span></div>
-      {selectedPlaceId !== null && <p className="nearby-indoor-route-status" aria-live="polite">{routeStatus === "loading" ? "Calculating estimated driving route…" : routeStatus === "ready" ? "Estimated driving route shown on map." : routeStatus === "unavailable" ? "Driving route unavailable for this place." : "Select a place to see its route."}</p>}
+      {selectedPlaceId !== null && <p className="nearby-indoor-route-status" aria-live="polite">{routeStatus === "loading" ? "Calculating estimated driving route…" : routeStatus === "ready" ? `Estimated drive: ${routeSummary ? `${routeSummary.distanceKm.toFixed(1)} km · ${Math.max(1, Math.round(routeSummary.durationMinutes))} min` : "route shown on map"}. Traffic conditions may change this estimate.` : routeStatus === "unavailable" ? "Driving route unavailable for this place." : "Select a place to see its route."}</p>}
     </div>
     {status === "ready" && places.length > 0 && <div className="nearby-indoor-list">
       {places.map(place => <article className={`nearby-indoor-card ${selectedPlaceId === place.id ? "is-selected" : ""}`} key={`${place.id}-${place.name}`}>
