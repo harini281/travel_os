@@ -1769,7 +1769,7 @@ function TravellerApp() {
               {error && <p className="alert error">{error}</p>}
               <button className="btn btn-primary btn-wide" disabled={busy}>{busy ? "Please wait…" : authMode === "login" ? "Sign in →" : "Create account →"}</button>
             </form>
-            <p className="auth-legal">By continuing, you agree to use TravelOS responsibly. Account verification and password recovery are not available in this preview.</p>
+            <p className="auth-legal">By continuing, you agree to use TravelOS responsibly. Account verification and password recovery are not available in this preview.</p>\n            <a className="admin-entry-link" href="/admin">Administrator access →</a>
           </div>
         </section>
       </main>
