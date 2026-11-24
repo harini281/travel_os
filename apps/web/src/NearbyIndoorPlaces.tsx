@@ -223,7 +223,13 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
                   place.driveDurationMinutes = duration / 60;
                 }
               });
+              const availabilityRank = (place: Place) => {
+                const result = openingStatus(place.tags.opening_hours, selectedDay?.date, anchor?.startTime);
+                return result === "open" ? 0 : result === "unknown" ? 1 : 2;
+              };
               found.sort((a, b) => {
+                const availabilityDifference = availabilityRank(a) - availabilityRank(b);
+                if (availabilityDifference !== 0) return availabilityDifference;
                 if (a.driveDurationMinutes != null && b.driveDurationMinutes != null) return a.driveDurationMinutes - b.driveDurationMinutes;
                 if (a.driveDurationMinutes != null) return -1;
                 if (b.driveDurationMinutes != null) return 1;
@@ -237,7 +243,7 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
       }
       setPlaces(found);
       setStatus("ready");
-      setMessage(found.length ? found.length + " nearby places found. Ranked by estimated driving time where routing data is available; straight-line distance is used otherwise." : "No named indoor places were found within 3 km. Try another activity location.");
+      setMessage(found.length ? found.length + " nearby places found. Prioritised by listed opening status for the planned time, then estimated driving time; unverified hours are not treated as open." : "No named indoor places were found within 3 km. Try another activity location.");
     }).catch(error => {
       if (controller.signal.aborted) return;
       setStatus("error");
