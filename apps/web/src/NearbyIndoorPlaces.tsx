@@ -10,7 +10,8 @@ type IndoorActivity = {
 };
 type IndoorDay = { id: string; dayNumber: number; date: string; activities: IndoorActivity[] };
 type Place = { id: number; name: string; type: string; lat: number; lon: number; distanceKm: number; tags: Record<string, string> };
-type Props = { days: IndoorDay[]; tripId: string; accessToken: string | null; canAddToItinerary: boolean; onAdded: () => Promise<void> | void };
+type WeatherRisk = { activityId: string; activityTitle: string; activityDate: string; severity: "low" | "moderate" | "high"; summary: string; recommendation: string; precipitationProbabilityMax: number | null; precipitationSumMm: number | null; windSpeedMaxKmh: number | null };
+type Props = { days: IndoorDay[]; tripId: string; accessToken: string | null; canAddToItinerary: boolean; weatherAssessments: WeatherRisk[]; onAdded: () => Promise<void> | void };
 
 function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number) {
   const radians = (degrees: number) => degrees * Math.PI / 180;
@@ -24,7 +25,7 @@ function placeType(tags: Record<string, string>) {
   return tags.amenity || tags.tourism || tags.leisure || tags.shop || "indoor attraction";
 }
 
-export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddToItinerary, onAdded }: Props) {
+export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddToItinerary, weatherAssessments, onAdded }: Props) {
   const [selectedDayId, setSelectedDayId] = useState(days[0]?.id ?? "");
   const [places, setPlaces] = useState<Place[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -35,6 +36,10 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
   const [pendingAddPlaceId, setPendingAddPlaceId] = useState<number | null>(null);
   const [replacementActivityId, setReplacementActivityId] = useState<string>("");
   const [replacementMode, setReplacementMode] = useState(false);
+  const weatherAffectedActivities = useMemo(() => (selectedDay?.activities ?? []).flatMap(activity => {
+    const assessment = weatherAssessments.find(item => item.activityId === activity.id && item.severity !== "low");
+    return assessment ? [{ activity, assessment }] : [];
+  }), [selectedDay, weatherAssessments]);
   const [addMessage, setAddMessage] = useState("");
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -251,6 +256,17 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
         <p>Find museums, galleries, libraries and other indoor options around a saved activity location.</p></div>
       <span className="nearby-indoor-radius">3 km search radius</span>
     </div>
+    {weatherAffectedActivities.length > 0 && <section className="nearby-weather-suggestions" aria-label="Weather affected activities">
+      <div><p className="eyebrow">WEATHER-AWARE ALTERNATIVES</p><h3>Outdoor activities needing a backup</h3>
+        <p>These activities have moderate or high weather assessments. Nearby indoor places can be reviewed as alternatives.</p></div>
+      {weatherAffectedActivities.map(({ activity, assessment }) => <article className="nearby-weather-risk" key={activity.id}>
+        <div><strong>{activity.title}</strong><span className={`nearby-weather-severity ${assessment.severity}`}>{assessment.severity} weather risk</span>
+          <p>{assessment.recommendation || assessment.summary}</p>
+          <small>{assessment.precipitationProbabilityMax != null ? `Rain probability up to ${assessment.precipitationProbabilityMax}% · ` : ""}{assessment.precipitationSumMm != null ? `${assessment.precipitationSumMm} mm precipitation · ` : ""}{assessment.windSpeedMaxKmh != null ? `Wind up to ${assessment.windSpeedMaxKmh} km/h` : ""}</small>
+        </div>
+        {canAddToItinerary && <button type="button" disabled={places.length === 0 || addingPlaceId !== null} onClick={() => { setReplacementActivityId(activity.id); setReplacementMode(true); setPendingAddPlaceId(places[0]?.id ?? null); setAddMessage(""); }}>{places.length ? "Review nearest indoor option" : "Find indoor options first"}</button>}
+      </article>)}
+    </section>}
     <label className="nearby-indoor-day">Search around itinerary day
       <select value={selectedDay?.id ?? ""} onChange={event => setSelectedDayId(event.target.value)}>
         {days.map(day => <option key={day.id} value={day.id}>Day {day.dayNumber} · {day.date}</option>)}
