@@ -194,9 +194,9 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
     }).then(async response => {
       if (!response.ok) throw new Error(`Place search service returned ${response.status}.`);
       return await response.json() as { elements?: Array<{ type: string; id: number; lat?: number; lon?: number; center?: { lat: number; lon: number }; tags?: Record<string, string> }> };
-    }).then(result => {
+    }).then(async result => {
       const seen = new Set<string>();
-      const found = (result.elements ?? []).flatMap(element => {
+      const found: Place[] = (result.elements ?? []).flatMap(element => {
         const lat = element.lat ?? element.center?.lat, lon = element.lon ?? element.center?.lon;
         const tags = element.tags ?? {};
         const name = tags.name || tags["name:en"];
