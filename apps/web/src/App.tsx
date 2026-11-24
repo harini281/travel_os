@@ -2181,6 +2181,8 @@ export default function App() {
             </section>
             
             </FlightsDashboard>
+            </>}
+            {activeTripPage === "weather" && <>
             <section className="weather-disruption-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 23 · TRAVEL OPERATIONS</p><h2>Weather disruption watch</h2><small>Forecast evidence for your scheduled activities</small></div>
