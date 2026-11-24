@@ -1105,3 +1105,113 @@
 .content-wrap[data-trip-page]:not([data-trip-page="itinerary"]) .itinerary-empty {
   display: none !important;
 }
+
+
+/* Premium trip workspace polish */
+.trip-nav .side-link {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  color: #c6d0c8;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+.trip-nav .side-link.selected {
+  background: linear-gradient(100deg, rgba(217,166,111,.19), rgba(217,166,111,.07));
+  color: #fff;
+  box-shadow: inset 3px 0 #d9a66f;
+}
+.trip-nav .side-link:focus-visible,
+.trip-quick-actions button:focus-visible {
+  outline: 3px solid #d9a66f;
+  outline-offset: 3px;
+}
+.trip-page-heading {
+  background: linear-gradient(110deg, #fff 0%, #fbfcfa 100%);
+  border: 1px solid #e8ece6;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.trip-page-destination { white-space: nowrap; }
+.trip-overview-panel,
+.group-dashboard,
+.budget-dashboard,
+.flights-dashboard {
+  box-shadow: 0 8px 26px rgba(35, 53, 43, .045);
+}
+.flights-dashboard-heading,
+.group-dashboard-heading,
+.budget-dashboard-heading {
+  margin: 0 0 16px;
+  padding: 18px 20px;
+  border: 1px solid #e7ece5;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #fff, #f7faf6);
+}
+.flights-dashboard-heading h2,
+.group-dashboard-heading h2,
+.budget-dashboard-heading h2 {
+  margin: 3px 0 6px;
+  color: #26382e;
+  font-size: 20px;
+  letter-spacing: -.45px;
+}
+.flights-dashboard-heading p:last-child,
+.group-dashboard-heading p:last-child,
+.budget-dashboard-heading p:last-child {
+  color: #78857c;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.group-dashboard-summary,
+.budget-dashboard-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  color: #77847b;
+  font-size: 11px;
+}
+.group-dashboard-summary strong,
+.budget-dashboard-summary strong { color: #34483b; }
+@media (max-width: 850px) {
+  .sidebar { position: relative; display: block; padding: 14px 18px 12px; }
+  .sidebar .brand { display: inline-flex; margin-bottom: 12px; }
+  .sidebar .side-label,
+  .sidebar > .side-link,
+  .sidebar .side-note { display: none; }
+  .sidebar .trip-nav-label { display: block; margin: 0 0 8px; font-size: 9px; }
+  .trip-nav {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    margin: 0;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .trip-nav .side-link {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 38px;
+    white-space: nowrap;
+    padding: 8px 11px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 9px;
+    font-size: 11px;
+  }
+  .trip-nav .side-link.selected { box-shadow: inset 0 -2px #d9a66f; }
+  .sidebar .sidebar-bottom { display: none; }
+}
+@media (max-width: 580px) {
+  .trip-page-heading { align-items: flex-start; padding: 15px; }
+  .trip-page-heading h2 { font-size: 21px; }
+  .trip-page-destination { max-width: 42%; overflow: hidden; text-overflow: ellipsis; }
+  .trip-overview-stats { grid-template-columns: 1fr; }
+  .trip-quick-actions { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .flights-dashboard-heading,
+  .group-dashboard-heading,
+  .budget-dashboard-heading { padding: 15px; }
+}
