@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import BudgetDashboard from "./BudgetDashboard";
 import GroupDashboard from "./GroupDashboard";
 import FlightsDashboard from "./FlightsDashboard";
 import ItineraryDashboard from "./ItineraryDashboard";
@@ -2293,7 +2294,11 @@ export default function App() {
 
             
             </GroupDashboard>
-            <section className="expense-workspace">
+            <BudgetDashboard
+              expenseCount={tripExpenses.length}
+              reportingCurrency={budgetReportingCurrency}
+            >
+<section className="expense-workspace">
               <div className="section-heading"><div><p className="eyebrow">SHARED TRIP COSTS</p><h2>Expense tracker</h2></div><span className="count-label">{tripExpenses.length} EXPENSES</span></div>
               <p className="expense-intro">Record a payment, choose who shared it and split the cost equally, by percentage or by exact amounts.</p>
               <form className="expense-create-form" onSubmit={createTripExpense}>
@@ -2560,6 +2565,8 @@ export default function App() {
               </> : <p className="budget-empty">{selectedTrip.currentUserRole === "owner" ? "Set a budget cap to start tracking planned trip costs." : "The trip owner hasn't set a budget yet."}</p>}
             </section>
 
+            
+            </BudgetDashboard>
             {selectedTrip.currentUserRole === "owner" && <section className="ai-planner-card">
               <div className="ai-planner-heading"><div><p className="eyebrow">TRAVELOS INTELLIGENCE</p><h2>Start with an AI draft.</h2><p>Generate a suggested day-by-day plan, review it, then decide whether to apply it.</p></div><span className="ai-spark">✳</span></div>
               <form className="ai-options" onSubmit={generateAiDraft}>
