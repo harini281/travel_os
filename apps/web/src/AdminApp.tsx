@@ -140,6 +140,7 @@ function Overview({ token }: { token: string }) {
 
 function PlaceholderSection({ section, token }: { section: Exclude<Section, "overview">; token: string }) {
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
   const [users, setUsers] = useState<PagedAdmin<AdminUserRow> | null>(null);
   const [trips, setTrips] = useState<PagedAdmin<AdminTripRow> | null>(null);
   const [loading, setLoading] = useState(false);
@@ -148,24 +149,24 @@ function PlaceholderSection({ section, token }: { section: Exclude<Section, "ove
     if (section !== "users" && section !== "trips") return;
     let active = true;
     setLoading(true); setError("");
-    const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}&page=1&pageSize=25` : "?page=1&pageSize=25";
+    const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}&page=${page}&pageSize=25` : `?page=${page}&pageSize=25`;
     const task = section === "users"
       ? request<PagedAdmin<AdminUserRow>>(`/api/v1/admin/users${query}`, token).then(value => { if (active) setUsers(value); })
       : request<PagedAdmin<AdminTripRow>>(`/api/v1/admin/trips${query}`, token).then(value => { if (active) setTrips(value); });
     task.catch(err => { if (active) setError(err instanceof Error ? err.message : "Unable to load records."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [section, search, token]);
+  }, [section, search, page, token]);
 
   if (section === "users" || section === "trips") {
     const rows = section === "users" ? users?.items ?? [] : trips?.items ?? [];
     const total = section === "users" ? users?.total ?? 0 : trips?.total ?? 0;
     return <section className="admin-panel admin-coming-panel">
       <div className="admin-panel-heading"><div><span className="admin-kicker">READ-ONLY ADMIN DIRECTORY</span><h3>{section === "users" ? "Traveller accounts" : "All platform trips"}</h3></div><span className="admin-muted-label">{total.toLocaleString()} records</span></div>
-      <label className="admin-search-label">Search {section}<input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === "users" ? "Name or email address" : "Trip name or destination"} /></label>
+      <label className="admin-search-label">Search {section}<input value={search} onChange={event => { setSearch(event.target.value); setPage(1); }} placeholder={section === "users" ? "Name or email address" : "Trip name or destination"} /></label>
       {error && <div className="admin-alert" role="alert">{error}</div>}
       {loading ? <div className="admin-empty-state">Loading records…</div> : rows.length === 0 ? <div className="admin-empty-state"><strong>No matching records</strong><p>Try a different search term.</p></div> : <div className="admin-table-wrap"><table className="admin-data-table"><thead><tr>{section === "users" ? <><th>Traveller</th><th>Email</th><th>Platform role</th><th>Verification</th><th>Account</th><th>Joined</th></> : <><th>Trip</th><th>Destination</th><th>Dates</th><th>Members</th></>}</tr></thead><tbody>{section === "users" ? (users?.items ?? []).map(row => <tr key={row.id}><td>{row.displayName}</td><td>{row.email}</td><td>{row.roles.length ? row.roles.join(", ") : "No role"}</td><td><span className={`admin-status-pill ${row.emailConfirmed ? "is-good" : "is-pending"}`}>{row.emailConfirmed ? "Verified" : "Unverified"}</span></td><td><span className={`admin-status-pill ${row.isLockedOut ? "is-blocked" : "is-good"}`}>{row.isLockedOut ? "Locked" : "Active"}</span></td><td>{new Date(row.createdAt).toLocaleDateString()}</td></tr>) : (trips?.items ?? []).map(row => <tr key={row.id}><td>{row.name}</td><td>{row.destination}</td><td>{row.startDate} – {row.endDate}</td><td>{row.memberCount}</td></tr>)}</tbody></table></div>}
-      <p className="admin-muted-label">Showing up to 25 records. Search is performed by the server. This first release is intentionally read-only.</p>
+      <div className="admin-directory-footer"><p className="admin-muted-label">Showing {rows.length ? (page - 1) * 25 + 1 : 0}–{Math.min(page * 25, total)} of {total}. Search is performed by the server. This release is intentionally read-only.</p><div className="admin-pagination"><button type="button" disabled={page <= 1 || loading} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button><span>Page {page}</span><button type="button" disabled={page * 25 >= total || loading} onClick={() => setPage(value => value + 1)}>Next</button></div></div>
     </section>;
   }
   const copy = pageCopy[section];
