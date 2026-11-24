@@ -2616,6 +2616,12 @@ export default function App() {
                   <h4>{item.title}</h4><p>{item.reason}</p>
                   <div className="recommendation-meta">{item.suggestedDurationMinutes && <span>◷ {item.suggestedDurationMinutes} min</span>}{item.estimatedCost!==null && <span>≈ {item.estimatedCost.toLocaleString()} {item.currencyCode || selectedTrip.currencyCode}</span>}<span>{item.bestFor}</span></div>
                   <small>{item.verificationNote}</small>
+                  {item.category === "weather_alternative" && <a
+                    className="recommendation-place-search"
+                    href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(`indoor attractions near ${selectedTrip.destination}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >Explore indoor places in {selectedTrip.destination} ↗</a>}
                   {selectedTrip.currentUserRole === "owner" && !isRecommendationAdded(item) && !itinerary?.isApproved && <>
                     <button type="button" className="btn btn-quiet" onClick={() => suggestRecommendationSchedule(item)} disabled={scheduleRecommendationTitle !== null || !item.suggestedDurationMinutes}>
                       {scheduleRecommendationTitle === item.title ? "Finding a slot…" : "Find a suitable time"}
