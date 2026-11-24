@@ -27,6 +27,8 @@ export default function ItineraryMap({ days }: Props) {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
+  const routeLayer = useRef<L.LayerGroup | null>(null);
+  const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "partial">("idle");
   const [selectedDay, setSelectedDay] = useState("all");
 
   const locatedActivities = useMemo(
@@ -51,6 +53,7 @@ export default function ItineraryMap({ days }: Props) {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     }).addTo(map);
     markerLayer.current = L.layerGroup().addTo(map);
+    routeLayer.current = L.layerGroup().addTo(map);
     map.setView([20, 0], 2);
     mapInstance.current = map;
 
@@ -61,15 +64,19 @@ export default function ItineraryMap({ days }: Props) {
       map.remove();
       mapInstance.current = null;
       markerLayer.current = null;
+      routeLayer.current = null;
     };
   }, []);
 
   useEffect(() => {
     const map = mapInstance.current;
     const layer = markerLayer.current;
-    if (!map || !layer) return;
+    const routes = routeLayer.current;
+    if (!map || !layer || !routes) return;
     layer.clearLayers();
+    routes.clearLayers();
 
+    let cancelled = false;
     const byDay = new Map<string, typeof visibleActivities>();
     visibleActivities.forEach(activity => {
       const existing = byDay.get(activity.dayId) ?? [];
@@ -77,15 +84,49 @@ export default function ItineraryMap({ days }: Props) {
       byDay.set(activity.dayId, existing);
     });
 
-    byDay.forEach((activities, dayId) => {
-      if (activities.length < 2) return;
+    const dayRoutes = [...byDay.values()].filter(activities => activities.length > 1);
+    setRouteStatus(dayRoutes.length ? "loading" : "idle");
+
+    const drawFallback = (activities: typeof visibleActivities) => {
       const color = DAY_COLORS[(activities[0].dayNumber - 1) % DAY_COLORS.length];
       L.polyline(activities.map(item => [item.latitude!, item.longitude!] as [number, number]), {
-        color, weight: 2, opacity: 0.65, dashArray: "5 7"
-      }).addTo(layer).bindTooltip("Stop sequence only · not a road route");
-    });
+        color, weight: 2, opacity: 0.45, dashArray: "5 7"
+      }).addTo(routes).bindTooltip("Straight-line stop sequence · road route unavailable");
+    };
 
-    visibleActivities.forEach((activity, index) => {
+    const loadRoutes = async () => {
+      let successfulRoutes = 0;
+      for (const activities of dayRoutes) {
+        if (cancelled) return;
+        const color = DAY_COLORS[(activities[0].dayNumber - 1) % DAY_COLORS.length];
+        const coordinates = activities.map(item => `${item.longitude},${item.latitude}`).join(";");
+        try {
+          const response = await fetch(
+            `https://router.project-osrm.org/route/v1/driving/${coordinates}?overview=full&geometries=geojson&steps=false`,
+            { signal: AbortSignal.timeout(12000) }
+          );
+          if (!response.ok) throw new Error(`Routing service returned ${response.status}`);
+          const result = await response.json() as {
+            code?: string;
+            routes?: Array<{ geometry?: { coordinates?: [number, number][] } }>;
+          };
+          const geometry = result.routes?.[0]?.geometry?.coordinates;
+          if (result.code !== "Ok" || !geometry?.length) throw new Error("No road route returned");
+          if (cancelled) return;
+          L.geoJSON({ type: "LineString", coordinates: geometry }, {
+            style: { color, weight: 4, opacity: 0.82 }
+          }).addTo(routes).bindTooltip(`Day ${activities[0].dayNumber} · estimated driving route`);
+          successfulRoutes += 1;
+        } catch {
+          if (cancelled) return;
+          drawFallback(activities);
+        }
+      }
+      if (!cancelled) setRouteStatus(successfulRoutes === dayRoutes.length ? "ready" : "partial");
+    };
+    void loadRoutes();
+
+    visibleActivities.forEach(activity => {
       const color = DAY_COLORS[(activity.dayNumber - 1) % DAY_COLORS.length];
       const daySequence = (byDay.get(activity.dayId) ?? []).findIndex(item => item.id === activity.id) + 1;
       const marker = L.marker([activity.latitude!, activity.longitude!], {
@@ -119,6 +160,7 @@ export default function ItineraryMap({ days }: Props) {
       const bounds = L.latLngBounds(visibleActivities.map(item => [item.latitude!, item.longitude!] as [number, number]));
       map.fitBounds(bounds, { padding: [36, 36], maxZoom: 14 });
     }
+    return () => { cancelled = true; };
   }, [visibleActivities]);
 
   const withoutCoordinates = days.reduce(
@@ -146,11 +188,14 @@ export default function ItineraryMap({ days }: Props) {
       <div className="itinerary-map-summary">
         <span><i className="itinerary-map-dot" />{visibleActivities.length} mapped {visibleActivities.length === 1 ? "activity" : "activities"}</span>
         {withoutCoordinates > 0 && <span>{withoutCoordinates} without saved coordinates</span>}
+        {routeStatus === "loading" && <span>Calculating driving routes…</span>}
+        {routeStatus === "ready" && <span>Road routes loaded</span>}
+        {routeStatus === "partial" && <span>Some routes unavailable; dashed lines show stop order only</span>}
       </div>
       {locatedActivities.length === 0
         ? <div className="itinerary-map-empty">Add map coordinates to itinerary activities to see them here.</div>
         : <div ref={mapElement} className="itinerary-map-canvas" role="application" aria-label="Interactive itinerary map" />}
-      <p className="itinerary-map-footnote">Pins show saved activity coordinates, not verified venue entrances. This map does not draw road routes or provide live navigation. Map data © OpenStreetMap contributors.</p>
+      <p className="itinerary-map-footnote">Pins show saved activity coordinates, not verified venue entrances. Driving routes are estimates from the public OSRM routing service; dashed lines are straight-line fallbacks. This is not live navigation. Map data © OpenStreetMap contributors.</p>
     </section>
   );
 }
