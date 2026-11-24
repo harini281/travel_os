@@ -2632,10 +2632,8 @@ export default function App() {
                   canEdit={canEditItinerary}
                   busy={busy}
                   hasActivities={itinerary.days.some(day => day.activities.length > 0)}
-                  showAddDay={false}
-                  onToggleAddDay={() => setShowAddDay(v => !v)}
+                  onAddDay={() => setShowAddDay(v => !v)}
                   onApprove={approveItinerary}
-                  onCancelAddDay={() => setShowAddDay(false)}
                 />
                 {showAddDay && canEditItinerary && <form className="add-day-form" onSubmit={addDay}><label>Choose a date within your trip<input type="date" min={selectedTrip.startDate} max={selectedTrip.endDate} value={newDayDate} onChange={e => setNewDayDate(e.target.value)} required /></label><button className="btn btn-primary" disabled={busy || !newDayDate}>Add day</button><button type="button" className="btn btn-quiet" onClick={() => setShowAddDay(false)}>Cancel</button></form>}
                 {itinerary.isApproved && <div className="approved-note">This itinerary has been approved and is now read-only.</div>}
