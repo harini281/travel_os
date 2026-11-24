@@ -1288,3 +1288,50 @@
   background: #fff6f4;
 }
 .itinerary-weather-advice.is-warning strong { color: #a04e42; }
+
+
+.nearby-indoor-panel {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid #e5ebe4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(35,53,43,.04);
+}
+.nearby-indoor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.nearby-indoor-heading h2 { margin: 3px 0 5px; color: #26382e; font-size: 19px; }
+.nearby-indoor-heading p:last-child { margin: 0; color: #78857c; font-size: 11px; line-height: 1.6; }
+.nearby-indoor-radius {
+  flex: 0 0 auto; padding: 6px 9px; border-radius: 99px;
+  background: #f1f6f0; color: #55705b; font-size: 9px;
+}
+.nearby-indoor-day { display: grid; gap: 6px; max-width: 320px; color: #657468; font-size: 10px; }
+.nearby-indoor-day select {
+  width: 100%; border: 1px solid #dfe7de; border-radius: 9px;
+  padding: 9px 11px; background: #fff; color: #34483b;
+}
+.nearby-indoor-anchor,.nearby-indoor-status { margin: 0; color: #718075; font-size: 10px; line-height: 1.6; }
+.nearby-indoor-anchor strong { color: #405747; }
+.nearby-indoor-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.nearby-indoor-card {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 13px; border: 1px solid #e8ede7; border-radius: 11px; background: #fbfcfa;
+}
+.nearby-indoor-card h3 { margin: 4px 0; color: #354a3a; font-size: 13px; }
+.nearby-indoor-card p,.nearby-indoor-card small { display: block; margin: 3px 0; color: #7d897f; font-size: 9px; line-height: 1.5; }
+.nearby-indoor-type { color: #8a978c; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.nearby-indoor-card a { flex: 0 0 auto; color: #557b61; font-size: 9px; text-decoration: none; }
+.nearby-indoor-card a:hover { text-decoration: underline; }
+.nearby-indoor-disclaimer { margin: 0; color: #929c93; font-size: 9px; line-height: 1.6; }
+@media(max-width:700px) {
+  .nearby-indoor-panel { padding: 15px; }
+  .nearby-indoor-heading { flex-direction: column; }
+  .nearby-indoor-list { grid-template-columns: 1fr; }
+  .nearby-indoor-card { flex-direction: column; }
+}
