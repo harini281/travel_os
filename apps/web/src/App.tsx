@@ -262,6 +262,7 @@ export default function App() {
   const [currencyCode, setCurrencyCode] = useState("USD");
 
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
+  const [activeTripPage, setActiveTripPage] = useState("overview");
   const [displayTimeZone, setDisplayTimeZone] = useState(() => {
     const saved = localStorage.getItem("travelos.displayTimeZone");
     return saved && isValidTimeZone(saved) ? saved : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
@@ -1340,6 +1341,7 @@ export default function App() {
   }
 
   async function openTrip(trip: Trip) {
+    setActiveTripPage("overview");
     const savedZone = localStorage.getItem(`travelos.tripTimeZone.${trip.id}`);
     setDisplayTimeZone(savedZone && isValidTimeZone(savedZone) ? savedZone : Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC");
     setSelectedTrip(trip); setRecommendations(null); setRecommendationDay(1); setAssistantBriefing(null); setAssistantAnswer(null); setAssistantQuestion(""); setItinerary(null); setAiDrafts([]); setWeatherAssessments([]); setWeatherSkipped([]); setWeatherScanStatus(""); setWeatherScannedAt(null); setTripFlights([]); setFlightConnections([]); setConnectionDisclaimer(""); setShowAddFlight(false); setBudget(null); setBudgetIntelligence(null); setBudgetReportingCurrency(trip.currencyCode); setBudgetAlerts([]);
@@ -1354,6 +1356,7 @@ export default function App() {
   }
 
   function closeTrip() {
+    setActiveTripPage("overview");
     setSelectedTrip(null); setRecommendations(null); setAssistantBriefing(null); setAssistantAnswer(null); setAssistantQuestion(""); setItinerary(null); setAiDrafts([]); setBudget(null);
     setTripMembers([]); setTripInvitations([]); setMyPreference(null); setGroupPreferences([]); setGroupPolls([]); setTripExpenses([]); setTripSettlement(null); setTripReceipts([]); setReceiptDrafts({}); setExpenseIntelligence(null); setCurrencyConversions([]); setCurrencyOptions([]);
     setShowAddDay(false); setActiveDayId(null); setError("");
@@ -1808,6 +1811,15 @@ export default function App() {
   });
 
   const canEditItinerary = selectedTrip?.currentUserRole === "owner" && !itinerary?.isApproved && !isOfflineSnapshot;
+  const tripPageMeta: Record<string, { title: string; description: string }> = {
+    overview: { title: "Trip overview", description: "Your journey at a glance, with the next useful actions in one place." },
+    itinerary: { title: "Itinerary planner", description: "Build each day, organize activities and check your schedule." },
+    flights: { title: "Flights & transport", description: "Keep flight details, airport transfers and journey connections together." },
+    weather: { title: "Weather & places", description: "Review local conditions, attractions and practical travel information." },
+    group: { title: "Travel together", description: "Coordinate travellers, share preferences and make group decisions." },
+    budget: { title: "Budget & expenses", description: "Track planned costs, shared spending and settlement balances." },
+    settings: { title: "Trip settings", description: "Manage the trip's local time zone and offline copy." }
+  };
 
   return (
     <main className="dashboard">
@@ -1815,6 +1827,20 @@ export default function App() {
         <a className="brand" href="/">travel<span>OS</span></a>
         <div className="side-label">WORKSPACE</div>
         <button className={selectedTrip ? "side-link" : "side-link selected"} onClick={closeTrip}><span>▦</span> My trips</button>
+        {selectedTrip && <>
+          <div className="side-label trip-nav-label">TRIP WORKSPACE</div>
+          <nav className="trip-nav" aria-label="Trip dashboards">
+            {[
+              { id: "overview", icon: "⌂", label: "Overview" },
+              { id: "itinerary", icon: "▤", label: "Itinerary" },
+              { id: "flights", icon: "✈", label: "Flights & transport" },
+              { id: "weather", icon: "☼", label: "Weather & places" },
+              { id: "group", icon: "♧", label: "Travel together" },
+              { id: "budget", icon: "＄", label: "Budget & expenses" },
+              { id: "settings", icon: "⚙", label: "Trip settings" }
+            ].map(page => <button key={page.id} className={activeTripPage === page.id ? "side-link selected" : "side-link"} onClick={() => setActiveTripPage(page.id)} aria-current={activeTripPage === page.id ? "page" : undefined}><span>{page.icon}</span>{page.label}</button>)}
+          </nav>
+        </>}
         <div className="side-note"><span className="side-dot" /> Your travel space, all together.</div>
         <div className="sidebar-bottom">
           <div className="avatar">{initials(user.displayName)}</div>
@@ -1828,7 +1854,7 @@ export default function App() {
           <div className="topbar-actions"><button className="notification-trigger" onClick={() => setShowNotificationInbox(value => !value)} aria-label="Open notifications" aria-expanded={showNotificationInbox}>♧ Notifications{notificationUnreadCount > 0 && <span className="notification-count">{notificationUnreadCount > 99 ? "99+" : notificationUnreadCount}</span>}</button><span className="preview-tag">TRAVELOS PREVIEW</span></div>
         </header>
         {showNotificationInbox && <section className="notification-inbox" aria-label="Notification inbox"><div className="notification-inbox-heading"><div><p className="eyebrow">TRAVEL UPDATES</p><h2>Notifications</h2><small>{notificationUnreadCount} unread</small></div><div className="notification-inbox-actions"><button className="btn btn-secondary" onClick={markAllNotificationsRead} disabled={notificationUnreadCount === 0}>Mark all read</button><button className="notification-close" onClick={() => setShowNotificationInbox(false)} aria-label="Close notifications">×</button></div></div>{selectedTrip && <form className="notification-reminder-form" onSubmit={createReminder}><h3>Schedule a trip reminder</h3><input aria-label="Reminder title" placeholder="Reminder title" maxLength={120} value={reminderTitle} onChange={event => setReminderTitle(event.target.value)} required/><textarea aria-label="Reminder message" placeholder="What should you remember?" maxLength={500} value={reminderMessage} onChange={event => setReminderMessage(event.target.value)} required/><label>Remind me at <input type="datetime-local" value={reminderAt} onChange={event => setReminderAt(event.target.value)} required/></label><button className="btn btn-primary" type="submit" disabled={savingReminder}>{savingReminder ? "Saving…" : "Save reminder"}</button><small>Saved in UTC and shown in your inbox when it is due. This is an in-app reminder, not a push or email alert.</small></form>}{loadingNotifications ? <p className="muted">Loading notifications…</p> : notifications.length === 0 ? <p className="notification-empty">You’re all caught up. Trip updates and reminders will appear here.</p> : <div className="notification-list">{notifications.map(item => <article className={item.readAt ? "notification-item" : "notification-item unread"} key={item.id}><div className="notification-item-copy"><div className="notification-item-meta"><span>{item.type}</span><time>{new Date(item.createdAt).toLocaleString()}</time></div><h3>{item.title}</h3><p>{item.message}</p></div><div className="notification-item-actions">{!item.readAt && <button onClick={() => markNotificationRead(item.id)}>Mark read</button>}<button onClick={() => dismissNotification(item.id)}>Dismiss</button></div></article>)}</div>}</section>}
-        <div className={isOfflineSnapshot ? "content-wrap offline-snapshot" : "content-wrap"}>
+        <div className={isOfflineSnapshot ? "content-wrap offline-snapshot" : "content-wrap"} data-trip-page={selectedTrip ? activeTripPage : undefined}>
           {notice && <div className="alert success">{notice}<button onClick={() => setNotice("")}>×</button></div>}
           {error && <div className="alert error">{error}<button onClick={() => setError("")}>×</button></div>}
 
@@ -1881,6 +1907,23 @@ export default function App() {
 
 
 
+            <section className="trip-page-heading">
+              <div><p className="eyebrow">TRIP WORKSPACE</p><h2>{tripPageMeta[activeTripPage]?.title ?? "Trip overview"}</h2><p>{tripPageMeta[activeTripPage]?.description ?? "Your journey at a glance."}</p></div>
+              <span className="trip-page-destination">{selectedTrip.destination}</span>
+            </section>
+            {activeTripPage === "overview" && <section className="trip-overview-panel">
+              <div className="trip-overview-stats">
+                <article><span>TRIP DATES</span><strong>{formatDate(selectedTrip.startDate)} – {formatDate(selectedTrip.endDate)}</strong><small>{selectedTrip.currencyCode} · {selectedTrip.currentUserRole}</small></article>
+                <article><span>ITINERARY</span><strong>{itinerary?.days.length ?? 0} days planned</strong><small>{itinerary?.days.reduce((sum, day) => sum + day.activities.length, 0) ?? 0} activities saved</small></article>
+                <article><span>TRAVELLERS</span><strong>{tripMembers.length || selectedTrip.memberCount}</strong><small>People in this journey</small></article>
+              </div>
+              <div className="trip-quick-actions">
+                <button onClick={() => setActiveTripPage("itinerary")}><span>▤</span><strong>Plan your days</strong><small>Activities, maps and schedule</small><b>Open planner →</b></button>
+                <button onClick={() => setActiveTripPage("flights")}><span>✈</span><strong>Manage transport</strong><small>Flights and airport transfers</small><b>View transport →</b></button>
+                <button onClick={() => setActiveTripPage("group")}><span>♧</span><strong>Invite your group</strong><small>Travellers and shared decisions</small><b>Manage group →</b></button>
+                <button onClick={() => setActiveTripPage("budget")}><span>＄</span><strong>Track spending</strong><small>Budget and shared expenses</small><b>Open finances →</b></button>
+              </div>
+            </section>}
             <section className="trip-assistant-panel">
               <div className="trip-assistant-heading">
                 <div><p className="eyebrow">STAGE 38 · CONTEXTUAL TRIP ASSISTANT</p><h2>Your trip briefing</h2><p>Ask about your itinerary, budget, flights, weather and reminders. I’ll use the trip information saved in TravelOS.</p></div>
