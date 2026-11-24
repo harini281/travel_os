@@ -7,6 +7,11 @@ const ADMIN_SESSION_KEY = "travelos.admin.accessToken";
 type AdminUser = { id: string; email: string; displayName: string; roles: string[] };
 type AuthResponse = { accessToken: string; tokenType: string; expiresAt: string; user: AdminUser };
 type Section = "overview" | "users" | "trips" | "places" | "analytics" | "settings";
+type AdminDashboardData = { registeredTravellers: number; tripsCreated: number; placesWithCoordinates: number; aiDraftsCreated: number; generatedAt: string };
+type PagedAdmin<T> = { items: T[]; page: number; pageSize: number; total: number };
+type AdminUserRow = { id: string; email: string; displayName: string; createdAt: string };
+type AdminTripRow = { id: string; name: string; destination: string; startDate: string; endDate: string; ownerUserId: string; memberCount: number; createdAt: string };
+
 
 const navigation: { id: Section; label: string; icon: string; group: string }[] = [
   { id: "overview", label: "Overview", icon: "◫", group: "WORKSPACE" },
@@ -108,42 +113,71 @@ function AdminLogin({ onAuthenticated }: { onAuthenticated: (token: string, user
   );
 }
 
-function Overview() {
+function Overview({ token }: { token: string }) {
+  const [data, setData] = useState<AdminDashboardData | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let active = true;
+    request<AdminDashboardData>("/api/v1/admin/dashboard", token)
+      .then(result => { if (active) setData(result); })
+      .catch(err => { if (active) setError(err instanceof Error ? err.message : "Unable to load dashboard."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [token]);
   const cards = [
-    { label: "Registered travellers", value: "—", note: "Waiting for admin users API", icon: "♙" },
-    { label: "Trips created", value: "—", note: "Waiting for platform trips API", icon: "⌖" },
-    { label: "Places in catalogue", value: "—", note: "Waiting for places service", icon: "◇" },
-    { label: "AI recommendations", value: "—", note: "Waiting for AI usage metrics", icon: "✳" },
+    { label: "Registered travellers", value: data?.registeredTravellers, icon: "♙" },
+    { label: "Trips created", value: data?.tripsCreated, icon: "⌖" },
+    { label: "Places with coordinates", value: data?.placesWithCoordinates, icon: "◇" },
+    { label: "AI itinerary drafts", value: data?.aiDraftsCreated, icon: "✳" },
   ];
   return <>
-    <div className="admin-stat-grid">{cards.map(card => <article className="admin-stat-card" key={card.label}><div className="admin-stat-top"><span>{card.label}</span><i>{card.icon}</i></div><strong>{card.value}</strong><small>{card.note}</small></article>)}</div>
-    <div className="admin-overview-grid">
-      <section className="admin-panel admin-health-panel">
-        <div className="admin-panel-heading"><div><span className="admin-kicker">SERVICE VISIBILITY</span><h3>Platform services</h3></div><span className="admin-status-pending">Integration pending</span></div>
-        {["Platform API", "PostgreSQL database", "AI planning service", "Weather provider", "Maps & routing"].map((item, index) => <div className="admin-service-row" key={item}><span className="admin-service-icon">{["⌘", "▤", "✳", "☼", "⌖"][index]}</span><span>{item}<small>Health check integration planned</small></span><b>Not connected</b></div>)}
-      </section>
-      <section className="admin-panel admin-quick-panel">
-        <span className="admin-kicker">ADMIN WORKSPACE</span><h3>Start with the essentials</h3><p>Each management area has a dedicated home. Live records and actions will be connected only through administrator-authorized APIs.</p>
-        <div className="admin-quick-links">{navigation.filter(item => item.id !== "overview").slice(0, 4).map(item => <button key={item.id} onClick={() => window.dispatchEvent(new CustomEvent("travelos-admin-navigate", { detail: item.id }))}><span>{item.icon}</span>{item.label}<b>→</b></button>)}</div>
-      </section>
-    </div>
-    <section className="admin-panel admin-activity-panel"><div className="admin-panel-heading"><div><span className="admin-kicker">RECENT OPERATIONS</span><h3>Activity overview</h3></div><span className="admin-muted-label">Live audit feed not connected</span></div><div className="admin-empty-state"><span>◷</span><strong>Your platform activity will appear here</strong><p>Once the audit-log endpoint is available, this space will show administrator actions and important platform events.</p></div></section>
+    {error && <div className="admin-alert" role="alert">{error}</div>}
+    <div className="admin-stat-grid">{cards.map(card => <article className="admin-stat-card" key={card.label}><div className="admin-stat-top"><span>{card.label}</span><i>{card.icon}</i></div><strong>{loading ? "…" : (card.value ?? 0).toLocaleString()}</strong><small>Live database count</small></article>)}</div>
+    <section className="admin-panel admin-activity-panel"><div className="admin-panel-heading"><div><span className="admin-kicker">DATA FRESHNESS</span><h3>Platform overview</h3></div><span className="admin-muted-label">{data ? `Updated ${new Date(data.generatedAt).toLocaleString()}` : "Waiting for data"}</span></div><div className="admin-empty-state"><span>✓</span><strong>{data ? "Connected to the protected admin API" : loading ? "Loading platform metrics…" : "No overview data available"}</strong><p>Counts are read from the TravelOS database. AI drafts are not the same as accepted recommendations, and place counts represent distinct saved place names with coordinates.</p></div></section>
   </>;
 }
 
-function PlaceholderSection({ section }: { section: Exclude<Section, "overview"> }) {
+function PlaceholderSection({ section, token }: { section: Exclude<Section, "overview">; token: string }) {
+  const [search, setSearch] = useState("");
+  const [users, setUsers] = useState<PagedAdmin<AdminUserRow> | null>(null);
+  const [trips, setTrips] = useState<PagedAdmin<AdminTripRow> | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (section !== "users" && section !== "trips") return;
+    let active = true;
+    setLoading(true); setError("");
+    const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}&page=1&pageSize=25` : "?page=1&pageSize=25";
+    const task = section === "users"
+      ? request<PagedAdmin<AdminUserRow>>(`/api/v1/admin/users${query}`, token).then(value => { if (active) setUsers(value); })
+      : request<PagedAdmin<AdminTripRow>>(`/api/v1/admin/trips${query}`, token).then(value => { if (active) setTrips(value); });
+    task.catch(err => { if (active) setError(err instanceof Error ? err.message : "Unable to load records."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [section, search, token]);
+
+  if (section === "users" || section === "trips") {
+    const rows = section === "users" ? users?.items ?? [] : trips?.items ?? [];
+    const total = section === "users" ? users?.total ?? 0 : trips?.total ?? 0;
+    return <section className="admin-panel admin-coming-panel">
+      <div className="admin-panel-heading"><div><span className="admin-kicker">READ-ONLY ADMIN DIRECTORY</span><h3>{section === "users" ? "Traveller accounts" : "All platform trips"}</h3></div><span className="admin-muted-label">{total.toLocaleString()} records</span></div>
+      <label className="admin-search-label">Search {section}<input value={search} onChange={event => setSearch(event.target.value)} placeholder={section === "users" ? "Name or email address" : "Trip name or destination"} /></label>
+      {error && <div className="admin-alert" role="alert">{error}</div>}
+      {loading ? <div className="admin-empty-state">Loading records…</div> : rows.length === 0 ? <div className="admin-empty-state"><strong>No matching records</strong><p>Try a different search term.</p></div> : <div className="admin-table-wrap"><table className="admin-data-table"><thead><tr>{section === "users" ? <><th>Traveller</th><th>Email</th><th>Joined</th></> : <><th>Trip</th><th>Destination</th><th>Dates</th><th>Members</th></>}</tr></thead><tbody>{section === "users" ? (users?.items ?? []).map(row => <tr key={row.id}><td>{row.displayName}</td><td>{row.email}</td><td>{new Date(row.createdAt).toLocaleDateString()}</td></tr>) : (trips?.items ?? []).map(row => <tr key={row.id}><td>{row.name}</td><td>{row.destination}</td><td>{row.startDate} – {row.endDate}</td><td>{row.memberCount}</td></tr>)}</tbody></table></div>}
+      <p className="admin-muted-label">Showing up to 25 records. Search is performed by the server. This first release is intentionally read-only.</p>
+    </section>;
+  }
   const copy = pageCopy[section];
-  const notes: Record<Exclude<Section, "overview">, string[]> = {
-    users: ["Search and filter accounts", "Review roles and account status", "Suspend or restore accounts with an audit reason"],
-    trips: ["Search trips by destination or owner", "Review reports and flagged content", "Inspect trip status without changing traveller data"],
+  const notes: Record<Exclude<Section, "overview" | "users" | "trips">, string[]> = {
     places: ["Review place source and coordinates", "Verify categories and opening-hour evidence", "Resolve duplicate or low-quality place records"],
     analytics: ["Traveller growth and active usage", "Trip creation and completion trends", "Recommendation acceptance and quality"],
     settings: ["Administrator access policy", "Provider configuration status", "Audit retention and security controls"],
   };
-  return <section className="admin-panel admin-coming-panel"><div className="admin-coming-icon">{navigation.find(item => item.id === section)?.icon}</div><span className="admin-kicker">PHASE 01 FOUNDATION</span><h3>{copy.title} workspace is ready for integration</h3><p>{copy.description}</p><div className="admin-capability-list">{notes[section].map(note => <div key={note}><span>✓</span>{note}</div>)}</div><div className="admin-integration-callout"><strong>Why is this section empty?</strong><p>The current TravelOS backend does not expose these platform-wide admin endpoints yet. This interface intentionally avoids showing invented records or offering actions that are not securely backed by the API.</p></div></section>;
+  return <section className="admin-panel admin-coming-panel"><div className="admin-coming-icon">{navigation.find(item => item.id === section)?.icon}</div><span className="admin-kicker">PHASE 01 FOUNDATION</span><h3>{copy.title} workspace is ready for integration</h3><p>{copy.description}</p><div className="admin-capability-list">{notes[section].map(note => <div key={note}><span>✓</span>{note}</div>)}</div><div className="admin-integration-callout"><strong>Next integration</strong><p>This area needs its own data model and protected endpoints. No unsupported management actions are exposed yet.</p></div></section>;
 }
 
-function AdminWorkspace({ user, onSignOut }: { user: AdminUser; onSignOut: () => void }) {
+function AdminWorkspace({ user, token, onSignOut }: { user: AdminUser; token: string; onSignOut: () => void }) {
   const [section, setSection] = useState<Section>("overview");
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const copy = pageCopy[section];
@@ -175,7 +209,7 @@ function AdminWorkspace({ user, onSignOut }: { user: AdminUser; onSignOut: () =>
       <header className="admin-topbar"><button className="admin-mobile-menu" onClick={() => setMobileNavOpen(true)} aria-label="Open navigation">☰</button><div className="admin-breadcrumb">TravelOS <span>/</span> Administration <span>/</span> <strong>{copy.title}</strong></div><div className="admin-top-actions"><span className="admin-environment"><i /> ADMIN WORKSPACE</span><span className="admin-top-avatar">{initials || "A"}</span></div></header>
       <div className="admin-content">
         <section className="admin-page-heading"><div><span className="admin-kicker">{copy.eyebrow}</span><h1>{copy.title}</h1><p>{copy.description}</p></div><div className="admin-heading-meta"><span>TRAVELOS CONSOLE</span><strong>Phase 01 · Foundation</strong></div></section>
-        {section === "overview" ? <Overview /> : <PlaceholderSection section={section} />}
+        {section === "overview" ? <Overview token={token} /> : <PlaceholderSection section={section} token={token} />}
         <footer className="admin-footer"><span>TRAVELOS · THOUGHTFULLY CONNECTED TRAVEL</span><span>ADMIN FOUNDATION · PHASE 01</span></footer>
       </div>
     </main>
@@ -222,6 +256,6 @@ export default function AdminApp() {
   }
 
   if (checking) return <main className="admin-loading"><span className="admin-loading-mark">T</span><p>Verifying administrator access…</p></main>;
-  if (user && token) return <AdminWorkspace user={user} onSignOut={signOut} />;
+  if (user && token) return <AdminWorkspace user={user} token={token} onSignOut={signOut} />;
   return <><AdminLogin onAuthenticated={authenticate} />{sessionError && <div className="admin-session-message" role="status">{sessionError}</div>}</>;
 }
