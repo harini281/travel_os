@@ -315,7 +315,7 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
     {status === "ready" && places.length > 0 && <div className="nearby-indoor-list">
       {places.map(place => <article className={`nearby-indoor-card ${selectedPlaceId === place.id ? "is-selected" : ""}`} key={`${place.id}-${place.name}`}>
         <div><span className="nearby-indoor-type">{place.type.replaceAll("_", " ")}</span><h3>{place.name}</h3>
-          <p>{place.driveDurationMinutes != null ? `Approx. {Math.max(1, Math.round(place.driveDurationMinutes))} min drive · {place.driveDistanceKm?.toFixed(1)} km by road` : `{place.distanceKm.toFixed(1)} km straight-line distance · driving estimate unavailable`}</p>
+          <p>{place.driveDurationMinutes != null ? `Approx. ${Math.max(1, Math.round(place.driveDurationMinutes))} min drive · ${place.driveDistanceKm?.toFixed(1)} km by road` : `${place.distanceKm.toFixed(1)} km straight-line distance · driving estimate unavailable`}</p>
           {place.tags.opening_hours && <small>Listed hours: {place.tags.opening_hours}</small>}
           {!place.tags.opening_hours && <small>Opening hours not listed — check before visiting</small>}
         </div>
