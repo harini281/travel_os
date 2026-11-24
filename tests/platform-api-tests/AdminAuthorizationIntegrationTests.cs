@@ -20,7 +20,7 @@ public sealed class AdminAuthorizationIntegrationTests(TravelOsApiFactory factor
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
+    [PostgresFact]
     public async Task AdminEndpoints_RejectAuthenticatedTravellers()
     {
         using var request = new HttpRequestMessage(
