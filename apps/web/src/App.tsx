@@ -1913,7 +1913,7 @@ export default function App() {
               <span className="trip-page-destination">{selectedTrip.destination}</span>
             </section>
             {activeTripPage === "overview" && <TripOverview
-              tripDates={`${formatDate(selectedTrip.startDate)} – `${formatDate(selectedTrip.endDate)}`}
+              tripDates={`${formatDate(selectedTrip.startDate)} – ${formatDate(selectedTrip.endDate)}`}
               currencyCode={selectedTrip.currencyCode}
               role={selectedTrip.currentUserRole}
               plannedDays={itinerary?.days.length ?? 0}
