@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import TripOverview from "./TripOverview";
 import { readOfflineItinerary, readOfflineTripIndex, removeOfflineItinerary, saveOfflineItinerary, saveOfflineTripIndex } from "./offlineItinerary";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
@@ -1911,19 +1912,15 @@ export default function App() {
               <div><p className="eyebrow">TRIP WORKSPACE</p><h2>{tripPageMeta[activeTripPage]?.title ?? "Trip overview"}</h2><p>{tripPageMeta[activeTripPage]?.description ?? "Your journey at a glance."}</p></div>
               <span className="trip-page-destination">{selectedTrip.destination}</span>
             </section>
-            {activeTripPage === "overview" && <section className="trip-overview-panel">
-              <div className="trip-overview-stats">
-                <article><span>TRIP DATES</span><strong>{formatDate(selectedTrip.startDate)} – {formatDate(selectedTrip.endDate)}</strong><small>{selectedTrip.currencyCode} · {selectedTrip.currentUserRole}</small></article>
-                <article><span>ITINERARY</span><strong>{itinerary?.days.length ?? 0} days planned</strong><small>{itinerary?.days.reduce((sum, day) => sum + day.activities.length, 0) ?? 0} activities saved</small></article>
-                <article><span>TRAVELLERS</span><strong>{tripMembers.length || selectedTrip.memberCount}</strong><small>People in this journey</small></article>
-              </div>
-              <div className="trip-quick-actions">
-                <button onClick={() => setActiveTripPage("itinerary")}><span>▤</span><strong>Plan your days</strong><small>Activities, maps and schedule</small><b>Open planner →</b></button>
-                <button onClick={() => setActiveTripPage("flights")}><span>✈</span><strong>Manage transport</strong><small>Flights and airport transfers</small><b>View transport →</b></button>
-                <button onClick={() => setActiveTripPage("group")}><span>♧</span><strong>Invite your group</strong><small>Travellers and shared decisions</small><b>Manage group →</b></button>
-                <button onClick={() => setActiveTripPage("budget")}><span>＄</span><strong>Track spending</strong><small>Budget and shared expenses</small><b>Open finances →</b></button>
-              </div>
-            </section>}
+            {activeTripPage === "overview" && <TripOverview
+              tripDates={`${formatDate(selectedTrip.startDate)} – `${formatDate(selectedTrip.endDate)}`}
+              currencyCode={selectedTrip.currencyCode}
+              role={selectedTrip.currentUserRole}
+              plannedDays={itinerary?.days.length ?? 0}
+              savedActivities={itinerary?.days.reduce((sum, day) => sum + day.activities.length, 0) ?? 0}
+              travellers={tripMembers.length || selectedTrip.memberCount}
+              onNavigate={setActiveTripPage}
+            />}
             <section className="trip-assistant-panel">
               <div className="trip-assistant-heading">
                 <div><p className="eyebrow">STAGE 38 · CONTEXTUAL TRIP ASSISTANT</p><h2>Your trip briefing</h2><p>Ask about your itinerary, budget, flights, weather and reminders. I’ll use the trip information saved in TravelOS.</p></div>
