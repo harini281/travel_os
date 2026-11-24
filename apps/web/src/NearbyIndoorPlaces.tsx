@@ -9,7 +9,7 @@ type IndoorActivity = {
   estimatedCost: number | null; currencyCode: string | null; sortOrder: number;
 };
 type IndoorDay = { id: string; dayNumber: number; date: string; activities: IndoorActivity[] };
-type Place = { id: number; name: string; type: string; lat: number; lon: number; distanceKm: number; tags: Record<string, string> };
+type Place = { id: number; name: string; type: string; lat: number; lon: number; distanceKm: number; driveDistanceKm: number | null; driveDurationMinutes: number | null; tags: Record<string, string> };
 type WeatherRisk = { activityId: string; activityTitle: string; activityDate: string; severity: "low" | "moderate" | "high"; summary: string; recommendation: string; precipitationProbabilityMax: number | null; precipitationSumMm: number | null; windSpeedMaxKmh: number | null };
 type Props = { days: IndoorDay[]; tripId: string; accessToken: string | null; canAddToItinerary: boolean; weatherAssessments: WeatherRisk[]; onAdded: () => Promise<void> | void };
 
@@ -164,11 +164,39 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
         if (seen.has(key)) return [];
         seen.add(key);
         return [{ id: element.id, name, type: placeType(tags), lat, lon,
-          distanceKm: distanceKm(anchor.latitude!, anchor.longitude!, lat, lon), tags }];
+          distanceKm: distanceKm(anchor.latitude!, anchor.longitude!, lat, lon), driveDistanceKm: null, driveDurationMinutes: null, tags }];
       }).sort((a, b) => a.distanceKm - b.distanceKm).slice(0, 12);
+      if (found.length) {
+        try {
+          const points = [[anchor.longitude!, anchor.latitude!], ...found.map(place => [place.lon, place.lat])];
+          const coordinates = points.map(point => String(point[0]) + "," + String(point[1])).join(";");
+          const tableResponse = await fetch("https://router.project-osrm.org/table/v1/driving/" + coordinates + "?sources=0&annotations=distance,duration", { signal: controller.signal });
+          if (tableResponse.ok) {
+            const table = await tableResponse.json() as { code?: string; distances?: Array<Array<number | null>>; durations?: Array<Array<number | null>> };
+            if (table.code === "Ok") {
+              const distances = table.distances?.[0] ?? [], durations = table.durations?.[0] ?? [];
+              found.forEach((place, index) => {
+                const distance = distances[index + 1], duration = durations[index + 1];
+                if (distance != null && duration != null) {
+                  place.driveDistanceKm = distance / 1000;
+                  place.driveDurationMinutes = duration / 60;
+                }
+              });
+              found.sort((a, b) => {
+                if (a.driveDurationMinutes != null && b.driveDurationMinutes != null) return a.driveDurationMinutes - b.driveDurationMinutes;
+                if (a.driveDurationMinutes != null) return -1;
+                if (b.driveDurationMinutes != null) return 1;
+                return a.distanceKm - b.distanceKm;
+              });
+            }
+          }
+        } catch {
+          if (controller.signal.aborted) return;
+        }
+      }
       setPlaces(found);
       setStatus("ready");
-      setMessage(found.length ? `${found.length} nearby indoor and cultural places found within 3 km.` : "No named indoor places were found within 3 km. Try another activity location.");
+      setMessage(found.length ? found.length + " nearby places found. Ranked by estimated driving time where routing data is available; straight-line distance is used otherwise." : "No named indoor places were found within 3 km. Try another activity location.");
     }).catch(error => {
       if (controller.signal.aborted) return;
       setStatus("error");
@@ -287,7 +315,7 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
     {status === "ready" && places.length > 0 && <div className="nearby-indoor-list">
       {places.map(place => <article className={`nearby-indoor-card ${selectedPlaceId === place.id ? "is-selected" : ""}`} key={`${place.id}-${place.name}`}>
         <div><span className="nearby-indoor-type">{place.type.replaceAll("_", " ")}</span><h3>{place.name}</h3>
-          <p>{place.distanceKm.toFixed(1)} km from the selected activity</p>
+          <p>{place.driveDurationMinutes != null ? `Approx. {Math.max(1, Math.round(place.driveDurationMinutes))} min drive · {place.driveDistanceKm?.toFixed(1)} km by road` : `{place.distanceKm.toFixed(1)} km straight-line distance · driving estimate unavailable`}</p>
           {place.tags.opening_hours && <small>Listed hours: {place.tags.opening_hours}</small>}
           {!place.tags.opening_hours && <small>Opening hours not listed — check before visiting</small>}
         </div>
