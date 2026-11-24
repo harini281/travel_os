@@ -23,9 +23,9 @@ const navigation: { id: Section; label: string; icon: string; group: string }[] 
 ];
 
 const pageCopy: Record<Section, { eyebrow: string; title: string; description: string }> = {
-  overview: { eyebrow: "PLATFORM OVERVIEW", title: "Good to see you.", description: "A clear view of your TravelOS platform will live here. Connect the administration APIs to bring live operations data into this workspace." },
-  users: { eyebrow: "ACCOUNT OPERATIONS", title: "User management", description: "Review traveller accounts, account status and role assignments. User-management actions will be enabled after the protected admin API is implemented." },
-  trips: { eyebrow: "TRAVEL OPERATIONS", title: "Trip management", description: "Monitor trips across the platform and review reported or flagged travel content." },
+  overview: { eyebrow: "PLATFORM OVERVIEW", title: "Good to see you.", description: "A live snapshot of traveller accounts, trips and saved itinerary data across TravelOS." },
+  users: { eyebrow: "ACCOUNT OPERATIONS", title: "User management", description: "Search and review traveller accounts across the platform. Account changes remain restricted until audited write operations are added." },
+  trips: { eyebrow: "TRAVEL OPERATIONS", title: "Trip management", description: "Search and inspect trips across the platform without changing traveller-owned plans." },
   places: { eyebrow: "DISCOVERY QUALITY", title: "Places & discovery", description: "Manage place records, categories and verification quality for destination recommendations." },
   analytics: { eyebrow: "PLATFORM INSIGHTS", title: "Analytics", description: "Understand platform adoption, trip activity and recommendation quality once analytics endpoints are connected." },
   settings: { eyebrow: "PLATFORM CONFIGURATION", title: "Settings", description: "Manage operational configuration and administrative access policies. Sensitive settings will remain server-managed." },
