@@ -1100,3 +1100,8 @@
   .trip-overview-stats article strong{grid-column:2;grid-row:1/3;text-align:right;font-size:13px}
   .trip-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Keep the empty-itinerary call to action exclusive to the Itinerary dashboard. */
+.content-wrap[data-trip-page]:not([data-trip-page="itinerary"]) .itinerary-empty {
+  display: none !important;
+}
