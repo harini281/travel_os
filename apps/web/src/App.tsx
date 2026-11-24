@@ -2029,7 +2029,7 @@ export default function App() {
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
             {itinerary && <ItineraryMap days={itinerary.days} />}
-            {itinerary && selectedTrip && <NearbyIndoorPlaces days={itinerary.days} tripId={selectedTrip.id} accessToken={token} canAddToItinerary={canEditItinerary} onAdded={() => loadItinerary(selectedTrip)} />}
+            {itinerary && selectedTrip && <NearbyIndoorPlaces days={itinerary.days} tripId={selectedTrip.id} accessToken={token} canAddToItinerary={canEditItinerary} weatherAssessments={weatherAssessments} onAdded={() => loadItinerary(selectedTrip)} />}
             <section className="opening-hours-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 34 · ATTRACTION INTELLIGENCE</p><h2>Check attraction opening hours</h2><small>Compare scheduled visits with published weekly opening times</small></div>
