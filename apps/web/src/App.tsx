@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import AdminApp from "./AdminApp";
 import { readOfflineItinerary, readOfflineTripIndex, removeOfflineItinerary, saveOfflineItinerary, saveOfflineTripIndex } from "./offlineItinerary";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
@@ -1739,7 +1740,7 @@ export default function App() {
     } finally { setBusy(false); }
   }
 
-  if (!token || !user) {
+  if (window.location.pathname.replace(/\\/+$/, "") === "/admin") return <AdminApp />;\n\n  if (!token || !user) {
     return (
       <main className="auth-layout">
         <section className="auth-story">
