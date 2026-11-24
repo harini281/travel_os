@@ -31,6 +31,8 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
   const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
   const [addingPlaceId, setAddingPlaceId] = useState<number | null>(null);
   const [pendingAddPlaceId, setPendingAddPlaceId] = useState<number | null>(null);
+  const [replacementActivityId, setReplacementActivityId] = useState<string>("");
+  const [replacementMode, setReplacementMode] = useState(false);
   const [addMessage, setAddMessage] = useState("");
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -200,6 +202,46 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
     }
   }
 
+
+  async function replaceSelectedActivity(place: Place) {
+    const original = selectedDay?.activities.find(activity => activity.id === replacementActivityId);
+    if (!original || !accessToken || !canAddToItinerary || addingPlaceId !== null) return;
+    setAddingPlaceId(place.id);
+    setAddMessage("");
+    try {
+      const response = await fetch(`${import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080"}/api/v1/trips/${tripId}/itinerary/activities/${original.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          title: place.name,
+          description: `Weather alternative selected by traveller. Replaces: ${original.title}. Category: ${place.type.replaceAll("_", " ")}.`,
+          placeName: place.name,
+          latitude: place.lat,
+          longitude: place.lon,
+          durationMinutes: original.durationMinutes,
+          startTime: original.startTime,
+          endTime: original.endTime,
+          estimatedCost: original.estimatedCost,
+          currencyCode: original.currencyCode,
+          sortOrder: original.sortOrder
+        })
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || `Could not replace the activity (HTTP ${response.status}).`);
+      }
+      setPendingAddPlaceId(null);
+      setReplacementMode(false);
+      setReplacementActivityId("");
+      setAddMessage(`${original.title} was replaced with ${place.name} on Day ${selectedDay?.dayNumber}. Its time and budget fields were preserved.`);
+      await onAdded();
+    } catch (error) {
+      setAddMessage(error instanceof Error ? error.message : "Could not replace this activity.");
+    } finally {
+      setAddingPlaceId(null);
+    }
+  }
+
   if (!days.length) return null;
   return <section className="nearby-indoor-panel">
     <div className="nearby-indoor-heading">
@@ -228,8 +270,18 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
         </div>
         <div className="nearby-indoor-actions"><button type="button" onClick={() => setSelectedPlaceId(selectedPlaceId === place.id ? null : place.id)}>{selectedPlaceId === place.id ? "Hide route" : "Show route"}</button>{canAddToItinerary && <button type="button" onClick={() => { setPendingAddPlaceId(pendingAddPlaceId === place.id ? null : place.id); setAddMessage(""); }}>Add to itinerary</button>}<a href={`https://www.openstreetmap.org/?mlat=${place.lat}&mlon=${place.lon}#map=17/${place.lat}/${place.lon}`} target="_blank" rel="noopener noreferrer">Open map ↗</a></div>
         {pendingAddPlaceId === place.id && <div className="nearby-indoor-confirm" role="group" aria-label={`Confirm adding ${place.name}`}>
-          <span>Add <strong>{place.name}</strong> to Day {selectedDay?.dayNumber}? This adds it as an unscheduled activity and keeps your existing plan unchanged.</span>
-          <button type="button" disabled={addingPlaceId !== null} onClick={() => void addSelectedPlace(place)}>{addingPlaceId === place.id ? "Adding…" : "Confirm add"}</button>
+          <div className="nearby-indoor-confirm-copy">
+            {replacementMode ? <>
+              <strong>Replace an existing activity?</strong>
+              <select aria-label="Activity to replace" value={replacementActivityId} onChange={event => setReplacementActivityId(event.target.value)}>
+                <option value="">Choose an activity on Day {selectedDay?.dayNumber}</option>
+                {selectedDay?.activities.map(activity => <option key={activity.id} value={activity.id}>{activity.title}{activity.startTime ? ` · ${activity.startTime}` : ""}</option>)}
+              </select>
+              {selectedDay?.activities.find(activity => activity.id === replacementActivityId) && <p>Current: {selectedDay.activities.find(activity => activity.id === replacementActivityId)?.title}<br/>Proposed: {place.name}<br/>Existing time and budget values will be retained.</p>}
+            </> : <>Add <strong>{place.name}</strong> to Day {selectedDay?.dayNumber}? This adds it as an unscheduled activity and keeps your existing plan unchanged.</>}
+          </div>
+          <button type="button" disabled={addingPlaceId !== null || (replacementMode && !replacementActivityId)} onClick={() => void (replacementMode ? replaceSelectedActivity(place) : addSelectedPlace(place))}>{addingPlaceId === place.id ? "Saving…" : replacementMode ? "Confirm replacement" : "Confirm add"}</button>
+          <button type="button" disabled={addingPlaceId !== null} onClick={() => setReplacementMode(value => !value)}>{replacementMode ? "Add separately instead" : "Replace existing activity"}</button>
           <button type="button" disabled={addingPlaceId !== null} onClick={() => setPendingAddPlaceId(null)}>Cancel</button>
         </div>}
       </article>)}
