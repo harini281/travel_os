@@ -4,11 +4,8 @@ type ItineraryDashboardProps = {
   canEdit: boolean;
   busy: boolean;
   hasActivities: boolean;
-  showAddDay: boolean;
-  onToggleAddDay: () => void;
+  onAddDay: () => void;
   onApprove: () => void;
-  onCancelAddDay: () => void;
-  children: React.ReactNode;
 };
 
 export default function ItineraryDashboard({
@@ -17,11 +14,8 @@ export default function ItineraryDashboard({
   canEdit,
   busy,
   hasActivities,
-  showAddDay,
-  onToggleAddDay,
+  onAddDay,
   onApprove,
-  onCancelAddDay,
-  children,
 }: ItineraryDashboardProps) {
   return (
     <section className="itinerary-dashboard" aria-label="Itinerary dashboard">
@@ -32,21 +26,20 @@ export default function ItineraryDashboard({
         </div>
         {canEdit && (
           <div className="toolbar-actions">
-            <button type="button" className="btn btn-quiet" onClick={onToggleAddDay}>
+            <button type="button" className="btn btn-quiet" onClick={onAddDay}>
               ＋ Add a day
             </button>
-            <button type="button" className="btn btn-primary" disabled={busy || !hasActivities} onClick={onApprove}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={busy || !hasActivities}
+              onClick={onApprove}
+            >
               Approve plan
             </button>
           </div>
         )}
       </div>
-      {showAddDay && (
-        <div className="itinerary-add-day-slot">
-          {children}
-          <button type="button" className="btn btn-quiet" onClick={onCancelAddDay}>Close add-day form</button>
-        </div>
-      )}
     </section>
   );
 }
