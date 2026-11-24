@@ -37,6 +37,11 @@ ProductionSecurityConfiguration.ValidateJwt(builder.Configuration, isProduction)
 ProductionSecurityConfiguration.ValidateDatabaseConnectionString(builder.Configuration, isProduction);
 ProductionSecurityConfiguration.ValidateAiServiceToken(builder.Configuration, isProduction);
 var connectionString = builder.Configuration.GetConnectionString("TravelOS");
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:TravelOS is required. For local development, set the ConnectionStrings__TravelOS environment variable to your PostgreSQL connection string.");
+}
 
 builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(options =>
 {
@@ -46,13 +51,9 @@ builder.Services.Configure<Microsoft.AspNetCore.Http.Features.FormOptions>(optio
 });
 
 var healthChecks = builder.Services.AddHealthChecks();
-
-if (!string.IsNullOrWhiteSpace(connectionString))
-{
-    builder.Services.AddDbContext<TravelOsDbContext>(options =>
-        options.UseNpgsql(connectionString));
-    healthChecks.AddNpgSql(connectionString, name: "postgresql");
-}
+builder.Services.AddDbContext<TravelOsDbContext>(options =>
+    options.UseNpgsql(connectionString));
+healthChecks.AddNpgSql(connectionString, name: "postgresql");
 
 builder.Services
     .AddIdentityCore<User>(options =>
@@ -195,6 +196,8 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 builder.Services.AddScoped<JwtTokenService>();
+builder.Services.AddHostedService<ReceiptFileDeletionWorker>();
+builder.Services.AddHostedService<ReceiptStorageReconciliationWorker>();
 builder.Services.AddHttpClient<FrankfurterExchangeRateProvider>(client =>
 {
     client.BaseAddress = new Uri("https://api.frankfurter.dev");

@@ -231,6 +231,10 @@ public sealed class TripReceipt
     public DateTimeOffset UploadedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ConfirmedAt { get; set; }
     public Guid? ConfirmedByUserId { get; set; }
+    public DateTimeOffset? DeletionRequestedAt { get; set; }
+    public DateTimeOffset? NextDeletionAttemptAt { get; set; }
+    public int DeletionAttempts { get; set; }
+    public string? LastDeletionError { get; set; }
 }
 
 

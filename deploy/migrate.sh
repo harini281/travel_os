@@ -52,6 +52,7 @@ migrations="
 015_flight_journey_groups.sql
 016_activity_schedule_times.sql
 017_trip_notifications.sql
+018_receipt_deletion_lifecycle.sql
 "
 for migration in $migrations; do
     already_applied="$(psql -X -A -t -v ON_ERROR_STOP=1 -c "SELECT 1 FROM travelos_migration_history WHERE migration_name = '$migration' LIMIT 1")"

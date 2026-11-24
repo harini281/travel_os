@@ -337,8 +337,15 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
                 seed.OwnerId, HttpMethod.Delete,
                 $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}");
             using var ownerDeleteResponse = await Client.SendAsync(ownerDelete);
-            Assert.Equal(HttpStatusCode.NoContent, ownerDeleteResponse.StatusCode);
-            Assert.False(File.Exists(filePath));
+            Assert.Equal(HttpStatusCode.Accepted, ownerDeleteResponse.StatusCode);
+
+            using var pendingDownload = AuthorizedRequest(
+                seed.MemberId, HttpMethod.Get,
+                $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}/file");
+            using var pendingDownloadResponse = await Client.SendAsync(pendingDownload);
+            Assert.Equal(HttpStatusCode.NotFound, pendingDownloadResponse.StatusCode);
+
+            await WaitForReceiptCleanupAsync(receiptId, filePath);
         }
         finally
         {
@@ -400,8 +407,8 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
             seed.MemberId, HttpMethod.Delete,
             $"/api/v1/trips/{seed.TripId}/receipts/{receiptId}");
         using var deleteResponse = await Client.SendAsync(deleteRequest);
-        Assert.Equal(HttpStatusCode.NoContent, deleteResponse.StatusCode);
-        Assert.False(File.Exists(storedPath));
+        Assert.Equal(HttpStatusCode.Accepted, deleteResponse.StatusCode);
+        await WaitForReceiptCleanupAsync(receiptId, storedPath);
     }
 
     [PostgresFact]
@@ -596,6 +603,25 @@ public sealed class SecurityAuthorizationIntegrationTests(TravelOsApiFactory fac
         using var encoded = image.Encode(SKEncodedImageFormat.Png, 95);
         Assert.NotNull(encoded);
         return encoded.ToArray();
+    }
+
+    private async Task WaitForReceiptCleanupAsync(Guid receiptId, string filePath)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(15);
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            await using var scope = factory.Services.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+            var exists = await db.TripReceipts.AnyAsync(x => x.Id == receiptId);
+            if (!exists && !File.Exists(filePath)) return;
+            await Task.Delay(TimeSpan.FromMilliseconds(250));
+        }
+
+        Assert.False(File.Exists(filePath), "Receipt worker did not remove the queued file within the test timeout.");
+        await using var finalScope = factory.Services.CreateAsyncScope();
+        var finalDb = finalScope.ServiceProvider.GetRequiredService<TravelOsDbContext>();
+        Assert.False(await finalDb.TripReceipts.AnyAsync(x => x.Id == receiptId),
+            "Receipt worker did not remove the queued metadata within the test timeout.");
     }
 
     private async Task<SeededTrip> SeedTripAsync()

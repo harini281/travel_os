@@ -134,7 +134,8 @@ jobs:
             014_trip_flights.sql \
             015_flight_journey_groups.sql \
             016_activity_schedule_times.sql \
-            017_trip_notifications.sql
+            017_trip_notifications.sql \
+            018_receipt_deletion_lifecycle.sql
           do
             echo "Applying $migration"
             docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_test -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
@@ -215,7 +216,8 @@ jobs:
             014_trip_flights.sql \
             015_flight_journey_groups.sql \
             016_activity_schedule_times.sql \
-            017_trip_notifications.sql
+            017_trip_notifications.sql \
+            018_receipt_deletion_lifecycle.sql
           do
             echo "Applying $migration"
             docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos_e2e -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
@@ -382,7 +384,8 @@ jobs:
             014_trip_flights.sql \
             015_flight_journey_groups.sql \
             016_activity_schedule_times.sql \
-            017_trip_notifications.sql
+            017_trip_notifications.sql \
+            018_receipt_deletion_lifecycle.sql
           do
             echo "Applying $migration"
             docker run --rm --network host --env PGPASSWORD --volume "$PWD:/workspace:ro" --workdir /workspace postgres:16.6-bookworm psql -h 127.0.0.1 -U postgres -d travelos -v ON_ERROR_STOP=1 -f "database/migrations/$migration"
@@ -502,7 +505,7 @@ jobs:
           set -euo pipefail
           count="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc 'SELECT count(*) FROM travelos_migration_history')"
           echo "Recorded migrations: $count"
-          test "$count" = "18"
+          test "$count" = "19"
           app_role_admin_flags="$(docker compose --env-file "$RUNNER_TEMP/travelos-ci.env" -f docker-compose.prod.yml exec -T postgres psql -U travelos_migrator -d travelos -Atc "SELECT (rolsuper OR rolcreatedb OR rolcreaterole OR rolreplication OR rolbypassrls)::text FROM pg_roles WHERE rolname = 'travelos_app'")"
           echo "Application database role has elevated PostgreSQL privileges: $app_role_admin_flags"
           test "$app_role_admin_flags" = "false"

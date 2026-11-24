@@ -200,6 +200,7 @@ public sealed class TravelOsDbContext(DbContextOptions<TravelOsDbContext> option
             entity.Property(x => x.TotalAmount).HasPrecision(19, 4);
             entity.Property(x => x.Confidence).HasPrecision(5, 4);
             entity.Property(x => x.ExtractionWarning).HasMaxLength(500);
+            entity.Property(x => x.LastDeletionError).HasMaxLength(500);
             entity.HasOne<Trip>().WithMany().HasForeignKey(x => x.TripId)
                 .OnDelete(DeleteBehavior.Cascade);
             entity.HasOne<TripExpense>().WithMany().HasForeignKey(x => x.ExpenseId)
