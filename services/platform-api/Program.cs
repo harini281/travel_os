@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using TravelOS.PlatformApi.Auth;
 using TravelOS.PlatformApi.Assistant;
+using TravelOS.PlatformApi.Admin;
 using TravelOS.PlatformApi.Budgets;
 using TravelOS.PlatformApi.Data;
 using TravelOS.PlatformApi.Domain;
@@ -105,7 +106,12 @@ builder.Services.AddCors(options =>
         policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod());
 });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("PlatformAdmin", policy =>
+        policy.RequireAuthenticatedUser()
+            .RequireRole("Admin", "PlatformAdmin", "Administrator"));
+});
 var authRateLimitPerMinute = builder.Configuration.GetValue("RateLimits:AuthPerMinute", 10);
 if (authRateLimitPerMinute is < 1 or > 1000)
     throw new InvalidOperationException("RateLimits:AuthPerMinute must be between 1 and 1000.");
@@ -267,6 +273,7 @@ app.UseRateLimiter();
 app.UseAuthorization();
 app.MapHealthChecks("/health");
 app.MapAuthEndpoints();
+app.MapAdminEndpoints();
 app.MapTripEndpoints();
 app.MapGroundTransferEndpoints();
 app.MapItineraryEndpoints();
