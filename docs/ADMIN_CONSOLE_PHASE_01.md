@@ -56,6 +56,8 @@ The API now exposes these read-only endpoints under the `PlatformAdmin` authoriz
 - `GET /api/v1/admin/users?page=1&pageSize=25&search=...` — paged user directory.
 - `GET /api/v1/admin/trips?page=1&pageSize=25&search=...` — paged platform trip directory.
 
+The user directory also returns the assigned platform roles, email-verification state, and current lockout state. Both directories support server-side search and pagination (up to 100 records per request); the admin UI currently requests 25 records per page and provides Previous/Next navigation.
+
 The React overview and user/trip directories consume these endpoints. The directories are intentionally read-only in this phase. Places verification, analytics, settings, account suspension, role editing and trip moderation are not implemented.
 
 ## Security boundary
