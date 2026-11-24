@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import ItineraryDashboard from "./ItineraryDashboard";
 import TripOverview from "./TripOverview";
 import { readOfflineItinerary, readOfflineTripIndex, removeOfflineItinerary, saveOfflineItinerary, saveOfflineTripIndex } from "./offlineItinerary";
 
@@ -2625,10 +2626,17 @@ export default function App() {
             {loadingItinerary ? <section className="empty-state"><p>Loading your itinerary…</p></section> :
               !itinerary ? <section className="empty-state itinerary-empty"><div className="empty-icon">✳</div><h3>Your itinerary starts here.</h3><p>Create a day-by-day plan for {selectedTrip.destination}. Add places and activities, then approve it when you're happy.</p>{selectedTrip.currentUserRole === "owner" && <button className="btn btn-primary" disabled={busy} onClick={createItinerary}>Create itinerary →</button>}</section> :
               <>
-                <section className="itinerary-toolbar">
-                  <div><strong>{itinerary.days.length} planned days</strong><span>{itinerary.days.reduce((sum, day) => sum + day.activities.length, 0)} activities</span></div>
-                  {canEditItinerary && <div className="toolbar-actions"><button className="btn btn-quiet" onClick={() => setShowAddDay(v => !v)}>＋ Add a day</button><button className="btn btn-primary" disabled={busy || itinerary.days.every(day => day.activities.length === 0)} onClick={approveItinerary}>Approve plan</button></div>}
-                </section>
+                <ItineraryDashboard
+                  plannedDays={itinerary.days.length}
+                  activityCount={itinerary.days.reduce((sum, day) => sum + day.activities.length, 0)}
+                  canEdit={canEditItinerary}
+                  busy={busy}
+                  hasActivities={itinerary.days.some(day => day.activities.length > 0)}
+                  showAddDay={false}
+                  onToggleAddDay={() => setShowAddDay(v => !v)}
+                  onApprove={approveItinerary}
+                  onCancelAddDay={() => setShowAddDay(false)}
+                />
                 {showAddDay && canEditItinerary && <form className="add-day-form" onSubmit={addDay}><label>Choose a date within your trip<input type="date" min={selectedTrip.startDate} max={selectedTrip.endDate} value={newDayDate} onChange={e => setNewDayDate(e.target.value)} required /></label><button className="btn btn-primary" disabled={busy || !newDayDate}>Add day</button><button type="button" className="btn btn-quiet" onClick={() => setShowAddDay(false)}>Cancel</button></form>}
                 {itinerary.isApproved && <div className="approved-note">This itinerary has been approved and is now read-only.</div>}
                 {itinerary.days.length === 0 ? <section className="empty-state"><h3>No days added yet.</h3><p>Add a date from your trip to start building your itinerary.</p></section> :
