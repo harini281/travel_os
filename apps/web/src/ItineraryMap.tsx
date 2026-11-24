@@ -172,8 +172,8 @@ export default function ItineraryMap({ days }: Props) {
           const geometry = result.routes?.[0]?.geometry?.coordinates;
           if (result.code !== "Ok" || !geometry?.length) throw new Error("No road route returned");
           if (cancelled) return;
-          L.geoJSON({ type: "LineString", coordinates: geometry }, {
-            style: { color, weight: 4, opacity: 0.82 }
+          L.polyline(geometry.map(([longitude, latitude]) => [latitude, longitude] as [number, number]), {
+            color, weight: 4, opacity: 0.82
           }).addTo(routes).bindTooltip(`Day ${activities[0].dayNumber} · estimated driving route`);
           successfulRoutes += 1;
         } catch {
