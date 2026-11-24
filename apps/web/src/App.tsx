@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import GroupDashboard from "./GroupDashboard";
 import FlightsDashboard from "./FlightsDashboard";
 import ItineraryDashboard from "./ItineraryDashboard";
 import TripOverview from "./TripOverview";
@@ -2211,7 +2212,12 @@ export default function App() {
               </div>}
               {!weatherAssessments.length && !weatherSkipped.length && <p className="budget-empty">{itinerary ? "No weather scan has been run yet. Add coordinates to outdoor activities, then scan the trip." : "Create an itinerary before scanning weather."}</p>}
             </section>
-            <section className="group-workspace">
+            <GroupDashboard
+              memberCount={tripMembers.length}
+              openPollCount={groupPolls.filter(poll => poll.status === "open").length}
+              completedPreferenceCount={groupPreferences.length}
+            >
+<section className="group-workspace">
               <div className="section-heading"><div><p className="eyebrow">TRAVEL TOGETHER</p><h2>Trip members</h2></div><span className="count-label">{tripMembers.length} TRAVELLERS</span></div>
               <div className="member-list">{tripMembers.map(member => <div className="member-row" key={member.userId}>
                 <span className="member-avatar">{initials(member.displayName)}</span>
@@ -2285,6 +2291,8 @@ export default function App() {
             </section>
 
 
+            
+            </GroupDashboard>
             <section className="expense-workspace">
               <div className="section-heading"><div><p className="eyebrow">SHARED TRIP COSTS</p><h2>Expense tracker</h2></div><span className="count-label">{tripExpenses.length} EXPENSES</span></div>
               <p className="expense-intro">Record a payment, choose who shared it and split the cost equally, by percentage or by exact amounts.</p>
