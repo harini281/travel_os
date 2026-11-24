@@ -35,6 +35,7 @@ public static class TripAssistantEndpoints
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var itinerary = await db.Itineraries.AsNoTracking()
+            .AsSplitQuery()
             .Where(x => x.TripId == tripId)
             .OrderByDescending(x => x.Version)
             .Select(x => new ItineraryContext(
