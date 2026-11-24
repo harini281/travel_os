@@ -1263,3 +1263,28 @@
   .itinerary-map-weather { align-items: flex-start; flex-direction: column; }
   .itinerary-weather-values { gap: 8px; }
 }
+
+
+.itinerary-weather-advice {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid #e5eae4;
+  background: #f7faf7;
+  color: #657468;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.itinerary-weather-advice strong { color: #3c5142; font-size: 11px; }
+.itinerary-weather-advice.is-caution {
+  border-color: #eee2c9;
+  background: #fffaf0;
+}
+.itinerary-weather-advice.is-caution strong { color: #8a652a; }
+.itinerary-weather-advice.is-warning {
+  border-color: #efd7d2;
+  background: #fff6f4;
+}
+.itinerary-weather-advice.is-warning strong { color: #a04e42; }
