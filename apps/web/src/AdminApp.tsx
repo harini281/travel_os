@@ -1,3 +1,4 @@
+import "./admin.css";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
