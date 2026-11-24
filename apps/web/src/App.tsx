@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import FlightsDashboard from "./FlightsDashboard";
 import ItineraryDashboard from "./ItineraryDashboard";
 import TripOverview from "./TripOverview";
 import { readOfflineItinerary, readOfflineTripIndex, removeOfflineItinerary, saveOfflineItinerary, saveOfflineTripIndex } from "./offlineItinerary";
@@ -2083,7 +2084,8 @@ export default function App() {
                   <div className="journey-timeline-content"><div className="journey-timeline-heading"><strong>{item.title}</strong><span>{item.status}</span></div><p>{item.timeLabel}</p><small>{item.subtitle}</small></div>
                 </article>)}</div>}
             </section>
-            <section className="flight-operations-panel">
+            <FlightsDashboard>
+<section className="flight-operations-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 24 · JOURNEY OPERATIONS</p><h2>Flight tracking</h2><small>Keep flight details alongside your trip itinerary</small></div>
                 <button type="button" className="btn btn-primary" onClick={() => setShowAddFlight(value => !value)}>{showAddFlight ? "Close form" : "＋ Add flight"}</button>
@@ -2168,6 +2170,8 @@ export default function App() {
                   </article>)}</div>}
               <p className="connection-disclaimer">{connectionDisclaimer || "Heuristic estimates only. Check airline minimum connection times and airport rules."}</p>
             </section>
+            
+            </FlightsDashboard>
             <section className="weather-disruption-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 23 · TRAVEL OPERATIONS</p><h2>Weather disruption watch</h2><small>Forecast evidence for your scheduled activities</small></div>
