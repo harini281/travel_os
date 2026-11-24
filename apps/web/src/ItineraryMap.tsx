@@ -35,6 +35,19 @@ function weatherCodeLabel(code: number): string {
   return "Variable conditions";
 }
 
+function weatherPlanningAdvice(code: number | undefined, precipitationChance: number | undefined): { tone: "clear" | "caution" | "warning"; title: string; detail: string } {
+  if (code !== undefined && [95, 96, 99].includes(code)) {
+    return { tone: "warning", title: "Thunderstorm risk", detail: "Consider moving outdoor activities to another time and checking local weather alerts before travelling." };
+  }
+  if ((precipitationChance ?? 0) >= 60 || (code !== undefined && [65, 67, 82].includes(code))) {
+    return { tone: "warning", title: "Rain may affect your plans", detail: "Consider shifting outdoor stops and keeping an indoor alternative available. Check the forecast again closer to departure." };
+  }
+  if ((precipitationChance ?? 0) >= 30 || (code !== undefined && [51, 53, 55, 56, 57, 61, 63, 80, 81].includes(code))) {
+    return { tone: "caution", title: "Some wet weather possible", detail: "Allow flexible time between stops and consider carrying rain protection." };
+  }
+  return { tone: "clear", title: "No major rain signal in this daily forecast", detail: "Conditions can change; check the latest forecast before each activity." };
+}
+
 export default function ItineraryMap({ days }: Props) {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -262,6 +275,13 @@ export default function ItineraryMap({ days }: Props) {
         )}
         {selectedDay !== "all" && weather.status === "unavailable" && <span>{weather.message} Forecast availability is limited by the provider's date range.</span>}
       </div>
+        {selectedDay !== "all" && weather.status === "ready" && (() => {
+          const advice = weatherPlanningAdvice(weather.weatherCode, weather.precipitationChance);
+          return <div className={`itinerary-weather-advice is-${advice.tone}`} role="status">
+            <strong>{advice.title}</strong>
+            <span>{advice.detail}</span>
+          </div>;
+        })()}
       <div className="itinerary-map-summary">
         <span><i className="itinerary-map-dot" />{visibleActivities.length} mapped {visibleActivities.length === 1 ? "activity" : "activities"}</span>
         {withoutCoordinates > 0 && <span>{withoutCoordinates} without saved coordinates</span>}
