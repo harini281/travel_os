@@ -2639,6 +2639,6 @@ function TravellerApp() {
 
 
 export default function App() {
-  const isAdminRoute = window.location.pathname.replace(/\\/+$/, "") === "/admin";
+  const isAdminRoute = window.location.pathname.replace(/\/+$/, "") === "/admin";
   return isAdminRoute ? <AdminApp /> : <TravellerApp />;
 }
