@@ -23,6 +23,18 @@ type Props = { days: ItineraryMapDay[] };
 
 const DAY_COLORS = ["#287b62", "#b47b43", "#527bb5", "#9368a8", "#b45c58", "#5d8995", "#7d8542"];
 
+
+function weatherCodeLabel(code: number): string {
+  if (code === 0) return "Clear sky";
+  if ([1, 2, 3].includes(code)) return "Mainly clear to overcast";
+  if ([45, 48].includes(code)) return "Fog";
+  if ([51, 53, 55, 56, 57].includes(code)) return "Drizzle";
+  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain showers";
+  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
+  if ([95, 96, 99].includes(code)) return "Thunderstorms";
+  return "Variable conditions";
+}
+
 export default function ItineraryMap({ days }: Props) {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
@@ -30,6 +42,7 @@ export default function ItineraryMap({ days }: Props) {
   const routeLayer = useRef<L.LayerGroup | null>(null);
   const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "partial">("idle");
   const [selectedDay, setSelectedDay] = useState("all");
+  const [weather, setWeather] = useState<{ status: "idle" | "loading" | "ready" | "unavailable"; date?: string; temperatureMax?: number; temperatureMin?: number; precipitationChance?: number; weatherCode?: number; message?: string }>({ status: "idle" });
 
   const locatedActivities = useMemo(
     () => days.flatMap(day => day.activities
@@ -45,6 +58,52 @@ export default function ItineraryMap({ days }: Props) {
     [locatedActivities, selectedDay]
   );
 
+
+  const selectedWeatherDay = useMemo(
+    () => days.find(day => day.id === selectedDay) ?? null,
+    [days, selectedDay]
+  );
+  const weatherLocation = useMemo(() => selectedWeatherDay?.activities.find(activity =>
+    activity.latitude !== null && activity.longitude !== null &&
+    Number.isFinite(activity.latitude) && Number.isFinite(activity.longitude)
+  ) ?? null, [selectedWeatherDay]);
+
+  useEffect(() => {
+    if (!selectedWeatherDay || !weatherLocation || weatherLocation.latitude === null || weatherLocation.longitude === null) {
+      setWeather({ status: "idle" });
+      return;
+    }
+    const controller = new AbortController();
+    setWeather({ status: "loading", date: selectedWeatherDay.date });
+    const params = new URLSearchParams({
+      latitude: String(weatherLocation.latitude),
+      longitude: String(weatherLocation.longitude),
+      daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+      timezone: "auto",
+      start_date: selectedWeatherDay.date,
+      end_date: selectedWeatherDay.date
+    });
+    fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`, { signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error("Forecast unavailable for this date or location.");
+        return await response.json() as {
+          daily?: { time?: string[]; weather_code?: number[]; temperature_2m_max?: number[]; temperature_2m_min?: number[]; precipitation_probability_max?: number[] };
+        };
+      })
+      .then(result => {
+        const daily = result.daily;
+        if (!daily?.time?.length) throw new Error("No daily forecast was returned.");
+        setWeather({ status: "ready", date: daily.time[0], weatherCode: daily.weather_code?.[0],
+          temperatureMax: daily.temperature_2m_max?.[0], temperatureMin: daily.temperature_2m_min?.[0],
+          precipitationChance: daily.precipitation_probability_max?.[0] });
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        setWeather({ status: "unavailable", date: selectedWeatherDay.date,
+          message: error instanceof Error ? error.message : "Forecast unavailable." });
+      });
+    return () => controller.abort();
+  }, [selectedWeatherDay, weatherLocation]);
   useEffect(() => {
     if (!mapElement.current || mapInstance.current) return;
     const map = L.map(mapElement.current, { zoomControl: true, scrollWheelZoom: false });
@@ -184,6 +243,24 @@ export default function ItineraryMap({ days }: Props) {
             {days.map(day => <option key={day.id} value={day.id}>Day {day.dayNumber}</option>)}
           </select>
         </label>
+      </div>
+
+      <div className="itinerary-map-weather" aria-live="polite">
+        <div>
+          <p className="eyebrow">OPEN-METEO · DAY FORECAST</p>
+          <strong>{selectedWeatherDay ? `Day ${selectedWeatherDay.dayNumber} weather` : "Select one day for its forecast"}</strong>
+          <small>{weatherLocation?.placeName || "Using the first saved activity coordinate for this day"}</small>
+        </div>
+        {selectedDay === "all" && <span>Select a day to view its forecast</span>}
+        {selectedDay !== "all" && weather.status === "loading" && <span>Loading forecast…</span>}
+        {selectedDay !== "all" && weather.status === "ready" && (
+          <div className="itinerary-weather-values">
+            <strong>{weather.temperatureMax ?? "—"}° / {weather.temperatureMin ?? "—"}°C</strong>
+            <span>{weather.precipitationChance ?? "—"}% rain chance</span>
+            <span>{weather.weatherCode === undefined ? "Weather details unavailable" : weatherCodeLabel(weather.weatherCode)}</span>
+          </div>
+        )}
+        {selectedDay !== "all" && weather.status === "unavailable" && <span>{weather.message} Forecast availability is limited by the provider's date range.</span>}
       </div>
       <div className="itinerary-map-summary">
         <span><i className="itinerary-map-dot" />{visibleActivities.length} mapped {visibleActivities.length === 1 ? "activity" : "activities"}</span>
