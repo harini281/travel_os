@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using TravelOS.PlatformApi.Domain;
 using TravelOS.PlatformApi.Data;
 
 namespace TravelOS.PlatformApi.Admin;
@@ -39,6 +41,7 @@ public static class AdminEndpoints
 
     private static async Task<IResult> GetUsersAsync(
         TravelOsDbContext db,
+        UserManager<User> userManager,
         string? search,
         int page = 1,
         int pageSize = 20,
@@ -56,16 +59,26 @@ public static class AdminEndpoints
         }
 
         var total = await query.CountAsync(cancellationToken);
-        var users = await query
+        var pageUsers = await query
             .OrderByDescending(user => user.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(user => new AdminUserListItem(
+            .ToListAsync(cancellationToken);
+
+        var users = new List<AdminUserListItem>(pageUsers.Count);
+        foreach (var user in pageUsers)
+        {
+            var roles = await userManager.GetRolesAsync(user);
+            var isLockedOut = await userManager.IsLockedOutAsync(user);
+            users.Add(new AdminUserListItem(
                 user.Id,
                 user.Email ?? "",
                 user.DisplayName,
-                user.CreatedAt))
-            .ToListAsync(cancellationToken);
+                user.CreatedAt,
+                user.EmailConfirmed,
+                isLockedOut,
+                roles.ToArray()));
+        }
 
         return Results.Ok(new PagedAdminResponse<AdminUserListItem>(
             users, page, pageSize, total));
@@ -121,7 +134,10 @@ public sealed record AdminUserListItem(
     Guid Id,
     string Email,
     string DisplayName,
-    DateTimeOffset CreatedAt);
+    DateTimeOffset CreatedAt,
+    bool EmailConfirmed,
+    bool IsLockedOut,
+    IReadOnlyCollection<string> Roles);
 
 public sealed record AdminTripListItem(
     Guid Id,
