@@ -48,9 +48,23 @@ COMMIT;
 
 Only run this using a privileged, audited database connection and an explicitly approved account. Do not expose this SQL through the public application or allow users to choose their own roles. Sign out and sign in again after a role change so a new JWT contains the updated role claim.
 
-## Important security boundary
+## Phase 01.2 API foundation
 
-The Phase 01 console is an authenticated UI foundation, not a completed administration API. Hiding a page in React is not authorization. Before enabling user, trip, place, analytics, or settings actions, implement server-side endpoints protected with ASP.NET Core role authorization (for example, `RequireAuthorization(policy => policy.RequireRole("Admin"))`), validate each operation, and record security-relevant changes in an audit log. Do not rely on client-side role checks as the security control.
+The API now exposes these read-only endpoints under the `PlatformAdmin` authorization policy:
+
+- `GET /api/v1/admin/dashboard` — total user count, trip count, distinct saved activity place names with coordinates, and generated itinerary draft count.
+- `GET /api/v1/admin/users?page=1&pageSize=25&search=...` — paged user directory.
+- `GET /api/v1/admin/trips?page=1&pageSize=25&search=...` — paged platform trip directory.
+
+The React overview and user/trip directories consume these endpoints. The directories are intentionally read-only in this phase. Places verification, analytics, settings, account suspension, role editing and trip moderation are not implemented.
+
+## Security boundary
+
+Every `/api/v1/admin` endpoint is protected on the server by the ASP.NET Core `PlatformAdmin` policy, which accepts the `Admin`, `PlatformAdmin`, or `Administrator` role. The client-side role check is only a user-experience gate; the server policy is the actual authorization boundary. Admin endpoints return no data to anonymous users or authenticated travellers.
+
+Role changes are reflected in newly issued JWTs. The current JWT lifetime is 15 minutes, so an already-issued token can retain its previous role claim until it expires. Sign out and sign in again after changing an account's role.
+
+Before adding write operations, implement explicit validation, audit records and safeguards for destructive actions. Do not expose role provisioning or sensitive provider secrets through the public application.
 
 ## Validation
 
