@@ -234,7 +234,7 @@ function dayNumberFor(date: string, tripStart: string) {
   return Math.floor((selected - start) / 86400000) + 1;
 }
 
-export default function App() {
+function TravellerApp() {
   const [token, setToken] = useState<string | null>(() => sessionStorage.getItem("travelos.accessToken"));
   const [user, setUser] = useState<AuthUser | null>(null);
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -1740,8 +1740,6 @@ export default function App() {
     } finally { setBusy(false); }
   }
 
-  if (window.location.pathname.replace(/\/+$/, "") === "/admin") return <AdminApp />;
-
   if (!token || !user) {
     return (
       <main className="auth-layout">
@@ -2637,4 +2635,10 @@ export default function App() {
       </section>
     </main>
   );
+}
+
+
+export default function App() {
+  const isAdminRoute = window.location.pathname.replace(/\\/+$/, "") === "/admin";
+  return isAdminRoute ? <AdminApp /> : <TravellerApp />;
 }
