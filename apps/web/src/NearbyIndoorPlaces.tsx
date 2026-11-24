@@ -36,16 +36,16 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
   const [pendingAddPlaceId, setPendingAddPlaceId] = useState<number | null>(null);
   const [replacementActivityId, setReplacementActivityId] = useState<string>("");
   const [replacementMode, setReplacementMode] = useState(false);
-  const weatherAffectedActivities = useMemo(() => (selectedDay?.activities ?? []).flatMap(activity => {
-    const assessment = weatherAssessments.find(item => item.activityId === activity.id && item.severity !== "low");
-    return assessment ? [{ activity, assessment }] : [];
-  }), [selectedDay, weatherAssessments]);
   const [addMessage, setAddMessage] = useState("");
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
   const routeLayer = useRef<L.LayerGroup | null>(null);
   const selectedDay = useMemo(() => days.find(day => day.id === selectedDayId) ?? days[0] ?? null, [days, selectedDayId]);
+  const weatherAffectedActivities = useMemo(() => (selectedDay?.activities ?? []).flatMap(activity => {
+    const assessment = weatherAssessments.find(item => item.activityId === activity.id && item.severity !== "low");
+    return assessment ? [{ activity, assessment }] : [];
+  }), [selectedDay, weatherAssessments]);
   const anchor = useMemo(() => selectedDay?.activities.find(activity =>
     activity.latitude !== null && activity.longitude !== null &&
     Number.isFinite(activity.latitude) && Number.isFinite(activity.longitude)
