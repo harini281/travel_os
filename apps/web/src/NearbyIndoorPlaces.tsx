@@ -5,6 +5,8 @@ import "leaflet/dist/leaflet.css";
 type IndoorActivity = {
   id: string; title: string; placeName: string | null;
   latitude: number | null; longitude: number | null;
+  durationMinutes: number | null; startTime: string | null; endTime: string | null;
+  estimatedCost: number | null; currencyCode: string | null; sortOrder: number;
 };
 type IndoorDay = { id: string; dayNumber: number; date: string; activities: IndoorActivity[] };
 type Place = { id: number; name: string; type: string; lat: number; lon: number; distanceKm: number; tags: Record<string, string> };
