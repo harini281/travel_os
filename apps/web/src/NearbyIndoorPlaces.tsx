@@ -26,8 +26,8 @@ type OpeningStatus = "open" | "closed" | "unknown";
 
 function openingStatus(hours: string | undefined, date: string | undefined, time: string | null | undefined): OpeningStatus {
   if (!hours || !date || !time) return "unknown";
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(date);
-  const clock = /^(\\d{1,2}):(\\d{2})/.exec(time);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const clock = /^(\d{1,2}):(\d{2})/.exec(time);
   if (!match || !clock) return "unknown";
   const weekday = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay();
   const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
@@ -35,8 +35,8 @@ function openingStatus(hours: string | undefined, date: string | undefined, time
   if (!Number.isFinite(minute) || minute < 0 || minute >= 1440) return "unknown";
   const normalized = hours.trim();
   if (normalized === "24/7") return "open";
-  if (/[;]|PH|SH|sunrise|sunset|\\+|\\[|\\]/i.test(normalized)) return "unknown";
-  const parts = normalized.split(/\\s+/);
+  if (/[;]|PH|SH|sunrise|sunset|\+|\[|\]/i.test(normalized)) return "unknown";
+  const parts = normalized.split(/\s+/);
   const dayPart = parts.length > 1 ? parts[0] : "Mo-Su";
   const timePart = parts.length > 1 ? parts.slice(1).join(" ") : parts[0];
   if (timePart === "off" || timePart === "closed") return "closed";
@@ -54,7 +54,7 @@ function openingStatus(hours: string | undefined, date: string | undefined, time
     }
   }
   if (!days.has(weekday)) return "closed";
-  if (!/^\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}(,\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})*$/.test(timePart)) return "unknown";
+  if (!/^\d{1,2}:\d{2}-\d{1,2}:\d{2}(,\d{1,2}:\d{2}-\d{1,2}:\d{2})*$/.test(timePart)) return "unknown";
   const intervals = timePart.split(",").map(range => range.split("-").map(value => {
     const [hour, mins] = value.split(":").map(Number);
     return hour * 60 + mins;
