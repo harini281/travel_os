@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import NearbyIndoorPlaces from "./NearbyIndoorPlaces";
 import BudgetDashboard from "./BudgetDashboard";
 import GroupDashboard from "./GroupDashboard";
 import FlightsDashboard from "./FlightsDashboard";
@@ -2028,6 +2029,7 @@ export default function App() {
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
             {itinerary && <ItineraryMap days={itinerary.days} />}
+            {itinerary && <NearbyIndoorPlaces days={itinerary.days} />}
             <section className="opening-hours-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 34 · ATTRACTION INTELLIGENCE</p><h2>Check attraction opening hours</h2><small>Compare scheduled visits with published weekly opening times</small></div>
