@@ -1,5 +1,7 @@
+import type { ReactNode } from "react";
+
 type FlightsDashboardProps = {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 export default function FlightsDashboard({ children }: FlightsDashboardProps) {
