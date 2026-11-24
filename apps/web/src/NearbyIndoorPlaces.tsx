@@ -8,7 +8,7 @@ type IndoorActivity = {
 };
 type IndoorDay = { id: string; dayNumber: number; date: string; activities: IndoorActivity[] };
 type Place = { id: number; name: string; type: string; lat: number; lon: number; distanceKm: number; tags: Record<string, string> };
-type Props = { days: IndoorDay[] };
+type Props = { days: IndoorDay[]; tripId: string; accessToken: string | null; canAddToItinerary: boolean; onAdded: () => Promise<void> | void };
 
 function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number) {
   const radians = (degrees: number) => degrees * Math.PI / 180;
@@ -22,13 +22,16 @@ function placeType(tags: Record<string, string>) {
   return tags.amenity || tags.tourism || tags.leisure || tags.shop || "indoor attraction";
 }
 
-export default function NearbyIndoorPlaces({ days }: Props) {
+export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddToItinerary, onAdded }: Props) {
   const [selectedDayId, setSelectedDayId] = useState(days[0]?.id ?? "");
   const [places, setPlaces] = useState<Place[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [message, setMessage] = useState("");
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null);
   const [routeStatus, setRouteStatus] = useState<"idle" | "loading" | "ready" | "unavailable">("idle");
+  const [addingPlaceId, setAddingPlaceId] = useState<number | null>(null);
+  const [pendingAddPlaceId, setPendingAddPlaceId] = useState<number | null>(null);
+  const [addMessage, setAddMessage] = useState("");
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
@@ -160,6 +163,43 @@ export default function NearbyIndoorPlaces({ days }: Props) {
     return () => controller.abort();
   }, [selectedDay, anchor]);
 
+
+  async function addSelectedPlace(place: Place) {
+    if (!selectedDay || !accessToken || !canAddToItinerary || addingPlaceId !== null) return;
+    setAddingPlaceId(place.id);
+    setAddMessage("");
+    try {
+      const response = await fetch(`${import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080"}/api/v1/trips/${tripId}/itinerary/days/${selectedDay.id}/activities`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({
+          title: place.name,
+          description: `Indoor alternative discovered from OpenStreetMap. Category: ${place.type.replaceAll("_", " ")}.`,
+          placeName: place.name,
+          latitude: place.lat,
+          longitude: place.lon,
+          durationMinutes: null,
+          estimatedCost: null,
+          currencyCode: null,
+          sortOrder: 0,
+          startTime: null,
+          endTime: null
+        })
+      });
+      if (!response.ok) {
+        const detail = await response.text();
+        throw new Error(detail || `Could not add this place (HTTP ${response.status}).`);
+      }
+      setPendingAddPlaceId(null);
+      setAddMessage(`${place.name} was added to Day ${selectedDay.dayNumber}.`);
+      await onAdded();
+    } catch (error) {
+      setAddMessage(error instanceof Error ? error.message : "Could not add this place.");
+    } finally {
+      setAddingPlaceId(null);
+    }
+  }
+
   if (!days.length) return null;
   return <section className="nearby-indoor-panel">
     <div className="nearby-indoor-heading">
@@ -186,9 +226,15 @@ export default function NearbyIndoorPlaces({ days }: Props) {
           {place.tags.opening_hours && <small>Listed hours: {place.tags.opening_hours}</small>}
           {!place.tags.opening_hours && <small>Opening hours not listed — check before visiting</small>}
         </div>
-        <div className="nearby-indoor-actions"><button type="button" onClick={() => setSelectedPlaceId(selectedPlaceId === place.id ? null : place.id)}>{selectedPlaceId === place.id ? "Hide route" : "Show route"}</button><a href={`https://www.openstreetmap.org/?mlat=${place.lat}&mlon=${place.lon}#map=17/${place.lat}/${place.lon}`} target="_blank" rel="noopener noreferrer">Open map ↗</a></div>
+        <div className="nearby-indoor-actions"><button type="button" onClick={() => setSelectedPlaceId(selectedPlaceId === place.id ? null : place.id)}>{selectedPlaceId === place.id ? "Hide route" : "Show route"}</button>{canAddToItinerary && <button type="button" onClick={() => { setPendingAddPlaceId(pendingAddPlaceId === place.id ? null : place.id); setAddMessage(""); }}>Add to itinerary</button>}<a href={`https://www.openstreetmap.org/?mlat=${place.lat}&mlon=${place.lon}#map=17/${place.lat}/${place.lon}`} target="_blank" rel="noopener noreferrer">Open map ↗</a></div>
+        {pendingAddPlaceId === place.id && <div className="nearby-indoor-confirm" role="group" aria-label={`Confirm adding ${place.name}`}>
+          <span>Add <strong>{place.name}</strong> to Day {selectedDay?.dayNumber}? This adds it as an unscheduled activity and keeps your existing plan unchanged.</span>
+          <button type="button" disabled={addingPlaceId !== null} onClick={() => void addSelectedPlace(place)}>{addingPlaceId === place.id ? "Adding…" : "Confirm add"}</button>
+          <button type="button" disabled={addingPlaceId !== null} onClick={() => setPendingAddPlaceId(null)}>Cancel</button>
+        </div>}
       </article>)}
     </div>}
+    {addMessage && <p className="nearby-indoor-add-message" role="status">{addMessage}</p>}
     <p className="nearby-indoor-disclaimer">Place data © OpenStreetMap contributors. Results depend on community mapping and may be incomplete. Distances are straight-line estimates, not walking or driving distances. Verify opening times and suitability before visiting.</p>
   </section>;
 }
