@@ -910,3 +910,193 @@
   color: #e8eee9 !important;
 }
 
+
+
+
+/* Travel workspace redesign: focused dashboards with clear navigation */
+.trip-nav{display:grid;gap:5px;margin-top:2px}
+.trip-nav .side-link{width:100%;border:0;background:transparent;text-align:left;font:inherit;cursor:pointer}
+.trip-nav .side-link:hover{background:#2b4037;color:#fff}
+.trip-nav .side-link.selected{background:#354b40;color:#fff;box-shadow:inset 3px 0 #d9a66f}
+.trip-nav .side-link span{width:20px;text-align:center}
+.trip-nav-label{margin-top:24px}
+.trip-page-heading{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:4px 0 20px;padding:0 0 17px;border-bottom:1px solid #e5eae3}
+.trip-page-heading h2{margin:0 0 5px;font-size:25px;letter-spacing:-.8px;color:#25352c}
+.trip-page-heading p:not(.eyebrow){margin:0;color:#7d8981;font-size:12px;line-height:1.6}
+.trip-page-heading .eyebrow{margin-bottom:7px}
+.trip-page-destination{border:1px solid #e4e9e2;border-radius:30px;padding:8px 13px;background:#fff;color:#65736a;font-size:11px;font-weight:700}
+.trip-overview-panel{background:#fff;border:1px solid #e5eae3;border-radius:14px;padding:20px;margin:0 0 20px}
+.trip-overview-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.trip-overview-stats article{min-width:0;padding:14px;border:1px solid #edf0eb;border-radius:10px;display:grid;gap:7px}
+.trip-overview-stats article span{font-size:9px;letter-spacing:1.2px;color:#8a948d;font-weight:700}
+.trip-overview-stats article strong{font-size:16px;line-height:1.4;color:#293b31;overflow-wrap:anywhere}
+.trip-overview-stats article small{font-size:10px;color:#929c94}
+.trip-quick-actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:14px}
+.trip-quick-actions button{display:grid;gap:7px;text-align:left;align-content:start;padding:15px;border:1px solid #e8ece6;border-radius:10px;background:#fbfcfa;color:#293b31;transition:border-color .15s,transform .15s}
+.trip-quick-actions button:hover{border-color:#c7a17d;transform:translateY(-2px)}
+.trip-quick-actions button>span{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#f4eee7;color:#a87545;font-size:17px}
+.trip-quick-actions button strong{font-size:12px}
+.trip-quick-actions button small{font-size:10px;line-height:1.5;color:#859087}
+.trip-quick-actions button b{font-size:10px;color:#a87545;margin-top:3px}
+
+/* Overview is intentionally a summary, not a long list of every tool. */
+.content-wrap[data-trip-page="overview"] .travel-context-panel,
+.content-wrap[data-trip-page="overview"] .schedule-analysis-panel,
+.content-wrap[data-trip-page="overview"] .itinerary-map-panel,
+.content-wrap[data-trip-page="overview"] .opening-hours-panel,
+.content-wrap[data-trip-page="overview"] .route-analysis-panel,
+.content-wrap[data-trip-page="overview"] .journey-timeline-panel,
+.content-wrap[data-trip-page="overview"] .flight-operations-panel,
+.content-wrap[data-trip-page="overview"] .ground-transfer-panel,
+.content-wrap[data-trip-page="overview"] .connection-intelligence-panel,
+.content-wrap[data-trip-page="overview"] .weather-disruption-panel,
+.content-wrap[data-trip-page="overview"] .group-workspace,
+.content-wrap[data-trip-page="overview"] .preference-workspace,
+.content-wrap[data-trip-page="overview"] .poll-workspace,
+.content-wrap[data-trip-page="overview"] .expense-workspace,
+.content-wrap[data-trip-page="overview"] .currency-intelligence-panel,
+.content-wrap[data-trip-page="overview"] .budget-workspace,
+.content-wrap[data-trip-page="overview"] .ai-planner-card,
+.content-wrap[data-trip-page="overview"] .recommendation-results,
+.content-wrap[data-trip-page="overview"] .ai-drafts-section,
+.content-wrap[data-trip-page="overview"] .itinerary-toolbar,
+.content-wrap[data-trip-page="overview"] .day-list{display:none!important}
+
+/* Itinerary dashboard */
+.content-wrap[data-trip-page="itinerary"] .trip-assistant-panel,
+.content-wrap[data-trip-page="itinerary"] .travel-context-panel,
+.content-wrap[data-trip-page="itinerary"] .journey-timeline-panel,
+.content-wrap[data-trip-page="itinerary"] .flight-operations-panel,
+.content-wrap[data-trip-page="itinerary"] .ground-transfer-panel,
+.content-wrap[data-trip-page="itinerary"] .connection-intelligence-panel,
+.content-wrap[data-trip-page="itinerary"] .weather-disruption-panel,
+.content-wrap[data-trip-page="itinerary"] .group-workspace,
+.content-wrap[data-trip-page="itinerary"] .preference-workspace,
+.content-wrap[data-trip-page="itinerary"] .poll-workspace,
+.content-wrap[data-trip-page="itinerary"] .expense-workspace,
+.content-wrap[data-trip-page="itinerary"] .currency-intelligence-panel,
+.content-wrap[data-trip-page="itinerary"] .budget-workspace{display:none!important}
+
+/* Flights & transport dashboard */
+.content-wrap[data-trip-page="flights"] .trip-assistant-panel,
+.content-wrap[data-trip-page="flights"] .travel-context-panel,
+.content-wrap[data-trip-page="flights"] .schedule-analysis-panel,
+.content-wrap[data-trip-page="flights"] .itinerary-map-panel,
+.content-wrap[data-trip-page="flights"] .opening-hours-panel,
+.content-wrap[data-trip-page="flights"] .route-analysis-panel,
+.content-wrap[data-trip-page="flights"] .weather-disruption-panel,
+.content-wrap[data-trip-page="flights"] .group-workspace,
+.content-wrap[data-trip-page="flights"] .preference-workspace,
+.content-wrap[data-trip-page="flights"] .poll-workspace,
+.content-wrap[data-trip-page="flights"] .expense-workspace,
+.content-wrap[data-trip-page="flights"] .currency-intelligence-panel,
+.content-wrap[data-trip-page="flights"] .budget-workspace,
+.content-wrap[data-trip-page="flights"] .ai-planner-card,
+.content-wrap[data-trip-page="flights"] .recommendation-results,
+.content-wrap[data-trip-page="flights"] .ai-drafts-section,
+.content-wrap[data-trip-page="flights"] .itinerary-toolbar,
+.content-wrap[data-trip-page="flights"] .day-list{display:none!important}
+
+/* Weather & attractions dashboard */
+.content-wrap[data-trip-page="weather"] .trip-assistant-panel,
+.content-wrap[data-trip-page="weather"] .travel-context-panel,
+.content-wrap[data-trip-page="weather"] .schedule-analysis-panel,
+.content-wrap[data-trip-page="weather"] .itinerary-map-panel,
+.content-wrap[data-trip-page="weather"] .route-analysis-panel,
+.content-wrap[data-trip-page="weather"] .journey-timeline-panel,
+.content-wrap[data-trip-page="weather"] .flight-operations-panel,
+.content-wrap[data-trip-page="weather"] .ground-transfer-panel,
+.content-wrap[data-trip-page="weather"] .connection-intelligence-panel,
+.content-wrap[data-trip-page="weather"] .group-workspace,
+.content-wrap[data-trip-page="weather"] .preference-workspace,
+.content-wrap[data-trip-page="weather"] .poll-workspace,
+.content-wrap[data-trip-page="weather"] .expense-workspace,
+.content-wrap[data-trip-page="weather"] .currency-intelligence-panel,
+.content-wrap[data-trip-page="weather"] .budget-workspace,
+.content-wrap[data-trip-page="weather"] .ai-planner-card,
+.content-wrap[data-trip-page="weather"] .recommendation-results,
+.content-wrap[data-trip-page="weather"] .ai-drafts-section,
+.content-wrap[data-trip-page="weather"] .itinerary-toolbar,
+.content-wrap[data-trip-page="weather"] .day-list{display:none!important}
+
+/* Group collaboration dashboard */
+.content-wrap[data-trip-page="group"] .trip-assistant-panel,
+.content-wrap[data-trip-page="group"] .travel-context-panel,
+.content-wrap[data-trip-page="group"] .schedule-analysis-panel,
+.content-wrap[data-trip-page="group"] .itinerary-map-panel,
+.content-wrap[data-trip-page="group"] .opening-hours-panel,
+.content-wrap[data-trip-page="group"] .route-analysis-panel,
+.content-wrap[data-trip-page="group"] .journey-timeline-panel,
+.content-wrap[data-trip-page="group"] .flight-operations-panel,
+.content-wrap[data-trip-page="group"] .ground-transfer-panel,
+.content-wrap[data-trip-page="group"] .connection-intelligence-panel,
+.content-wrap[data-trip-page="group"] .weather-disruption-panel,
+.content-wrap[data-trip-page="group"] .expense-workspace,
+.content-wrap[data-trip-page="group"] .currency-intelligence-panel,
+.content-wrap[data-trip-page="group"] .budget-workspace,
+.content-wrap[data-trip-page="group"] .ai-planner-card,
+.content-wrap[data-trip-page="group"] .recommendation-results,
+.content-wrap[data-trip-page="group"] .ai-drafts-section,
+.content-wrap[data-trip-page="group"] .itinerary-toolbar,
+.content-wrap[data-trip-page="group"] .day-list{display:none!important}
+
+/* Budget & expenses dashboard */
+.content-wrap[data-trip-page="budget"] .trip-assistant-panel,
+.content-wrap[data-trip-page="budget"] .travel-context-panel,
+.content-wrap[data-trip-page="budget"] .schedule-analysis-panel,
+.content-wrap[data-trip-page="budget"] .itinerary-map-panel,
+.content-wrap[data-trip-page="budget"] .opening-hours-panel,
+.content-wrap[data-trip-page="budget"] .route-analysis-panel,
+.content-wrap[data-trip-page="budget"] .journey-timeline-panel,
+.content-wrap[data-trip-page="budget"] .flight-operations-panel,
+.content-wrap[data-trip-page="budget"] .ground-transfer-panel,
+.content-wrap[data-trip-page="budget"] .connection-intelligence-panel,
+.content-wrap[data-trip-page="budget"] .weather-disruption-panel,
+.content-wrap[data-trip-page="budget"] .group-workspace,
+.content-wrap[data-trip-page="budget"] .preference-workspace,
+.content-wrap[data-trip-page="budget"] .poll-workspace,
+.content-wrap[data-trip-page="budget"] .ai-planner-card,
+.content-wrap[data-trip-page="budget"] .recommendation-results,
+.content-wrap[data-trip-page="budget"] .ai-drafts-section,
+.content-wrap[data-trip-page="budget"] .itinerary-toolbar,
+.content-wrap[data-trip-page="budget"] .day-list{display:none!important}
+
+/* Settings dashboard */
+.content-wrap[data-trip-page="settings"] .trip-assistant-panel,
+.content-wrap[data-trip-page="settings"] .schedule-analysis-panel,
+.content-wrap[data-trip-page="settings"] .itinerary-map-panel,
+.content-wrap[data-trip-page="settings"] .opening-hours-panel,
+.content-wrap[data-trip-page="settings"] .route-analysis-panel,
+.content-wrap[data-trip-page="settings"] .journey-timeline-panel,
+.content-wrap[data-trip-page="settings"] .flight-operations-panel,
+.content-wrap[data-trip-page="settings"] .ground-transfer-panel,
+.content-wrap[data-trip-page="settings"] .connection-intelligence-panel,
+.content-wrap[data-trip-page="settings"] .weather-disruption-panel,
+.content-wrap[data-trip-page="settings"] .group-workspace,
+.content-wrap[data-trip-page="settings"] .preference-workspace,
+.content-wrap[data-trip-page="settings"] .poll-workspace,
+.content-wrap[data-trip-page="settings"] .expense-workspace,
+.content-wrap[data-trip-page="settings"] .currency-intelligence-panel,
+.content-wrap[data-trip-page="settings"] .budget-workspace,
+.content-wrap[data-trip-page="settings"] .ai-planner-card,
+.content-wrap[data-trip-page="settings"] .recommendation-results,
+.content-wrap[data-trip-page="settings"] .ai-drafts-section,
+.content-wrap[data-trip-page="settings"] .itinerary-toolbar,
+.content-wrap[data-trip-page="settings"] .day-list{display:none!important}
+
+@media(max-width:850px){
+  .sidebar .trip-nav{display:flex;grid-column:1/-1;gap:6px;overflow-x:auto;width:100%;padding:4px 0 8px;margin-top:8px;scrollbar-width:thin}
+  .sidebar .trip-nav .side-link{display:flex;flex:0 0 auto;width:auto;padding:9px 11px;font-size:11px;white-space:nowrap}
+  .sidebar .trip-nav-label{display:block;grid-column:1/-1;padding:7px 0 0;margin:0}
+}
+@media(max-width:580px){
+  .trip-page-heading{align-items:flex-start}
+  .trip-page-heading h2{font-size:21px}
+  .trip-page-destination{font-size:10px}
+  .trip-overview-panel{padding:13px}
+  .trip-overview-stats{grid-template-columns:1fr}
+  .trip-overview-stats article{grid-template-columns:1fr auto;align-items:center}
+  .trip-overview-stats article span,.trip-overview-stats article small{grid-column:1}
+  .trip-overview-stats article strong{grid-column:2;grid-row:1/3;text-align:right;font-size:13px}
+  .trip-quick-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
