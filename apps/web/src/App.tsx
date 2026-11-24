@@ -1956,6 +1956,7 @@ export default function App() {
                 </> : <p className="trip-assistant-empty">Your trip briefing will appear here when you open this journey.</p>}
             </section>
 
+{activeTripPage === "settings" && <>
             <section className="travel-context-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 36 · TIME & OFFLINE</p><h2>Travel time settings</h2><small>Choose the timezone used to interpret this trip's local schedule and display UTC flights</small></div>
@@ -1982,6 +1983,9 @@ export default function App() {
               {offlineCachedAt && <p className="travel-context-note">{isOfflineSnapshot?"Viewing cached snapshot":"Offline copy saved"} · {new Date(offlineCachedAt).toLocaleString()}</p>}
               {isOfflineSnapshot && <p className="travel-context-warning">Read-only offline snapshot. Reconnect to refresh live data or make changes.</p>}
             </section>
+
+            </>}
+{activeTripPage === "itinerary" && <>
             {scheduleAnalysis && <section className="schedule-analysis-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGES 29–31 · SCHEDULE INTELLIGENCE</p><h2>Daily schedule review & optimization</h2><small>Detect every conflicting activity pair, including nested overlaps, and review short breaks</small></div>
@@ -2086,6 +2090,9 @@ export default function App() {
                   <div className="journey-timeline-content"><div className="journey-timeline-heading"><strong>{item.title}</strong><span>{item.status}</span></div><p>{item.timeLabel}</p><small>{item.subtitle}</small></div>
                 </article>)}</div>}
             </section>
+
+            </>}
+{activeTripPage === "flights" && <>
             <FlightsDashboard>
 <section className="flight-operations-panel">
               <div className="section-heading">
@@ -2213,6 +2220,9 @@ export default function App() {
               </div>}
               {!weatherAssessments.length && !weatherSkipped.length && <p className="budget-empty">{itinerary ? "No weather scan has been run yet. Add coordinates to outdoor activities, then scan the trip." : "Create an itinerary before scanning weather."}</p>}
             </section>
+
+            </>}
+{activeTripPage === "group" && <>
             <GroupDashboard
               memberCount={tripMembers.length}
               openPollCount={groupPolls.filter(poll => poll.status === "open").length}
@@ -2294,6 +2304,9 @@ export default function App() {
 
             
             </GroupDashboard>
+
+            </>}
+{activeTripPage === "budget" && <>
             <BudgetDashboard
               expenseCount={tripExpenses.length}
               reportingCurrency={budgetReportingCurrency}
@@ -2567,6 +2580,8 @@ export default function App() {
 
             
             </BudgetDashboard>
+
+            </>}
             {selectedTrip.currentUserRole === "owner" && <section className="ai-planner-card">
               <div className="ai-planner-heading"><div><p className="eyebrow">TRAVELOS INTELLIGENCE</p><h2>Start with an AI draft.</h2><p>Generate a suggested day-by-day plan, review it, then decide whether to apply it.</p></div><span className="ai-spark">✳</span></div>
               <form className="ai-options" onSubmit={generateAiDraft}>
