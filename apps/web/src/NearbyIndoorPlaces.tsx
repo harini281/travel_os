@@ -21,6 +21,47 @@ function distanceKm(aLat: number, aLon: number, bLat: number, bLon: number) {
   return 6371 * 2 * Math.atan2(Math.sqrt(value), Math.sqrt(1 - value));
 }
 
+
+type OpeningStatus = "open" | "closed" | "unknown";
+
+function openingStatus(hours: string | undefined, date: string | undefined, time: string | null | undefined): OpeningStatus {
+  if (!hours || !date || !time) return "unknown";
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(date);
+  const clock = /^(\\d{1,2}):(\\d{2})/.exec(time);
+  if (!match || !clock) return "unknown";
+  const weekday = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]))).getUTCDay();
+  const dayNames = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+  const minute = Number(clock[1]) * 60 + Number(clock[2]);
+  if (!Number.isFinite(minute) || minute < 0 || minute >= 1440) return "unknown";
+  const normalized = hours.trim();
+  if (normalized === "24/7") return "open";
+  if (/[;]|PH|SH|sunrise|sunset|\\+|\\[|\\]/i.test(normalized)) return "unknown";
+  const parts = normalized.split(/\\s+/);
+  const dayPart = parts.length > 1 ? parts[0] : "Mo-Su";
+  const timePart = parts.length > 1 ? parts.slice(1).join(" ") : parts[0];
+  if (timePart === "off" || timePart === "closed") return "closed";
+  const days = new Set<number>();
+  for (const segment of dayPart.split(",")) {
+    const range = segment.split("-");
+    const start = dayNames.indexOf(range[0]);
+    const end = dayNames.indexOf(range[1] ?? range[0]);
+    if (start < 0 || end < 0) return "unknown";
+    let cursor = start;
+    for (let count = 0; count < 7; count++) {
+      days.add(cursor);
+      if (cursor === end) break;
+      cursor = (cursor + 1) % 7;
+    }
+  }
+  if (!days.has(weekday)) return "closed";
+  if (!/^\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2}(,\\d{1,2}:\\d{2}-\\d{1,2}:\\d{2})*$/.test(timePart)) return "unknown";
+  const intervals = timePart.split(",").map(range => range.split("-").map(value => {
+    const [hour, mins] = value.split(":").map(Number);
+    return hour * 60 + mins;
+  }));
+  return intervals.some(([start, end]) => minute >= start && minute < end) ? "open" : "closed";
+}
+
 function placeType(tags: Record<string, string>) {
   return tags.amenity || tags.tourism || tags.leisure || tags.shop || "indoor attraction";
 }
@@ -316,8 +357,10 @@ export default function NearbyIndoorPlaces({ days, tripId, accessToken, canAddTo
       {places.map(place => <article className={`nearby-indoor-card ${selectedPlaceId === place.id ? "is-selected" : ""}`} key={`${place.id}-${place.name}`}>
         <div><span className="nearby-indoor-type">{place.type.replaceAll("_", " ")}</span><h3>{place.name}</h3>
           <p>{place.driveDurationMinutes != null ? `Approx. ${Math.max(1, Math.round(place.driveDurationMinutes))} min drive · ${place.driveDistanceKm?.toFixed(1)} km by road` : `${place.distanceKm.toFixed(1)} km straight-line distance · driving estimate unavailable`}</p>
-          {place.tags.opening_hours && <small>Listed hours: {place.tags.opening_hours}</small>}
-          {!place.tags.opening_hours && <small>Opening hours not listed — check before visiting</small>}
+          {(() => {
+            const availability = openingStatus(place.tags.opening_hours, selectedDay?.date, anchor?.startTime);
+            return <small>{availability === "open" ? "Listed hours suggest open at the planned visit time" : availability === "closed" ? "Listed hours suggest closed at the planned visit time" : "Opening status unverified — check the venue before visiting"}{place.tags.opening_hours ? ` · OSM: ${place.tags.opening_hours}` : ""}</small>;
+          })()}
         </div>
         <div className="nearby-indoor-actions"><button type="button" onClick={() => setSelectedPlaceId(selectedPlaceId === place.id ? null : place.id)}>{selectedPlaceId === place.id ? "Hide route" : "Show route"}</button>{canAddToItinerary && <button type="button" onClick={() => { setPendingAddPlaceId(pendingAddPlaceId === place.id ? null : place.id); setAddMessage(""); }}>Add to itinerary</button>}<a href={`https://www.openstreetmap.org/?mlat=${place.lat}&mlon=${place.lon}#map=17/${place.lat}/${place.lon}`} target="_blank" rel="noopener noreferrer">Open map ↗</a></div>
         {pendingAddPlaceId === place.id && <div className="nearby-indoor-confirm" role="group" aria-label={`Confirm adding ${place.name}`}>
