@@ -1412,3 +1412,38 @@
   font: inherit; font-size: 9px; cursor: pointer;
 }
 @media(max-width:700px) { .nearby-weather-risk { align-items: flex-start; flex-direction: column; } }
+
+
+/* Responsive dashboard hardening: prevent wide itinerary descendants from
+   expanding the document beyond the available viewport. */
+.content-wrap {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.content-wrap > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.content-wrap :is(.day-list, .day-card, .day-content, .activity-list, .activity-row,
+  .itinerary-map-panel, .itinerary-map-canvas, .nearby-indoor-panel,
+  .nearby-indoor-map-wrap, .nearby-indoor-map, .nearby-indoor-list,
+  .nearby-indoor-card, .nearby-weather-suggestions, .schedule-analysis-panel) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.content-wrap :is(.activity-row, .nearby-indoor-card, .nearby-weather-risk) {
+  overflow-wrap: anywhere;
+}
+.content-wrap :is(input, select, textarea, button) {
+  max-width: 100%;
+}
+@media (max-width: 650px) {
+  .content-wrap { padding-left: 12px; padding-right: 12px; }
+  .content-wrap .day-card { grid-template-columns: minmax(0, 1fr); }
+  .content-wrap .day-content { min-width: 0; padding: 14px 12px; }
+  .content-wrap .itinerary-map-canvas,
+  .content-wrap .nearby-indoor-map { width: 100%; max-width: 100%; }
+  .content-wrap .activity-row > * { min-width: 0; max-width: 100%; }
+}
