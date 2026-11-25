@@ -52,6 +52,11 @@ export async function openTrip(page: Page, tripName: string) {
   await expect(tripCard).toBeVisible();
   await tripCard.getByRole("button", { name: /Open itinerary/ }).click();
   await expect(page.getByRole("heading", { name: tripName, exact: true })).toBeVisible();
+  // Opening a trip lands on its overview dashboard; itinerary helpers explicitly enter the itinerary workspace.
+  const itineraryNavigation = page.getByRole("navigation", { name: "Trip dashboards" }).getByRole("button", { name: "Itinerary" });
+  await expect(itineraryNavigation).toBeVisible();
+  await itineraryNavigation.click();
+  await expect(page.locator(".itinerary-toolbar, .itinerary-empty")).toBeVisible();
 }
 
 export async function apiContextFor(page: Page) {
