@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import {
-  API_URL, apiContextFor, createTripThroughBrowser, openTrip,
+  API_URL, apiContextFor, createTripThroughBrowser, navigateTripDashboard, openTrip,
   registerThroughBrowser, signInThroughBrowser, TEST_PASSWORD, uniqueEmail,
 } from "./helpers.ts";
 
@@ -75,7 +75,9 @@ test.describe("TravelOS finance browser journeys", () => {
     const accounts = await inviteMemberThroughApi(page, tripName, ownerEmail);
     await page.reload();
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Travel together");
     await expect(page.locator(".member-list")).toContainText("E2E finance-member");
+    await navigateTripDashboard(page, "Budget & expenses");
 
     const expense = await createEqualExpense(page, "Shared lunch bill", ownerName, 2);
     await expect(expense).toContainText("1,000 LKR");
@@ -109,6 +111,7 @@ test.describe("TravelOS finance browser journeys", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
     await signInThroughBrowser(page, accounts.memberEmail);
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Budget & expenses");
     const transfer = page.locator(".settlement-transfers").filter({ hasText: "E2E finance-member" });
     await expect(transfer).toContainText(ownerName);
     await transfer.getByRole("button", { name: "Record repayment" }).click();
@@ -150,6 +153,7 @@ test.describe("TravelOS finance browser journeys", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
     await signInThroughBrowser(page, accounts.ownerEmail);
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Budget & expenses");
     const ownerPending = page.locator(".repayment-record").filter({ hasText: "Playwright repayment confirmation" });
     await expect(ownerPending.locator(".repayment-status")).toHaveText("pending");
     await ownerPending.getByRole("button", { name: "Confirm received" }).click();
@@ -172,7 +176,9 @@ test.describe("TravelOS finance browser journeys", () => {
     const tripName = `E2E Receipt ${Date.now()}`;
     await createTripThroughBrowser(page, tripName);
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Travel together");
     await expect(page.locator(".member-list")).toContainText(ownerName);
+    await navigateTripDashboard(page, "Budget & expenses");
 
     const expense = await createEqualExpense(page, "Receipt-linked lunch", ownerName, 1);
     await expect(expense).toBeVisible();
@@ -246,6 +252,7 @@ test.describe("TravelOS finance browser journeys", () => {
 
     await page.reload();
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Budget & expenses");
     await expect(page.locator(".receipt-card").filter({ hasText: "playwright-receipt.png" })).toHaveCount(2);
     await expect(page.locator(".receipt-card").filter({ hasText: "Manual review" })).toBeVisible();
   });
