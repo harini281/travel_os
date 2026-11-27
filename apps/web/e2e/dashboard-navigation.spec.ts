@@ -30,12 +30,13 @@ test.describe("TravelOS trip dashboard navigation", () => {
     await selectDashboard(/Itinerary/, "itinerary", "Itinerary planner");
     await expect(page.locator(".itinerary-empty")).toBeVisible();
     await expect(page.locator(".opening-hours-panel")).toBeVisible();
+    await expect(page.locator(".journey-timeline-panel")).toBeVisible();
     await expect(page.locator(".trip-assistant-panel")).toBeHidden();
     await expect(page.locator(".group-workspace")).toBeHidden();
 
     await selectDashboard(/Flights & transport/, "flights", "Flights & transport");
     await expect(page.locator(".flight-operations-panel")).toBeVisible();
-    await expect(page.locator(".journey-timeline-panel")).toBeVisible();
+    await expect(page.locator(".journey-timeline-panel")).toBeHidden();
     await expect(page.locator(".trip-assistant-panel")).toBeHidden();
     await expect(page.locator(".budget-workspace")).toBeHidden();
 

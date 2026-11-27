@@ -3,6 +3,7 @@ import {
   addActivityThroughBrowser,
   createItineraryAndDay,
   createTripThroughBrowser,
+  navigateTripDashboard,
   openTrip,
   registerThroughBrowser,
 } from "./helpers.ts";
@@ -42,6 +43,7 @@ test.describe("TravelOS desktop browser-engine compatibility", () => {
 
     await page.reload();
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Itinerary");
     await expect(
       page.locator(".activity-row").filter({ hasText: `Browser check ${browserName}` }),
     ).toBeVisible();

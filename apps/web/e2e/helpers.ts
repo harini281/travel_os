@@ -52,6 +52,7 @@ export async function openTrip(page: Page, tripName: string) {
   await expect(tripCard).toBeVisible();
   await tripCard.getByRole("button", { name: /Open itinerary/ }).click();
   await expect(page.getByRole("heading", { name: tripName, exact: true })).toBeVisible();
+  await expect(page.locator(".content-wrap")).toHaveAttribute("data-trip-page", "overview");
 }
 
 export async function apiContextFor(page: Page) {
@@ -61,7 +62,18 @@ export async function apiContextFor(page: Page) {
 }
 
 
+export async function navigateTripDashboard(page: Page, dashboard: "Overview" | "Itinerary" | "Flights & transport" | "Weather & places" | "Travel together" | "Budget & expenses" | "Trip settings") {
+  const navigation = page.getByRole("navigation", { name: "Trip dashboards" });
+  await navigation.locator("button").filter({ hasText: dashboard }).click();
+  const pageIds: Record<typeof dashboard, string> = {
+    "Overview": "overview", "Itinerary": "itinerary", "Flights & transport": "flights",
+    "Weather & places": "weather", "Travel together": "group", "Budget & expenses": "budget", "Trip settings": "settings"
+  };
+  await expect(page.locator(".content-wrap")).toHaveAttribute("data-trip-page", pageIds[dashboard]);
+}
+
 export async function createItineraryAndDay(page: Page, dayDate: string) {
+  await navigateTripDashboard(page, "Itinerary");
   const toolbar = page.locator(".itinerary-toolbar");
   const emptyState = page.locator(".itinerary-empty");
 

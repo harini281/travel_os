@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { API_URL, apiContextFor, addActivityThroughBrowser, createItineraryAndDay, createTripThroughBrowser, openTrip, registerThroughBrowser, signInThroughBrowser, TEST_PASSWORD, uniqueEmail } from "./helpers.ts";
+import { API_URL, apiContextFor, addActivityThroughBrowser, createItineraryAndDay, createTripThroughBrowser, navigateTripDashboard, openTrip, registerThroughBrowser, signInThroughBrowser, TEST_PASSWORD, uniqueEmail } from "./helpers.ts";
 
 test.describe("TravelOS browser end-to-end journeys", () => {
   test("registers, signs in, rejects bad credentials and protects authenticated API access", async ({ page }) => {
@@ -56,6 +56,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
 
     await page.reload();
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Itinerary");
     await expect(page.locator(".approval-pill")).toContainText("APPROVED");
     await expect(page.locator(".activity-row").filter({ hasText: "Morning museum" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Approve plan" })).toHaveCount(0);
@@ -134,6 +135,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
     // A refresh forces the time to be reloaded from the real PostgreSQL-backed API.
     await page.reload();
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Itinerary");
     await expect(page.locator(".day-card .activity-row").filter({ hasText: "Botanical Garden Walk" }).locator(".activity-time"))
       .toContainText(selectedStart);
     await expect(page.locator(".day-card .activity-row").filter({ hasText: "Botanical Garden Walk" }).locator(".activity-time"))
@@ -163,6 +165,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
 
     await page.reload();
     await openTrip(page, tripName);
+    await navigateTripDashboard(page, "Itinerary");
     const unscheduledAfterRefresh = page.locator(".day-card .activity-row").filter({ hasText: "Riverside Art Walk" });
     await expect(unscheduledAfterRefresh).toBeVisible();
     await expect(unscheduledAfterRefresh.locator(".activity-time")).toHaveCount(0);
@@ -215,6 +218,7 @@ test.describe("TravelOS browser end-to-end journeys", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
       await signInThroughBrowser(page, memberEmail);
       await openTrip(page, tripName);
+      await navigateTripDashboard(page, "Itinerary");
       await expect(page.locator(".day-card .activity-row").filter({ hasText: "Member visible museum" })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Improve a day in your itinerary" })).toHaveCount(0);
       await expect(page.getByRole("button", { name: /Add a day/ })).toHaveCount(0);

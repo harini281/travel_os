@@ -1105,3 +1105,345 @@
 .content-wrap[data-trip-page]:not([data-trip-page="itinerary"]) .itinerary-empty {
   display: none !important;
 }
+
+
+/* Premium trip workspace polish */
+.trip-nav .side-link {
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 13px;
+  border-radius: 10px;
+  color: #c6d0c8;
+  transition: background .18s ease, color .18s ease, transform .18s ease;
+}
+.trip-nav .side-link.selected {
+  background: linear-gradient(100deg, rgba(217,166,111,.19), rgba(217,166,111,.07));
+  color: #fff;
+  box-shadow: inset 3px 0 #d9a66f;
+}
+.trip-nav .side-link:focus-visible,
+.trip-quick-actions button:focus-visible {
+  outline: 3px solid #d9a66f;
+  outline-offset: 3px;
+}
+.trip-page-heading {
+  background: linear-gradient(110deg, #fff 0%, #fbfcfa 100%);
+  border: 1px solid #e8ece6;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+}
+.trip-page-destination { white-space: nowrap; }
+.trip-overview-panel,
+.group-dashboard,
+.budget-dashboard,
+.flights-dashboard {
+  box-shadow: 0 8px 26px rgba(35, 53, 43, .045);
+}
+.flights-dashboard-heading,
+.group-dashboard-heading,
+.budget-dashboard-heading {
+  margin: 0 0 16px;
+  padding: 18px 20px;
+  border: 1px solid #e7ece5;
+  border-radius: 14px;
+  background: linear-gradient(115deg, #fff, #f7faf6);
+}
+.flights-dashboard-heading h2,
+.group-dashboard-heading h2,
+.budget-dashboard-heading h2 {
+  margin: 3px 0 6px;
+  color: #26382e;
+  font-size: 20px;
+  letter-spacing: -.45px;
+}
+.flights-dashboard-heading p:last-child,
+.group-dashboard-heading p:last-child,
+.budget-dashboard-heading p:last-child {
+  color: #78857c;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.group-dashboard-summary,
+.budget-dashboard-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 20px;
+  color: #77847b;
+  font-size: 11px;
+}
+.group-dashboard-summary strong,
+.budget-dashboard-summary strong { color: #34483b; }
+@media (max-width: 850px) {
+  .sidebar { position: relative; display: block; padding: 14px 18px 12px; }
+  .sidebar .brand { display: inline-flex; margin-bottom: 12px; }
+  .sidebar .side-label,
+  .sidebar > .side-link,
+  .sidebar .side-note { display: none; }
+  .sidebar .trip-nav-label { display: block; margin: 0 0 8px; font-size: 9px; }
+  .trip-nav {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 2px 2px 8px;
+    margin: 0;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .trip-nav .side-link {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 38px;
+    white-space: nowrap;
+    padding: 8px 11px;
+    border: 1px solid rgba(255,255,255,.09);
+    border-radius: 9px;
+    font-size: 11px;
+  }
+  .trip-nav .side-link.selected { box-shadow: inset 0 -2px #d9a66f; }
+  .sidebar .sidebar-bottom { display: none; }
+}
+@media (max-width: 580px) {
+  .trip-page-heading { align-items: flex-start; padding: 15px; }
+  .trip-page-heading h2 { font-size: 21px; }
+  .trip-page-destination { max-width: 42%; overflow: hidden; text-overflow: ellipsis; }
+  .trip-overview-stats { grid-template-columns: 1fr; }
+  .trip-quick-actions { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .flights-dashboard-heading,
+  .group-dashboard-heading,
+  .budget-dashboard-heading { padding: 15px; }
+}
+
+
+.itinerary-map-weather {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  border: 1px solid #e3ebe3;
+  border-radius: 12px;
+  background: linear-gradient(110deg, #f8fbf7, #fff);
+  color: #657468;
+  font-size: 10px;
+}
+.itinerary-map-weather > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+.itinerary-map-weather .eyebrow {
+  margin: 0;
+  color: #8a978c;
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+.itinerary-map-weather > div:first-child strong {
+  color: #354a3a;
+  font-size: 13px;
+}
+.itinerary-map-weather > div:first-child small {
+  color: #849187;
+  font-size: 9px;
+}
+.itinerary-weather-values {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.itinerary-weather-values strong {
+  color: #354a3a;
+  font-size: 16px;
+}
+.itinerary-weather-values span { color: #718075; }
+@media(max-width:680px) {
+  .itinerary-map-weather { align-items: flex-start; flex-direction: column; }
+  .itinerary-weather-values { gap: 8px; }
+}
+
+
+.itinerary-weather-advice {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid #e5eae4;
+  background: #f7faf7;
+  color: #657468;
+  font-size: 10px;
+  line-height: 1.55;
+}
+.itinerary-weather-advice strong { color: #3c5142; font-size: 11px; }
+.itinerary-weather-advice.is-caution {
+  border-color: #eee2c9;
+  background: #fffaf0;
+}
+.itinerary-weather-advice.is-caution strong { color: #8a652a; }
+.itinerary-weather-advice.is-warning {
+  border-color: #efd7d2;
+  background: #fff6f4;
+}
+.itinerary-weather-advice.is-warning strong { color: #a04e42; }
+
+
+.nearby-indoor-panel {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid #e5ebe4;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 8px 26px rgba(35,53,43,.04);
+}
+.nearby-indoor-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.nearby-indoor-heading h2 { margin: 3px 0 5px; color: #26382e; font-size: 19px; }
+.nearby-indoor-heading p:last-child { margin: 0; color: #78857c; font-size: 11px; line-height: 1.6; }
+.nearby-indoor-radius {
+  flex: 0 0 auto; padding: 6px 9px; border-radius: 99px;
+  background: #f1f6f0; color: #55705b; font-size: 9px;
+}
+.nearby-indoor-day { display: grid; gap: 6px; max-width: 320px; color: #657468; font-size: 10px; }
+.nearby-indoor-day select {
+  width: 100%; border: 1px solid #dfe7de; border-radius: 9px;
+  padding: 9px 11px; background: #fff; color: #34483b;
+}
+.nearby-indoor-anchor,.nearby-indoor-status { margin: 0; color: #718075; font-size: 10px; line-height: 1.6; }
+.nearby-indoor-anchor strong { color: #405747; }
+.nearby-indoor-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.nearby-indoor-card {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 13px; border: 1px solid #e8ede7; border-radius: 11px; background: #fbfcfa;
+}
+.nearby-indoor-card h3 { margin: 4px 0; color: #354a3a; font-size: 13px; }
+.nearby-indoor-card p,.nearby-indoor-card small { display: block; margin: 3px 0; color: #7d897f; font-size: 9px; line-height: 1.5; }
+.nearby-indoor-type { color: #8a978c; font-size: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.nearby-indoor-card a { flex: 0 0 auto; color: #557b61; font-size: 9px; text-decoration: none; }
+.nearby-indoor-card a:hover { text-decoration: underline; }
+.nearby-indoor-disclaimer { margin: 0; color: #929c93; font-size: 9px; line-height: 1.6; }
+@media(max-width:700px) {
+  .nearby-indoor-panel { padding: 15px; }
+  .nearby-indoor-heading { flex-direction: column; }
+  .nearby-indoor-list { grid-template-columns: 1fr; }
+  .nearby-indoor-card { flex-direction: column; }
+}
+
+
+.nearby-indoor-map-wrap { display: grid; gap: 8px; }
+.nearby-indoor-map {
+  width: 100%; height: 340px; border: 1px solid #e4eae4;
+  border-radius: 12px; overflow: hidden; z-index: 0;
+}
+.nearby-indoor-map-legend { display: flex; flex-wrap: wrap; gap: 14px; color: #77857a; font-size: 9px; }
+.nearby-indoor-map-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.nearby-origin-key,.nearby-place-key { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.nearby-origin-key { background: #b47b43; }
+.nearby-place-key { background: #287b62; }
+.nearby-indoor-route-status { margin: 0; color: #718075; font-size: 10px; }
+.nearby-indoor-card.is-selected { border-color: #b47b43; background: #fffaf4; }
+.nearby-indoor-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: 0 0 auto; }
+.nearby-indoor-actions button {
+  border: 1px solid #dce6dc; border-radius: 7px; padding: 6px 8px;
+  background: #f5f8f4; color: #48634e; font: inherit; font-size: 9px; cursor: pointer;
+}
+.nearby-map-origin,.nearby-map-marker { background: transparent; border: 0; }
+.nearby-map-origin span,.nearby-map-marker span {
+  display: grid; place-items: center; width: 28px; height: 28px;
+  border: 2px solid #fff; border-radius: 50%; box-shadow: 0 2px 8px #24392c55;
+  color: white; font-size: 15px; font-weight: 700;
+}
+.nearby-map-origin span { background: #b47b43; }
+.nearby-map-marker span { background: #287b62; }
+@media(max-width:700px) {
+  .nearby-indoor-map { height: 290px; }
+  .nearby-indoor-actions { align-items: flex-start; flex-direction: row; flex-wrap: wrap; }
+}
+
+
+.nearby-indoor-confirm {
+  display: grid; grid-template-columns: 1fr auto auto; align-items: center;
+  gap: 8px; padding: 10px; border: 1px solid #eadcc9;
+  border-radius: 9px; background: #fffaf3; color: #6e6252;
+  font-size: 9px; line-height: 1.55;
+}
+.nearby-indoor-confirm button {
+  border: 1px solid #d9e3d8; border-radius: 7px; padding: 7px 9px;
+  background: #fff; color: #48634e; font: inherit; font-size: 9px; cursor: pointer;
+}
+.nearby-indoor-confirm button:first-of-type {
+  border-color: #476d52; background: #476d52; color: white;
+}
+.nearby-indoor-confirm button:disabled { opacity: .55; cursor: wait; }
+.nearby-indoor-add-message { margin: 0; color: #476d52; font-size: 10px; line-height: 1.6; }
+@media(max-width:700px) {
+  .nearby-indoor-confirm { grid-template-columns: 1fr 1fr; }
+  .nearby-indoor-confirm span { grid-column: 1 / -1; }
+}
+
+
+.nearby-weather-suggestions {
+  display: grid; gap: 10px; padding: 14px;
+  border: 1px solid #eadfce; border-radius: 12px; background: #fffdf8;
+}
+.nearby-weather-suggestions h3 { margin: 3px 0 4px; color: #354a3a; font-size: 13px; }
+.nearby-weather-suggestions > div > p:last-child { margin: 0; color: #78857b; font-size: 10px; line-height: 1.55; }
+.nearby-weather-risk {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 11px; border: 1px solid #eee6d9; border-radius: 9px; background: #fff;
+}
+.nearby-weather-risk > div { display: grid; gap: 5px; }
+.nearby-weather-risk strong { color: #46594a; font-size: 11px; }
+.nearby-weather-risk p { margin: 0; color: #788078; font-size: 10px; line-height: 1.5; }
+.nearby-weather-risk small { color: #8b938c; font-size: 9px; }
+.nearby-weather-severity { width: fit-content; border-radius: 99px; padding: 3px 7px; font-size: 8px; text-transform: uppercase; }
+.nearby-weather-severity.high { background: #f9e9e5; color: #a64d3c; }
+.nearby-weather-severity.moderate { background: #fff1d9; color: #93651d; }
+.nearby-weather-risk button {
+  flex: 0 0 auto; border: 1px solid #dce6dc; border-radius: 7px;
+  padding: 8px 10px; background: #f5f8f4; color: #48634e;
+  font: inherit; font-size: 9px; cursor: pointer;
+}
+@media(max-width:700px) { .nearby-weather-risk { align-items: flex-start; flex-direction: column; } }
+
+
+/* Responsive dashboard hardening: prevent wide itinerary descendants from
+   expanding the document beyond the available viewport. */
+.content-wrap {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+}
+.content-wrap > * {
+  min-width: 0;
+  max-width: 100%;
+}
+.content-wrap :is(.day-list, .day-card, .day-content, .activity-list, .activity-row,
+  .itinerary-map-panel, .itinerary-map-canvas, .nearby-indoor-panel,
+  .nearby-indoor-map-wrap, .nearby-indoor-map, .nearby-indoor-list,
+  .nearby-indoor-card, .nearby-weather-suggestions, .schedule-analysis-panel) {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+}
+.content-wrap :is(.activity-row, .nearby-indoor-card, .nearby-weather-risk) {
+  overflow-wrap: anywhere;
+}
+.content-wrap :is(input, select, textarea, button) {
+  max-width: 100%;
+}
+@media (max-width: 650px) {
+  .content-wrap { padding-left: 12px; padding-right: 12px; }
+  .content-wrap .day-card { grid-template-columns: minmax(0, 1fr); }
+  .content-wrap .day-content { min-width: 0; padding: 14px 12px; }
+  .content-wrap .itinerary-map-canvas,
+  .content-wrap .nearby-indoor-map { width: 100%; max-width: 100%; }
+  .content-wrap .activity-row > * { min-width: 0; max-width: 100%; }
+}

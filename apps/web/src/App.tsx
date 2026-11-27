@@ -1,5 +1,11 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import ItineraryMap from "./ItineraryMap";
+import NearbyIndoorPlaces from "./NearbyIndoorPlaces";
+import BudgetDashboard from "./BudgetDashboard";
+import GroupDashboard from "./GroupDashboard";
+import FlightsDashboard from "./FlightsDashboard";
+import ItineraryDashboard from "./ItineraryDashboard";
+import TripOverview from "./TripOverview";
 import { readOfflineItinerary, readOfflineTripIndex, removeOfflineItinerary, saveOfflineItinerary, saveOfflineTripIndex } from "./offlineItinerary";
 
 const API_URL = import.meta.env.VITE_PLATFORM_API_URL ?? "http://localhost:8080";
@@ -1911,20 +1917,17 @@ export default function App() {
               <div><p className="eyebrow">TRIP WORKSPACE</p><h2>{tripPageMeta[activeTripPage]?.title ?? "Trip overview"}</h2><p>{tripPageMeta[activeTripPage]?.description ?? "Your journey at a glance."}</p></div>
               <span className="trip-page-destination">{selectedTrip.destination}</span>
             </section>
-            {activeTripPage === "overview" && <section className="trip-overview-panel">
-              <div className="trip-overview-stats">
-                <article><span>TRIP DATES</span><strong>{formatDate(selectedTrip.startDate)} – {formatDate(selectedTrip.endDate)}</strong><small>{selectedTrip.currencyCode} · {selectedTrip.currentUserRole}</small></article>
-                <article><span>ITINERARY</span><strong>{itinerary?.days.length ?? 0} days planned</strong><small>{itinerary?.days.reduce((sum, day) => sum + day.activities.length, 0) ?? 0} activities saved</small></article>
-                <article><span>TRAVELLERS</span><strong>{tripMembers.length || selectedTrip.memberCount}</strong><small>People in this journey</small></article>
-              </div>
-              <div className="trip-quick-actions">
-                <button onClick={() => setActiveTripPage("itinerary")}><span>▤</span><strong>Plan your days</strong><small>Activities, maps and schedule</small><b>Open planner →</b></button>
-                <button onClick={() => setActiveTripPage("flights")}><span>✈</span><strong>Manage transport</strong><small>Flights and airport transfers</small><b>View transport →</b></button>
-                <button onClick={() => setActiveTripPage("group")}><span>♧</span><strong>Invite your group</strong><small>Travellers and shared decisions</small><b>Manage group →</b></button>
-                <button onClick={() => setActiveTripPage("budget")}><span>＄</span><strong>Track spending</strong><small>Budget and shared expenses</small><b>Open finances →</b></button>
-              </div>
-            </section>}
-            <section className="trip-assistant-panel">
+            {activeTripPage === "overview" && <TripOverview
+              tripDates={`${formatDate(selectedTrip.startDate)} – ${formatDate(selectedTrip.endDate)}`}
+              currencyCode={selectedTrip.currencyCode}
+              role={selectedTrip.currentUserRole}
+              plannedDays={itinerary?.days.length ?? 0}
+              savedActivities={itinerary?.days.reduce((sum, day) => sum + day.activities.length, 0) ?? 0}
+              travellers={tripMembers.length || selectedTrip.memberCount}
+              onNavigate={setActiveTripPage}
+            />}
+            {activeTripPage === "overview" && <>
+<section className="trip-assistant-panel">
               <div className="trip-assistant-heading">
                 <div><p className="eyebrow">STAGE 38 · CONTEXTUAL TRIP ASSISTANT</p><h2>Your trip briefing</h2><p>Ask about your itinerary, budget, flights, weather and reminders. I’ll use the trip information saved in TravelOS.</p></div>
                 <button type="button" className="btn btn-primary" onClick={() => selectedTrip && loadTripAssistantBriefing(selectedTrip)} disabled={loadingAssistantBriefing || !isOnline}>{loadingAssistantBriefing ? "Reviewing trip…" : "Refresh briefing"}</button>
@@ -1955,6 +1958,9 @@ export default function App() {
                 </> : <p className="trip-assistant-empty">Your trip briefing will appear here when you open this journey.</p>}
             </section>
 
+</>}
+
+{activeTripPage === "settings" && <>
             <section className="travel-context-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 36 · TIME & OFFLINE</p><h2>Travel time settings</h2><small>Choose the timezone used to interpret this trip's local schedule and display UTC flights</small></div>
@@ -1981,6 +1987,9 @@ export default function App() {
               {offlineCachedAt && <p className="travel-context-note">{isOfflineSnapshot?"Viewing cached snapshot":"Offline copy saved"} · {new Date(offlineCachedAt).toLocaleString()}</p>}
               {isOfflineSnapshot && <p className="travel-context-warning">Read-only offline snapshot. Reconnect to refresh live data or make changes.</p>}
             </section>
+
+            </>}
+{activeTripPage === "itinerary" && <>
             {scheduleAnalysis && <section className="schedule-analysis-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGES 29–31 · SCHEDULE INTELLIGENCE</p><h2>Daily schedule review & optimization</h2><small>Detect every conflicting activity pair, including nested overlaps, and review short breaks</small></div>
@@ -2020,6 +2029,7 @@ export default function App() {
               <p className="schedule-analysis-disclaimer">{scheduleAnalysis.disclaimer}</p>
             </section>}
             {itinerary && <ItineraryMap days={itinerary.days} />}
+            {itinerary && selectedTrip && <NearbyIndoorPlaces days={itinerary.days} tripId={selectedTrip.id} accessToken={token} canAddToItinerary={canEditItinerary} weatherAssessments={weatherAssessments} onAdded={() => loadItinerary(selectedTrip)} />}
             <section className="opening-hours-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 34 · ATTRACTION INTELLIGENCE</p><h2>Check attraction opening hours</h2><small>Compare scheduled visits with published weekly opening times</small></div>
@@ -2085,7 +2095,11 @@ export default function App() {
                   <div className="journey-timeline-content"><div className="journey-timeline-heading"><strong>{item.title}</strong><span>{item.status}</span></div><p>{item.timeLabel}</p><small>{item.subtitle}</small></div>
                 </article>)}</div>}
             </section>
-            <section className="flight-operations-panel">
+
+            </>}
+{activeTripPage === "flights" && <>
+            <FlightsDashboard>
+<section className="flight-operations-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 24 · JOURNEY OPERATIONS</p><h2>Flight tracking</h2><small>Keep flight details alongside your trip itinerary</small></div>
                 <button type="button" className="btn btn-primary" onClick={() => setShowAddFlight(value => !value)}>{showAddFlight ? "Close form" : "＋ Add flight"}</button>
@@ -2170,6 +2184,10 @@ export default function App() {
                   </article>)}</div>}
               <p className="connection-disclaimer">{connectionDisclaimer || "Heuristic estimates only. Check airline minimum connection times and airport rules."}</p>
             </section>
+            
+            </FlightsDashboard>
+            </>}
+            {activeTripPage === "weather" && <>
             <section className="weather-disruption-panel">
               <div className="section-heading">
                 <div><p className="eyebrow">STAGE 23 · TRAVEL OPERATIONS</p><h2>Weather disruption watch</h2><small>Forecast evidence for your scheduled activities</small></div>
@@ -2209,7 +2227,15 @@ export default function App() {
               </div>}
               {!weatherAssessments.length && !weatherSkipped.length && <p className="budget-empty">{itinerary ? "No weather scan has been run yet. Add coordinates to outdoor activities, then scan the trip." : "Create an itinerary before scanning weather."}</p>}
             </section>
-            <section className="group-workspace">
+
+            </>}
+{activeTripPage === "group" && <>
+            <GroupDashboard
+              memberCount={tripMembers.length}
+              openPollCount={groupPolls.filter(poll => poll.status === "open").length}
+              completedPreferenceCount={groupPreferences.length}
+            >
+<section className="group-workspace">
               <div className="section-heading"><div><p className="eyebrow">TRAVEL TOGETHER</p><h2>Trip members</h2></div><span className="count-label">{tripMembers.length} TRAVELLERS</span></div>
               <div className="member-list">{tripMembers.map(member => <div className="member-row" key={member.userId}>
                 <span className="member-avatar">{initials(member.displayName)}</span>
@@ -2283,7 +2309,16 @@ export default function App() {
             </section>
 
 
-            <section className="expense-workspace">
+            
+            </GroupDashboard>
+
+            </>}
+{activeTripPage === "budget" && <>
+            <BudgetDashboard
+              expenseCount={tripExpenses.length}
+              reportingCurrency={budgetReportingCurrency}
+            >
+<section className="expense-workspace">
               <div className="section-heading"><div><p className="eyebrow">SHARED TRIP COSTS</p><h2>Expense tracker</h2></div><span className="count-label">{tripExpenses.length} EXPENSES</span></div>
               <p className="expense-intro">Record a payment, choose who shared it and split the cost equally, by percentage or by exact amounts.</p>
               <form className="expense-create-form" onSubmit={createTripExpense}>
@@ -2550,6 +2585,10 @@ export default function App() {
               </> : <p className="budget-empty">{selectedTrip.currentUserRole === "owner" ? "Set a budget cap to start tracking planned trip costs." : "The trip owner hasn't set a budget yet."}</p>}
             </section>
 
+            
+            </BudgetDashboard>
+
+            </>}
             {selectedTrip.currentUserRole === "owner" && <section className="ai-planner-card">
               <div className="ai-planner-heading"><div><p className="eyebrow">TRAVELOS INTELLIGENCE</p><h2>Start with an AI draft.</h2><p>Generate a suggested day-by-day plan, review it, then decide whether to apply it.</p></div><span className="ai-spark">✳</span></div>
               <form className="ai-options" onSubmit={generateAiDraft}>
@@ -2579,6 +2618,12 @@ export default function App() {
                   <h4>{item.title}</h4><p>{item.reason}</p>
                   <div className="recommendation-meta">{item.suggestedDurationMinutes && <span>◷ {item.suggestedDurationMinutes} min</span>}{item.estimatedCost!==null && <span>≈ {item.estimatedCost.toLocaleString()} {item.currencyCode || selectedTrip.currencyCode}</span>}<span>{item.bestFor}</span></div>
                   <small>{item.verificationNote}</small>
+                  {item.category === "weather_alternative" && <a
+                    className="recommendation-place-search"
+                    href={`https://www.openstreetmap.org/search?query=${encodeURIComponent(`indoor attractions near ${selectedTrip.destination}`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >Explore indoor places in {selectedTrip.destination} ↗</a>}
                   {selectedTrip.currentUserRole === "owner" && !isRecommendationAdded(item) && !itinerary?.isApproved && <>
                     <button type="button" className="btn btn-quiet" onClick={() => suggestRecommendationSchedule(item)} disabled={scheduleRecommendationTitle !== null || !item.suggestedDurationMinutes}>
                       {scheduleRecommendationTitle === item.title ? "Finding a slot…" : "Find a suitable time"}
@@ -2628,10 +2673,15 @@ export default function App() {
             {loadingItinerary ? <section className="empty-state"><p>Loading your itinerary…</p></section> :
               !itinerary ? <section className="empty-state itinerary-empty"><div className="empty-icon">✳</div><h3>Your itinerary starts here.</h3><p>Create a day-by-day plan for {selectedTrip.destination}. Add places and activities, then approve it when you're happy.</p>{selectedTrip.currentUserRole === "owner" && <button className="btn btn-primary" disabled={busy} onClick={createItinerary}>Create itinerary →</button>}</section> :
               <>
-                <section className="itinerary-toolbar">
-                  <div><strong>{itinerary.days.length} planned days</strong><span>{itinerary.days.reduce((sum, day) => sum + day.activities.length, 0)} activities</span></div>
-                  {canEditItinerary && <div className="toolbar-actions"><button className="btn btn-quiet" onClick={() => setShowAddDay(v => !v)}>＋ Add a day</button><button className="btn btn-primary" disabled={busy || itinerary.days.every(day => day.activities.length === 0)} onClick={approveItinerary}>Approve plan</button></div>}
-                </section>
+                <ItineraryDashboard
+                  plannedDays={itinerary.days.length}
+                  activityCount={itinerary.days.reduce((sum, day) => sum + day.activities.length, 0)}
+                  canEdit={canEditItinerary}
+                  busy={busy}
+                  hasActivities={itinerary.days.some(day => day.activities.length > 0)}
+                  onAddDay={() => setShowAddDay(v => !v)}
+                  onApprove={approveItinerary}
+                />
                 {showAddDay && canEditItinerary && <form className="add-day-form" onSubmit={addDay}><label>Choose a date within your trip<input type="date" min={selectedTrip.startDate} max={selectedTrip.endDate} value={newDayDate} onChange={e => setNewDayDate(e.target.value)} required /></label><button className="btn btn-primary" disabled={busy || !newDayDate}>Add day</button><button type="button" className="btn btn-quiet" onClick={() => setShowAddDay(false)}>Cancel</button></form>}
                 {itinerary.isApproved && <div className="approved-note">This itinerary has been approved and is now read-only.</div>}
                 {itinerary.days.length === 0 ? <section className="empty-state"><h3>No days added yet.</h3><p>Add a date from your trip to start building your itinerary.</p></section> :
